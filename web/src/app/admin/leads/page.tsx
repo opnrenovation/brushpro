@@ -40,7 +40,6 @@ export default function LeadsPage() {
   const { data } = useQuery({
     queryKey: ['leads'],
     queryFn: () => leadsApi.list(),
-    placeholderData: { data: { data: FALLBACK } },
   });
 
   const stageMutation = useMutation({

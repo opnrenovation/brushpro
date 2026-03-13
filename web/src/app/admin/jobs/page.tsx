@@ -23,7 +23,7 @@ export default function JobsPage() {
   const [status, setStatus] = useState('ALL');
   const [search, setSearch] = useState('');
 
-  const { data } = useQuery({ queryKey: ['jobs'], queryFn: () => jobsApi.list(), placeholderData: { data: { data: FALLBACK } } });
+  const { data } = useQuery({ queryKey: ['jobs'], queryFn: () => jobsApi.list() });
   const jobs: Job[] = data?.data?.data || data?.data || FALLBACK;
 
   const filtered = jobs.filter((j) => {
