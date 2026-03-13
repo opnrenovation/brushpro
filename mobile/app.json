@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "BrushPro",
+    "slug": "brushpro",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "brushpro",
+    "userInterfaceStyle": "dark",
+    "splash": { "backgroundColor": "#0A0A0F" },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.brushpro.app" },
+    "android": { "adaptiveIcon": { "backgroundColor": "#0A0A0F" }, "package": "com.brushpro.app" },
+    "plugins": ["expo-router"]
+  }
+}

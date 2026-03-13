@@ -1,0 +1,182 @@
+'use client';
+import { useState } from 'react';
+import Link from 'next/link';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Target, Plus, Search } from 'lucide-react';
+import { leadsApi } from '@/lib/api';
+
+const STAGES = ['NEW', 'CONTACTED', 'APPOINTMENT', 'ESTIMATE_SENT', 'NEGOTIATING', 'WON', 'LOST'];
+
+const STAGE_COLORS: Record<string, string> = {
+  NEW: '#007AFF', CONTACTED: '#FF9500', APPOINTMENT: '#5856D6',
+  ESTIMATE_SENT: '#007AFF', NEGOTIATING: '#FF9500', WON: '#34C759', LOST: '#FF3B30',
+};
+
+interface Lead {
+  id: string;
+  stage: string;
+  source: string;
+  service_needed: string | null;
+  created_at: string;
+  updated_at: string;
+  contact: { first_name: string; last_name: string; email: string; phone: string | null };
+  estimate: { estimate_number: string; status: string } | null;
+}
+
+function daysSince(d: string) { return Math.floor((Date.now() - new Date(d).getTime()) / 86400000); }
+
+const FALLBACK: Lead[] = [
+  { id: '1', stage: 'NEW', source: 'WEBSITE_FORM', service_needed: 'Residential Painting', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), contact: { first_name: 'Sarah', last_name: 'Mitchell', email: 'sarah@example.com', phone: '(515) 555-0101' }, estimate: null },
+  { id: '2', stage: 'APPOINTMENT', source: 'REFERRAL', service_needed: 'Interior Painting', created_at: new Date(Date.now() - 86400000 * 2).toISOString(), updated_at: new Date(Date.now() - 86400000).toISOString(), contact: { first_name: 'Daniel', last_name: 'Park', email: 'dpark@example.com', phone: '(515) 555-0202' }, estimate: null },
+  { id: '3', stage: 'ESTIMATE_SENT', source: 'MANUAL', service_needed: 'Cabinet Painting', created_at: new Date(Date.now() - 86400000 * 5).toISOString(), updated_at: new Date(Date.now() - 86400000).toISOString(), contact: { first_name: 'Kim', last_name: 'Nguyen', email: 'kim@example.com', phone: null }, estimate: { estimate_number: 'EST-0041', status: 'SENT' } },
+  { id: '4', stage: 'WON', source: 'WEBSITE_FORM', service_needed: 'Exterior Painting', created_at: new Date(Date.now() - 86400000 * 10).toISOString(), updated_at: new Date(Date.now() - 86400000 * 3).toISOString(), contact: { first_name: 'Tom', last_name: 'Eriksen', email: 'tom@example.com', phone: '(515) 555-0404' }, estimate: { estimate_number: 'EST-0039', status: 'APPROVED' } },
+];
+
+export default function LeadsPage() {
+  const [view, setView] = useState<'kanban' | 'list'>('kanban');
+  const [search, setSearch] = useState('');
+  const qc = useQueryClient();
+
+  const { data } = useQuery({
+    queryKey: ['leads'],
+    queryFn: () => leadsApi.list(),
+    placeholderData: { data: { data: FALLBACK } },
+  });
+
+  const stageMutation = useMutation({
+    mutationFn: ({ id, stage }: { id: string; stage: string }) => leadsApi.update(id, { stage }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['leads'] }),
+  });
+
+  const leads: Lead[] = data?.data?.data || data?.data || FALLBACK;
+  const filtered = leads.filter((l) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return `${l.contact.first_name} ${l.contact.last_name}`.toLowerCase().includes(q) ||
+      l.service_needed?.toLowerCase().includes(q) || l.contact.email.toLowerCase().includes(q);
+  });
+
+  const total = leads.length;
+  const won = leads.filter((l) => l.stage === 'WON').length;
+  const winRate = total > 0 ? Math.round((won / total) * 100) : 0;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <Target size={20} color="#007AFF" strokeWidth={1.5} />
+            <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff' }}>Lead Pipeline</h1>
+          </div>
+          <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14 }}>
+            {total} leads · {winRate}% win rate
+          </p>
+        </div>
+        <button className="btn btn-primary"><Plus size={16} strokeWidth={2} /> New Lead</button>
+      </div>
+
+      {/* Controls */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: 1, maxWidth: 320 }}>
+          <Search size={15} strokeWidth={1.5} color="rgba(255,255,255,0.3)"
+            style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search leads..."
+            className="glass-input"
+            style={{ width: '100%', padding: '9px 12px 9px 36px', fontSize: 14 }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: 3 }}>
+          {(['kanban', 'list'] as const).map((v) => (
+            <button key={v} onClick={() => setView(v)}
+              className="btn"
+              style={{ padding: '6px 14px', fontSize: 13,
+                background: view === v ? 'rgba(0,122,255,0.15)' : 'transparent',
+                color: view === v ? '#007AFF' : 'rgba(255,255,255,0.5)',
+              }}>
+              {v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {view === 'kanban' ? (
+        <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16 }}>
+          {STAGES.filter((s) => s !== 'LOST').map((stage) => {
+            const col = filtered.filter((l) => l.stage === stage);
+            const color = STAGE_COLORS[stage];
+            return (
+              <div key={stage} style={{ minWidth: 240, maxWidth: 280, flex: '0 0 240px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, padding: '0 4px' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {stage.replace(/_/g, ' ')}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.08)', padding: '1px 7px', borderRadius: 6 }}>
+                    {col.length}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {col.map((lead) => (
+                    <Link key={lead.id} href={`/admin/leads/${lead.id}`} style={{ textDecoration: 'none' }}>
+                      <div className="glass" style={{ padding: '14px', cursor: 'pointer', transition: 'background 0.15s' }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: '#fff', marginBottom: 3 }}>
+                          {lead.contact.first_name} {lead.contact.last_name}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>
+                          {lead.service_needed || 'General'}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 11, background: 'rgba(255,255,255,0.08)', borderRadius: 6, padding: '2px 7px', color: 'rgba(255,255,255,0.5)' }}>
+                            {lead.source.replace(/_/g, ' ')}
+                          </span>
+                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
+                            {daysSince(lead.updated_at)}d
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                  {col.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '20px 0', color: 'rgba(255,255,255,0.2)', fontSize: 13 }}>Empty</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="glass" style={{ overflow: 'hidden' }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Contact</th><th>Service</th><th>Stage</th><th>Source</th><th>Days</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((lead) => (
+                <tr key={lead.id}>
+                  <td>
+                    <Link href={`/admin/leads/${lead.id}`} style={{ color: '#fff', textDecoration: 'none', fontWeight: 500 }}>
+                      {lead.contact.first_name} {lead.contact.last_name}
+                    </Link>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{lead.contact.email}</div>
+                  </td>
+                  <td style={{ color: 'rgba(255,255,255,0.7)' }}>{lead.service_needed || '—'}</td>
+                  <td>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: STAGE_COLORS[lead.stage], background: STAGE_COLORS[lead.stage] + '20', padding: '3px 9px', borderRadius: 20 }}>
+                      {lead.stage.replace(/_/g, ' ')}
+                    </span>
+                  </td>
+                  <td style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{lead.source.replace(/_/g, ' ')}</td>
+                  <td style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>{daysSince(lead.updated_at)}d</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

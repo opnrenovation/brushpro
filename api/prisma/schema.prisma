@@ -1,0 +1,667 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ─────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  OWNER
+  ADMIN
+}
+
+enum ContactType {
+  PROSPECT
+  CUSTOMER
+  BOTH
+}
+
+enum JobStatus {
+  ESTIMATING
+  ACTIVE
+  INVOICED
+  COMPLETE
+  CANCELLED
+}
+
+enum EstimateStatus {
+  DRAFT
+  SENT
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum InvoiceType {
+  DEPOSIT
+  PROGRESS
+  FINAL
+}
+
+enum ContractStatus {
+  PENDING
+  SIGNED
+  DECLINED
+}
+
+enum PaymentMethod {
+  CARD
+  CHECK
+  CASH
+  TRANSFER
+}
+
+enum ExpenseCategory {
+  MATERIALS
+  SUBCONTRACTOR
+  EQUIPMENT_RENTAL
+  SUPPLIES
+  OTHER
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+}
+
+enum CampaignEventType {
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  UNSUBSCRIBED
+  COMPLAINED
+}
+
+enum ImportType {
+  CONTACTS
+  CUSTOMERS
+}
+
+enum ExemptionType {
+  STATE_EXEMPT
+  LOCAL_EXEMPT
+  FULLY_EXEMPT
+}
+
+enum LeadSource {
+  WEBSITE_FORM
+  MANUAL
+  REFERRAL
+  PHONE
+  OTHER
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  APPOINTMENT
+  ESTIMATE_SENT
+  NEGOTIATING
+  WON
+  LOST
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum LeadActivityType {
+  STAGE_CHANGE
+  NOTE
+  EMAIL_SENT
+  APPOINTMENT
+  CALL
+  SYSTEM
+}
+
+// ─── Core ──────────────────────────────────────────────────────────────────
+
+model User {
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  name                 String
+  role                 UserRole
+  password_hash        String
+  must_change_password Boolean   @default(false)
+  is_active            Boolean   @default(true)
+  last_login_at        DateTime?
+  created_at           DateTime  @default(now())
+
+  labor_entries   LaborEntry[]
+  email_templates EmailTemplate[]
+  campaigns       Campaign[]
+  csv_imports     CsvImport[]
+  leads_assigned  Lead[]         @relation("AssignedLeads")
+  lead_activities LeadActivity[]
+
+  @@map("users")
+}
+
+model CompanySettings {
+  id                      String   @id @default(cuid())
+  company_name            String
+  logo_url                String?
+  address                 String?
+  phone                   String?
+  email                   String?
+  website                 String?
+  license_number          String?
+  default_labor_rate      Decimal? @db.Decimal(10, 2)
+  default_tax_profile_id  String?
+  invoice_prefix          String   @default("INV")
+  estimate_prefix         String   @default("EST")
+  invoice_notes           String?
+  estimate_notes          String?
+  // Deposit / billing settings
+  deposit_required        Boolean  @default(true)
+  deposit_percentage      Decimal  @default(30.00) @db.Decimal(5, 2)
+  deposit_minimum_amount  Decimal? @db.Decimal(10, 2)
+  deposit_message         String?
+  final_payment_message   String?
+  payment_terms_days      Int      @default(7)
+  updated_at              DateTime @updatedAt
+
+  @@map("company_settings")
+}
+
+// ─── CRM ───────────────────────────────────────────────────────────────────
+
+model Contact {
+  id                String      @id @default(cuid())
+  type              ContactType @default(PROSPECT)
+  first_name        String
+  last_name         String
+  company           String?
+  email             String      @unique
+  phone             String?
+  address           String?
+  city              String?
+  state             String?
+  zip               String?
+  tags              String[]    @default([])
+  source            String?
+  notes             String?
+  customer_id       String?
+  subscribed        Boolean     @default(true)
+  resend_contact_id String?
+  deleted_at        DateTime?
+  created_at        DateTime    @default(now())
+  updated_at        DateTime    @updatedAt
+
+  customer     Customer?           @relation
+  list_members ContactListMember[]
+  leads        Lead[]
+
+  @@map("contacts")
+}
+
+model ContactList {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  created_at  DateTime @default(now())
+
+  members ContactListMember[]
+
+  @@map("contact_lists")
+}
+
+model ContactListMember {
+  id         String   @id @default(cuid())
+  list_id    String
+  contact_id String
+  added_at   DateTime @default(now())
+
+  list    ContactList @relation(fields: [list_id], references: [id], onDelete: Cascade)
+  contact Contact     @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+
+  @@unique([list_id, contact_id])
+  @@map("contact_list_members")
+}
+
+// ─── Lead Pipeline ─────────────────────────────────────────────────────────
+
+model Lead {
+  id              String     @id @default(cuid())
+  contact_id      String
+  source          LeadSource @default(MANUAL)
+  service_needed  String?
+  project_address String?
+  message         String?
+  heard_from      String?
+  stage           LeadStage  @default(NEW)
+  lost_reason     String?
+  appointment_id  String?
+  estimate_id     String?
+  job_id          String?
+  assigned_to     String?
+  notes           String?
+  converted_at    DateTime?
+  deleted_at      DateTime?
+  updated_at      DateTime   @updatedAt
+  created_at      DateTime   @default(now())
+
+  contact     Contact        @relation(fields: [contact_id], references: [id])
+  assignee    User?          @relation("AssignedLeads", fields: [assigned_to], references: [id])
+  appointment Appointment?   @relation(fields: [appointment_id], references: [id])
+  estimate    Estimate?      @relation(fields: [estimate_id], references: [id])
+  job         Job?           @relation(fields: [job_id], references: [id])
+  activities  LeadActivity[]
+
+  @@map("leads")
+}
+
+model LeadActivity {
+  id          String           @id @default(cuid())
+  lead_id     String
+  user_id     String?
+  type        LeadActivityType
+  description String
+  metadata    Json?
+  created_at  DateTime         @default(now())
+
+  lead Lead  @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [user_id], references: [id])
+
+  @@map("lead_activities")
+}
+
+// ─── Scheduler ─────────────────────────────────────────────────────────────
+
+model AppointmentType {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  duration_minutes Int
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+
+  appointments Appointment[]
+
+  @@map("appointment_types")
+}
+
+model AvailabilityRule {
+  id           String   @id @default(cuid())
+  day_of_week  Int      // 0=Sunday … 6=Saturday
+  start_time   String   // HH:MM 24h
+  end_time     String   // HH:MM 24h
+  is_active    Boolean  @default(true)
+
+  @@map("availability_rules")
+}
+
+model SchedulerSettings {
+  id                     String  @id @default(cuid())
+  buffer_minutes         Int     @default(30)
+  min_notice_hours       Int     @default(24)
+  booking_window_days    Int     @default(60)
+  google_refresh_token   String?
+  confirmation_email_body String?
+  reminder_hours_before  Int     @default(24)
+
+  @@map("scheduler_settings")
+}
+
+model Appointment {
+  id                  String            @id @default(cuid())
+  appointment_type_id String
+  lead_id             String?
+  contact_id          String?
+  first_name          String
+  last_name           String
+  email               String
+  phone               String
+  notes               String?
+  scheduled_at        DateTime
+  duration_minutes    Int
+  status              AppointmentStatus @default(SCHEDULED)
+  google_event_id     String?
+  cancelled_at        DateTime?
+  created_at          DateTime          @default(now())
+
+  appointment_type AppointmentType @relation(fields: [appointment_type_id], references: [id])
+  leads            Lead[]
+
+  @@map("appointments")
+}
+
+// ─── Contracts ─────────────────────────────────────────────────────────────
+
+model ContractTemplate {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  body_text        String
+  requires_initials Boolean @default(false)
+  signature_label  String   @default("Customer Signature")
+  company_sig_label String?
+  is_default       Boolean  @default(false)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  estimates Estimate[]
+  contracts Contract[]
+
+  @@map("contract_templates")
+}
+
+model Contract {
+  id                   String         @id @default(cuid())
+  estimate_id          String         @unique
+  job_id               String
+  contract_template_id String?
+  body_text            String
+  status               ContractStatus @default(PENDING)
+  customer_name_signed String?
+  signature_url        String?
+  initials_data        Json?
+  ip_address           String?
+  signed_at            DateTime?
+  pdf_url              String?
+  created_at           DateTime       @default(now())
+
+  estimate          Estimate          @relation(fields: [estimate_id], references: [id])
+  job               Job               @relation(fields: [job_id], references: [id])
+  contract_template ContractTemplate? @relation(fields: [contract_template_id], references: [id])
+
+  @@map("contracts")
+}
+
+// ─── Estimates ─────────────────────────────────────────────────────────────
+
+model Estimate {
+  id                        String         @id @default(cuid())
+  job_id                    String?
+  lead_id                   String?
+  estimate_number           String         @unique
+  status                    EstimateStatus @default(DRAFT)
+  line_items                Json           @default("[]")
+  tax_profile_id            String
+  contract_template_id      String?
+  notes                     String?
+  approval_token            String?        @unique
+  approval_token_expires_at DateTime?
+  approved_at               DateTime?
+  rejected_at               DateTime?
+  rejection_note            String?
+  sent_at                   DateTime?
+  deleted_at                DateTime?
+  created_at                DateTime       @default(now())
+
+  job               Job?              @relation(fields: [job_id], references: [id])
+  lead              Lead?             @relation(fields: [lead_id], references: [id])
+  tax_profile       TaxProfile        @relation(fields: [tax_profile_id], references: [id])
+  contract_template ContractTemplate? @relation(fields: [contract_template_id], references: [id])
+  contracts         Contract[]
+  invoices          Invoice[]
+
+  @@map("estimates")
+}
+
+// ─── Jobs ──────────────────────────────────────────────────────────────────
+
+model Customer {
+  id         String    @id @default(cuid())
+  contact_id String?
+  name       String
+  email      String?
+  phone      String?
+  address    String
+  notes      String?
+  deleted_at DateTime?
+  created_at DateTime  @default(now())
+
+  contact Contact? @relation
+  jobs    Job[]
+
+  @@map("customers")
+}
+
+model Job {
+  id           String    @id @default(cuid())
+  customer_id  String
+  name         String
+  address      String
+  municipality String
+  status       JobStatus @default(ESTIMATING)
+  start_date   DateTime?
+  end_date     DateTime?
+  labor_rate   Decimal   @db.Decimal(10, 2)
+  notes        String?
+  deleted_at   DateTime?
+  updated_at   DateTime  @updatedAt
+  created_at   DateTime  @default(now())
+
+  customer  Customer     @relation(fields: [customer_id], references: [id])
+  estimates Estimate[]
+  invoices  Invoice[]
+  labor     LaborEntry[]
+  expenses  Expense[]
+  contracts Contract[]
+  leads     Lead[]
+
+  @@map("jobs")
+}
+
+model MaterialItem {
+  id         String   @id @default(cuid())
+  name       String
+  sku        String?
+  vendor     String?
+  category   String
+  unit       String
+  our_cost   Decimal  @db.Decimal(10, 2)
+  is_active  Boolean  @default(true)
+  notes      String?
+  updated_at DateTime @updatedAt
+  created_at DateTime @default(now())
+
+  @@map("material_items")
+}
+
+// ─── Invoicing ─────────────────────────────────────────────────────────────
+
+model Invoice {
+  id             String        @id @default(cuid())
+  job_id         String
+  estimate_id    String?
+  invoice_number String        @unique
+  type           InvoiceType
+  status         InvoiceStatus @default(DRAFT)
+  line_items     Json          @default("[]")
+  tax_profile_id String
+  due_date       DateTime
+  notes          String?
+  pdf_url        String?
+  stripe_link    String?
+  sent_at        DateTime?
+  deleted_at     DateTime?
+  updated_at     DateTime      @updatedAt
+  created_at     DateTime      @default(now())
+
+  job         Job          @relation(fields: [job_id], references: [id])
+  estimate    Estimate?    @relation(fields: [estimate_id], references: [id])
+  tax_profile TaxProfile   @relation(fields: [tax_profile_id], references: [id])
+  payments    Payment[]
+  exemptions  TaxExemption[]
+
+  @@map("invoices")
+}
+
+model TaxProfile {
+  id            String   @id @default(cuid())
+  name          String
+  state_code    String
+  state_rate    Decimal  @db.Decimal(6, 4)
+  local_rate    Decimal  @db.Decimal(6, 4)
+  municipality  String
+  taxable_labor Boolean  @default(false)
+  is_default    Boolean  @default(false)
+  created_at    DateTime @default(now())
+
+  estimates Estimate[]
+  invoices  Invoice[]
+
+  @@map("tax_profiles")
+}
+
+model TaxExemption {
+  id                 String        @id @default(cuid())
+  invoice_id         String        @unique
+  exemption_type     ExemptionType
+  reason             String
+  certificate_number String?
+  created_at         DateTime      @default(now())
+
+  invoice Invoice @relation(fields: [invoice_id], references: [id])
+
+  @@map("tax_exemptions")
+}
+
+model Payment {
+  id         String        @id @default(cuid())
+  invoice_id String
+  amount     Decimal       @db.Decimal(10, 2)
+  method     PaymentMethod
+  stripe_id  String?
+  paid_at    DateTime
+  notes      String?
+  created_at DateTime      @default(now())
+
+  invoice Invoice @relation(fields: [invoice_id], references: [id])
+
+  @@map("payments")
+}
+
+// ─── Labor & Expenses ──────────────────────────────────────────────────────
+
+model LaborEntry {
+  id          String   @id @default(cuid())
+  job_id      String
+  user_id     String
+  description String
+  hours       Decimal  @db.Decimal(6, 2)
+  rate        Decimal  @db.Decimal(10, 2)
+  work_date   DateTime
+  created_at  DateTime @default(now())
+
+  job  Job  @relation(fields: [job_id], references: [id])
+  user User @relation(fields: [user_id], references: [id])
+
+  @@map("labor_entries")
+}
+
+model Expense {
+  id           String          @id @default(cuid())
+  job_id       String
+  vendor       String
+  description  String
+  amount       Decimal         @db.Decimal(10, 2)
+  expense_date DateTime
+  category     ExpenseCategory
+  receipt_url  String?
+  notes        String?
+  created_at   DateTime        @default(now())
+
+  job Job @relation(fields: [job_id], references: [id])
+
+  @@map("expenses")
+}
+
+// ─── Email Marketing ───────────────────────────────────────────────────────
+
+model EmailTemplate {
+  id            String   @id @default(cuid())
+  name          String
+  subject       String
+  html_body     String
+  preview_text  String?
+  thumbnail_url String?
+  created_by    String
+  updated_at    DateTime @updatedAt
+  created_at    DateTime @default(now())
+
+  creator   User       @relation(fields: [created_by], references: [id])
+  campaigns Campaign[]
+
+  @@map("email_templates")
+}
+
+model Campaign {
+  id                  String         @id @default(cuid())
+  name                String
+  subject             String
+  preview_text        String?
+  html_body           String
+  template_id         String?
+  list_ids            String[]       @default([])
+  status              CampaignStatus @default(DRAFT)
+  scheduled_at        DateTime?
+  sent_at             DateTime?
+  total_recipients    Int            @default(0)
+  resend_broadcast_id String?
+  created_by          String
+  created_at          DateTime       @default(now())
+  updated_at          DateTime       @updatedAt
+
+  creator  User           @relation(fields: [created_by], references: [id])
+  template EmailTemplate? @relation(fields: [template_id], references: [id])
+  events   CampaignEvent[]
+
+  @@map("campaigns")
+}
+
+model CampaignEvent {
+  id            String            @id @default(cuid())
+  campaign_id   String
+  contact_id    String
+  event_type    CampaignEventType
+  resend_msg_id String?
+  link_url      String?
+  occurred_at   DateTime          @default(now())
+
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+
+  @@map("campaign_events")
+}
+
+// ─── Imports ───────────────────────────────────────────────────────────────
+
+model CsvImport {
+  id          String     @id @default(cuid())
+  import_type ImportType
+  filename    String
+  total_rows  Int
+  imported    Int        @default(0)
+  skipped     Int        @default(0)
+  errors      Int        @default(0)
+  error_log   Json?
+  imported_by String
+  created_at  DateTime   @default(now())
+
+  importer User @relation(fields: [imported_by], references: [id])
+
+  @@map("csv_imports")
+}
