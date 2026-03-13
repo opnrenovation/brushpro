@@ -1,8 +1,13 @@
 [build]
 builder = "nixpacks"
+buildCommand = "npm install && npm run build:web"
 
 [deploy]
-healthcheckPath = "/api/v1/health"
+startCommand = "npm run start:web"
+healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
+
+[variables]
+NODE_ENV = "production"

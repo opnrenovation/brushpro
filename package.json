@@ -2,6 +2,9 @@
   "name": "brushpro",
   "version": "1.5.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "workspaces": [
     "api",
     "shared",
@@ -10,6 +13,9 @@
   "scripts": {
     "dev:api": "npm run dev --workspace=api",
     "dev:web": "npm run dev --workspace=web",
+    "build": "npm run build --workspace=web",
+    "start": "npm run start --workspace=web",
+    "start:web": "npm run start --workspace=web",
     "build:api": "npm run build --workspace=api",
     "build:web": "npm run build --workspace=web",
     "db:generate": "npm run prisma:generate --workspace=api",
