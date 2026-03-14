@@ -121,6 +121,14 @@ estimatesRouter.post('/:id/convert', async (req, res) => {
       res.status(400).json({ error: 'Only approved estimates can be converted' });
       return;
     }
+    if (!estimate.job_id) {
+      res.status(400).json({ error: 'Estimate must be linked to a job before converting to invoice' });
+      return;
+    }
+    if (!estimate.tax_profile_id) {
+      res.status(400).json({ error: 'Estimate must have a tax profile before converting to invoice' });
+      return;
+    }
 
     const settings = await prisma.companySettings.findFirst();
     const prefix = settings?.invoice_prefix || 'INV';
@@ -129,12 +137,12 @@ estimatesRouter.post('/:id/convert', async (req, res) => {
 
     const invoice = await prisma.invoice.create({
       data: {
-        job_id: estimate.job_id ?? undefined,
+        job_id: estimate.job_id,
         estimate_id: estimate.id,
         invoice_number,
         type: 'FINAL',
         line_items: estimate.line_items as any,
-        tax_profile_id: estimate.tax_profile_id ?? undefined,
+        tax_profile_id: estimate.tax_profile_id,
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });

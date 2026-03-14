@@ -146,6 +146,11 @@ approveRouter.post('/:token/sign', async (req, res) => {
       'image/png'
     );
 
+    if (!estimate.job_id) {
+      res.status(400).json({ error: 'Estimate must be linked to a job before signing' });
+      return;
+    }
+
     const settings = await prisma.companySettings.findFirst();
     const lineItems = estimate.line_items as Array<{ qty: number; unit_price: number }>;
     const total = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
@@ -161,7 +166,7 @@ approveRouter.post('/:token/sign', async (req, res) => {
     const contract = await prisma.contract.create({
       data: {
         estimate_id: estimate.id,
-        job_id: estimate.job_id ?? undefined,
+        job_id: estimate.job_id,
         body_text,
         status: 'SIGNED',
         customer_name_signed,
