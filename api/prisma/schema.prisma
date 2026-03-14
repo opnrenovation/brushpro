@@ -410,6 +410,7 @@ model Estimate {
   created_at                DateTime       @default(now())
 
   job               Job?              @relation(fields: [job_id], references: [id])
+  lead              Lead?
   tax_profile       TaxProfile        @relation(fields: [tax_profile_id], references: [id])
   contract_template ContractTemplate? @relation(fields: [contract_template_id], references: [id])
   contracts         Contract[]
