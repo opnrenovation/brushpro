@@ -3,7 +3,7 @@ builder = "nixpacks"
 buildCommand = "npm install && npx prisma generate && npm run build"
 
 [deploy]
-startCommand = "npx prisma migrate deploy --schema api/prisma/schema.prisma && node api/dist/index.js"
+startCommand = "npx prisma migrate deploy --schema api/prisma/schema.prisma && npx prisma db seed --schema api/prisma/schema.prisma && node api/dist/index.js"
 healthcheckPath = "/api/v1/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
