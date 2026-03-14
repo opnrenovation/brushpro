@@ -185,97 +185,88 @@ export default function ServicesPage() {
         <section style={{ padding: '40px 0 100px' }}>
           <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-              {SERVICES.map((service, index) => (
-                <div key={service.name} className="glass" style={{ padding: '40px 48px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 32, alignItems: 'start' }}>
+              {SERVICES.map((service) => (
+                <div key={service.name} className="glass" style={{ padding: '36px 40px' }}>
+                  {/* Header row: icon + title + tagline */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                    <div
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 16,
+                        background: 'rgba(232,168,56,0.1)',
+                        border: '1px solid rgba(232,168,56,0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#E8A838',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {service.icon}
+                    </div>
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-                        <div
-                          style={{
-                            width: 64,
-                            height: 64,
-                            borderRadius: 16,
-                            background: 'rgba(232,168,56,0.1)',
-                            border: '1px solid rgba(232,168,56,0.2)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#E8A838',
-                            flexShrink: 0,
-                          }}
-                        >
-                          {service.icon}
-                        </div>
-                        <div>
-                          <h2
-                            style={{
-                              fontFamily: "'Cormorant Garamond', Georgia, serif",
-                              fontSize: 28,
-                              fontWeight: 600,
-                              color: '#1D1D1F',
-                              marginBottom: 4,
-                            }}
-                          >
-                            {service.name}
-                          </h2>
-                          <p style={{ color: '#E8A838', fontSize: 14, fontStyle: 'italic' }}>
-                            {service.tagline}
-                          </p>
-                        </div>
-                      </div>
-
-                      <p
-                        className="site-body"
-                        style={{ fontSize: 15, lineHeight: 1.7, marginBottom: 24 }}
+                      <h2
+                        style={{
+                          fontFamily: "'Cormorant Garamond', Georgia, serif",
+                          fontSize: 28,
+                          fontWeight: 600,
+                          color: '#1D1D1F',
+                          marginBottom: 4,
+                        }}
                       >
-                        {service.description}
+                        {service.name}
+                      </h2>
+                      <p style={{ color: '#E8A838', fontSize: 14, fontStyle: 'italic' }}>
+                        {service.tagline}
                       </p>
+                    </div>
+                  </div>
 
-                      <div>
-                        <p
-                          style={{
-                            color: 'rgba(0,0,0,0.4)',
-                            fontSize: 11,
-                            fontWeight: 600,
-                            letterSpacing: '0.08em',
-                            textTransform: 'uppercase',
-                            marginBottom: 12,
-                          }}
+                  <p className="site-body" style={{ fontSize: 15, lineHeight: 1.7, marginBottom: 24 }}>
+                    {service.description}
+                  </p>
+
+                  <div style={{ marginBottom: 28 }}>
+                    <p
+                      style={{
+                        color: 'rgba(0,0,0,0.4)',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        marginBottom: 12,
+                      }}
+                    >
+                      What is included
+                    </p>
+                    <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px 24px' }}>
+                      {service.includes.map((item) => (
+                        <li
+                          key={item}
+                          style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14, color: 'rgba(0,0,0,0.65)' }}
                         >
-                          What is included
-                        </p>
-                        <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px 24px' }}>
-                          {service.includes.map((item) => (
-                            <li
-                              key={item}
-                              style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14, color: 'rgba(0,0,0,0.65)' }}
-                            >
-                              <CheckCircle
-                                size={15}
-                                strokeWidth={1.5}
-                                style={{ color: '#34C759', flexShrink: 0, marginTop: 2 }}
-                              />
-                              {item}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
+                          <CheckCircle
+                            size={15}
+                            strokeWidth={1.5}
+                            style={{ color: '#34C759', flexShrink: 0, marginTop: 2 }}
+                          />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
-                      <Link href="/#quote" className="btn btn-accent" style={{ whiteSpace: 'nowrap' }}>
-                        Get a Free Quote
-                        <ChevronRight size={14} strokeWidth={1.5} />
-                      </Link>
-                      <a
-                        href="tel:+15155551234"
-                        className="btn btn-ghost"
-                        style={{ whiteSpace: 'nowrap', justifyContent: 'center' }}
-                      >
-                        <Phone size={14} strokeWidth={1.5} />
-                        Call Us
-                      </a>
-                    </div>
+                  {/* Buttons — always below content, wrap on small screens */}
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    <Link href="/#quote" className="btn btn-accent" style={{ fontSize: 14 }}>
+                      Get a Free Quote
+                      <ChevronRight size={14} strokeWidth={1.5} />
+                    </Link>
+                    <a href="tel:+15155551234" className="btn btn-ghost" style={{ fontSize: 14 }}>
+                      <Phone size={14} strokeWidth={1.5} />
+                      Call Us
+                    </a>
                   </div>
                 </div>
               ))}
