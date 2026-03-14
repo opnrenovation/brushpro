@@ -179,7 +179,6 @@ importsRouter.post('/customers', uploadCsv.single('file'), async (req: AuthReque
               email,
               phone: (mapped.phone as string) || undefined,
               address,
-              customer_id: customer.id,
               source: 'CSV Import',
               subscribed: true,
             },
@@ -191,7 +190,7 @@ importsRouter.post('/customers', uploadCsv.single('file'), async (req: AuthReque
         } else if (existingContact) {
           await prisma.contact.update({
             where: { id: existingContact.id },
-            data: { type: 'BOTH', customer_id: customer.id },
+            data: { type: 'BOTH' },
           });
         }
 

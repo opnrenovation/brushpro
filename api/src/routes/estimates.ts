@@ -80,14 +80,14 @@ estimatesRouter.post('/:id/send', async (req, res) => {
     const total = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
 
     // Send email with approval link
-    const customerEmail = estimate.job.customer.email;
+    const customerEmail = estimate.job?.customer.email;
     if (customerEmail) {
       await sendEmail({
         to: customerEmail,
         subject: `Estimate ${estimate.estimate_number} from ${settings?.company_name || 'BrushPro'}`,
         html: `
-          <p>Dear ${estimate.job.customer.name},</p>
-          <p>Please review and approve your estimate for ${estimate.job.address}.</p>
+          <p>Dear ${estimate.job?.customer.name},</p>
+          <p>Please review and approve your estimate for ${estimate.job?.address}.</p>
           <p><strong>Estimate #:</strong> ${estimate.estimate_number}</p>
           <p><strong>Total:</strong> $${total.toFixed(2)}</p>
           <p><a href="${approvalUrl}" style="background:#007AFF;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Review &amp; Approve</a></p>
@@ -129,12 +129,12 @@ estimatesRouter.post('/:id/convert', async (req, res) => {
 
     const invoice = await prisma.invoice.create({
       data: {
-        job_id: estimate.job_id,
+        job_id: estimate.job_id ?? undefined,
         estimate_id: estimate.id,
         invoice_number,
         type: 'FINAL',
-        line_items: estimate.line_items,
-        tax_profile_id: estimate.tax_profile_id,
+        line_items: estimate.line_items as any,
+        tax_profile_id: estimate.tax_profile_id ?? undefined,
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });

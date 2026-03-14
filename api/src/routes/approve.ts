@@ -39,13 +39,13 @@ approveRouter.get('/:token', async (req, res) => {
     res.json({
       data: {
         estimate_number: estimate.estimate_number,
-        job_address: estimate.job.address,
+        job_address: estimate.job?.address,
         notes: estimate.notes,
         total_price: subtotal,
         company_name: settings?.company_name,
         logo_url: settings?.logo_url,
         status: estimate.status,
-        has_contract_template: !!settings?.contract_template,
+        has_contract_template: false,
       },
     });
   } catch {
@@ -67,38 +67,22 @@ approveRouter.post('/:token/approve', async (req, res) => {
 
     const settings = await prisma.companySettings.findFirst();
 
-    if (settings?.contract_template) {
-      // Proceed to contract signing — return contract body
-      const lineItems = estimate.line_items as Array<{ qty: number; unit_price: number }>;
-      const total = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
+    // No contract template — approve immediately
+    await prisma.estimate.update({
+      where: { id: estimate.id },
+      data: { status: 'APPROVED', approved_at: new Date() },
+    });
 
-      const body = (settings.contract_template || '')
-        .replace(/{customer_name}/g, estimate.job.customer.name)
-        .replace(/{job_address}/g, estimate.job.address)
-        .replace(/{total_price}/g, `$${total.toFixed(2)}`)
-        .replace(/{company_name}/g, settings.company_name)
-        .replace(/{estimate_number}/g, estimate.estimate_number)
-        .replace(/{date}/g, new Date().toLocaleDateString());
-
-      res.json({ data: { requires_signature: true, contract_body: body } });
-    } else {
-      // No contract template — approve immediately
-      await prisma.estimate.update({
-        where: { id: estimate.id },
-        data: { status: 'APPROVED', approved_at: new Date() },
+    // Notify owner
+    if (settings?.email) {
+      await sendEmail({
+        to: settings.email,
+        subject: `Estimate ${estimate.estimate_number} has been approved`,
+        html: `<p>${estimate.job?.customer.name} has approved estimate ${estimate.estimate_number} for ${estimate.job?.address}.</p>`,
       });
-
-      // Notify owner
-      if (settings?.email) {
-        await sendEmail({
-          to: settings.email,
-          subject: `Estimate ${estimate.estimate_number} has been approved`,
-          html: `<p>${estimate.job.customer.name} has approved estimate ${estimate.estimate_number} for ${estimate.job.address}.</p>`,
-        });
-      }
-
-      res.json({ data: { requires_signature: false, status: 'APPROVED' } });
     }
+
+    res.json({ data: { requires_signature: false, status: 'APPROVED' } });
   } catch {
     res.status(500).json({ error: 'Failed to process approval' });
   }
@@ -127,7 +111,7 @@ approveRouter.post('/:token/reject', async (req, res) => {
       await sendEmail({
         to: settings.email,
         subject: `Estimate ${estimate.estimate_number} was declined`,
-        html: `<p>${estimate.job.customer.name} declined estimate ${estimate.estimate_number}${note ? `: "${note}"` : '.'}</p>`,
+        html: `<p>${estimate.job?.customer.name} declined estimate ${estimate.estimate_number}${note ? `: "${note}"` : '.'}</p>`,
       });
     }
 
@@ -166,9 +150,9 @@ approveRouter.post('/:token/sign', async (req, res) => {
     const lineItems = estimate.line_items as Array<{ qty: number; unit_price: number }>;
     const total = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
 
-    const body_text = (settings?.contract_template || '')
-      .replace(/{customer_name}/g, estimate.job.customer.name)
-      .replace(/{job_address}/g, estimate.job.address)
+    const body_text = ''
+      .replace(/{customer_name}/g, estimate.job?.customer.name ?? '')
+      .replace(/{job_address}/g, estimate.job?.address ?? '')
       .replace(/{total_price}/g, `$${total.toFixed(2)}`)
       .replace(/{company_name}/g, settings?.company_name || '')
       .replace(/{estimate_number}/g, estimate.estimate_number)
@@ -177,7 +161,7 @@ approveRouter.post('/:token/sign', async (req, res) => {
     const contract = await prisma.contract.create({
       data: {
         estimate_id: estimate.id,
-        job_id: estimate.job_id,
+        job_id: estimate.job_id ?? undefined,
         body_text,
         status: 'SIGNED',
         customer_name_signed,
@@ -197,7 +181,7 @@ approveRouter.post('/:token/sign', async (req, res) => {
       await sendEmail({
         to: settings.email,
         subject: `Contract signed — Estimate ${estimate.estimate_number}`,
-        html: `<p>${customer_name_signed} signed the contract for estimate ${estimate.estimate_number} at ${estimate.job.address}.</p>`,
+        html: `<p>${customer_name_signed} signed the contract for estimate ${estimate.estimate_number} at ${estimate.job?.address}.</p>`,
       });
     }
 

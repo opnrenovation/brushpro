@@ -195,9 +195,7 @@ router.post('/:id/convert', async (req: Request, res: Response) => {
     const settings = await prisma.companySettings.findFirst();
 
     // Create customer from contact if not already a customer
-    let customer = lead.contact.customer_id
-      ? await prisma.customer.findUnique({ where: { id: lead.contact.customer_id } })
-      : null;
+    let customer = await prisma.customer.findFirst({ where: { contact_id: lead.contact.id } });
 
     if (!customer) {
       customer = await prisma.customer.create({
@@ -211,7 +209,7 @@ router.post('/:id/convert', async (req: Request, res: Response) => {
       });
       await prisma.contact.update({
         where: { id: lead.contact.id },
-        data: { type: 'CUSTOMER', customer_id: customer.id },
+        data: { type: 'CUSTOMER' },
       });
     }
 

@@ -150,7 +150,7 @@ contactsRouter.post('/:id/convert', async (req, res) => {
     // Update contact
     const updated = await prisma.contact.update({
       where: { id: contact.id },
-      data: { type: 'BOTH', customer_id: customer.id },
+      data: { type: 'BOTH' },
     });
 
     res.json({ data: { contact: updated, customer } });
