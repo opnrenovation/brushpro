@@ -5,15 +5,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        'bg-base': '#0A0A0F',
-        'surface': 'rgba(255,255,255,0.07)',
-        'surface-hover': 'rgba(255,255,255,0.12)',
-        'border-glass': 'rgba(255,255,255,0.12)',
+        'bg-base': '#F5F5F7',
+        'surface': 'rgba(255,255,255,0.85)',
+        'surface-hover': 'rgba(255,255,255,1)',
+        'border-glass': 'rgba(0,0,0,0.09)',
         'primary': '#007AFF',
         'success': '#34C759',
         'warning': '#FF9500',
         'danger': '#FF3B30',
-        'accent': '#E8A838',
+        'accent': '#C8862A',
       },
       fontFamily: {
         display: ['Cormorant Garamond', 'Georgia', 'serif'],
