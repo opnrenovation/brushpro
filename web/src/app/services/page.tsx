@@ -147,10 +147,10 @@ export default function ServicesPage() {
           left: 0,
           right: 0,
           zIndex: 50,
-          background: 'rgba(10,10,15,0.85)',
+          background: '#FFFFFF',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          borderBottom: '1px solid rgba(0,0,0,0.08)',
         }}
       >
         <div
@@ -170,7 +170,7 @@ export default function ServicesPage() {
                 fontFamily: "'Cormorant Garamond', Georgia, serif",
                 fontSize: 22,
                 fontWeight: 600,
-                color: '#fff',
+                color: '#1D1D1F',
               }}
             >
               OPN Renovation
@@ -186,7 +186,7 @@ export default function ServicesPage() {
               <Link
                 key={item.href}
                 href={item.href}
-                style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14, padding: '8px 14px' }}
+                style={{ color: 'rgba(0,0,0,0.6)', textDecoration: 'none', fontSize: 14, padding: '8px 14px' }}
               >
                 {item.label}
               </Link>
@@ -198,7 +198,7 @@ export default function ServicesPage() {
         </div>
       </nav>
 
-      <main style={{ background: '#0A0A0F', minHeight: '100vh', paddingTop: 64 }}>
+      <main style={{ background: '#FFFFFF', minHeight: '100vh', paddingTop: 64 }}>
         {/* Page header */}
         <section
           style={{
@@ -212,13 +212,13 @@ export default function ServicesPage() {
               position: 'absolute',
               inset: 0,
               background:
-                'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(232,168,56,0.1) 0%, transparent 60%), #0A0A0F',
+                'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(232,168,56,0.07) 0%, transparent 60%), #FFFFFF',
             }}
           />
           <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', textAlign: 'center' }}>
             <h1
               className="site-headline"
-              style={{ fontSize: 'clamp(40px, 5vw, 64px)', color: '#fff', marginBottom: 16 }}
+              style={{ fontSize: 'clamp(40px, 5vw, 64px)', color: '#1D1D1F', marginBottom: 16 }}
             >
               Our Painting Services
             </h1>
@@ -268,7 +268,7 @@ export default function ServicesPage() {
                               fontFamily: "'Cormorant Garamond', Georgia, serif",
                               fontSize: 28,
                               fontWeight: 600,
-                              color: '#fff',
+                              color: '#1D1D1F',
                               marginBottom: 4,
                             }}
                           >
@@ -290,7 +290,7 @@ export default function ServicesPage() {
                       <div>
                         <p
                           style={{
-                            color: 'rgba(255,255,255,0.4)',
+                            color: 'rgba(0,0,0,0.4)',
                             fontSize: 11,
                             fontWeight: 600,
                             letterSpacing: '0.08em',
@@ -304,7 +304,7 @@ export default function ServicesPage() {
                           {service.includes.map((item) => (
                             <li
                               key={item}
-                              style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14, color: 'rgba(255,255,255,0.75)' }}
+                              style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14, color: 'rgba(0,0,0,0.65)' }}
                             >
                               <CheckCircle
                                 size={15}

@@ -29,10 +29,10 @@ function Navbar() {
         left: 0,
         right: 0,
         zIndex: 50,
-        background: 'rgba(10,10,15,0.85)',
+        background: '#FFFFFF',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        borderBottom: '1px solid rgba(0,0,0,0.08)',
       }}
     >
       <div
@@ -52,7 +52,7 @@ function Navbar() {
               fontFamily: "'Cormorant Garamond', Georgia, serif",
               fontSize: 22,
               fontWeight: 600,
-              color: '#fff',
+              color: '#1D1D1F',
               letterSpacing: '-0.01em',
             }}
           >
@@ -71,7 +71,7 @@ function Navbar() {
               key={item.href}
               href={item.href}
               style={{
-                color: 'rgba(255,255,255,0.7)',
+                color: 'rgba(0,0,0,0.6)',
                 textDecoration: 'none',
                 fontSize: 14,
                 fontWeight: 500,
@@ -121,7 +121,7 @@ function Hero() {
 
           <h1
             className="site-headline"
-            style={{ fontSize: 'clamp(48px, 7vw, 88px)', color: '#fff', marginBottom: 24 }}
+            style={{ fontSize: 'clamp(48px, 7vw, 88px)', color: '#1D1D1F', marginBottom: 24 }}
           >
             Des Moines' Premier
             <br />
@@ -162,7 +162,7 @@ function Hero() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  color: 'rgba(255,255,255,0.75)',
+                  color: 'rgba(0,0,0,0.55)',
                   fontSize: 13,
                   fontWeight: 500,
                 }}
@@ -224,12 +224,12 @@ const SERVICES = [
 
 function ServicesSection() {
   return (
-    <section className="site-section" style={{ padding: '100px 0', background: 'rgba(0,0,0,0.3)' }}>
+    <section className="site-section" style={{ padding: '100px 0', background: '#F5F5F7' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 64 }}>
           <h2
             className="site-headline"
-            style={{ fontSize: 'clamp(36px, 4vw, 56px)', color: '#fff', marginBottom: 16 }}
+            style={{ fontSize: 'clamp(36px, 4vw, 56px)', color: '#1D1D1F', marginBottom: 16 }}
           >
             Our Services
           </h2>
@@ -272,7 +272,7 @@ function ServicesSection() {
                   fontFamily: "'Cormorant Garamond', Georgia, serif",
                   fontSize: 20,
                   fontWeight: 600,
-                  color: '#fff',
+                  color: '#1D1D1F',
                   marginBottom: 10,
                 }}
               >
@@ -321,7 +321,7 @@ function WhyOpnSection() {
         <div style={{ textAlign: 'center', marginBottom: 64 }}>
           <h2
             className="site-headline"
-            style={{ fontSize: 'clamp(36px, 4vw, 56px)', color: '#fff', marginBottom: 16 }}
+            style={{ fontSize: 'clamp(36px, 4vw, 56px)', color: '#1D1D1F', marginBottom: 16 }}
           >
             Why Choose OPN Renovation?
           </h2>
@@ -351,7 +351,7 @@ function WhyOpnSection() {
                   fontFamily: "'Cormorant Garamond', Georgia, serif",
                   fontSize: 24,
                   fontWeight: 600,
-                  color: '#fff',
+                  color: '#1D1D1F',
                   marginBottom: 12,
                 }}
               >
@@ -387,7 +387,7 @@ function ServiceAreasSection() {
   return (
     <section
       className="site-section"
-      style={{ padding: '100px 0', background: 'rgba(0,0,0,0.3)' }}
+      style={{ padding: '100px 0', background: '#F5F5F7' }}
     >
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
@@ -398,7 +398,7 @@ function ServiceAreasSection() {
           />
           <h2
             className="site-headline"
-            style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#fff', marginBottom: 16 }}
+            style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#1D1D1F', marginBottom: 16 }}
           >
             Serving Des Moines and Surrounding Communities
           </h2>
@@ -423,7 +423,7 @@ function ServiceAreasSection() {
                 padding: '10px 20px',
                 borderRadius: 100,
                 fontSize: 14,
-                color: 'rgba(255,255,255,0.8)',
+                color: '#1D1D1F',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
@@ -446,7 +446,7 @@ function QuoteSection() {
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
           <h2
             className="site-headline"
-            style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#fff', marginBottom: 16 }}
+            style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#1D1D1F', marginBottom: 16 }}
           >
             Get a Free Quote
           </h2>
@@ -485,13 +485,13 @@ function TestimonialsSection() {
   return (
     <section
       className="site-section"
-      style={{ padding: '100px 0', background: 'rgba(0,0,0,0.3)' }}
+      style={{ padding: '100px 0', background: '#F5F5F7' }}
     >
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 64 }}>
           <h2
             className="site-headline"
-            style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#fff', marginBottom: 16 }}
+            style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#1D1D1F', marginBottom: 16 }}
           >
             What Our Customers Say
           </h2>
@@ -512,7 +512,7 @@ function TestimonialsSection() {
               </div>
               <p
                 style={{
-                  color: 'rgba(255,255,255,0.85)',
+                  color: 'rgba(0,0,0,0.7)',
                   fontSize: 15,
                   lineHeight: 1.7,
                   marginBottom: 20,
@@ -522,8 +522,8 @@ function TestimonialsSection() {
                 &ldquo;{t.text}&rdquo;
               </p>
               <div>
-                <div style={{ color: '#fff', fontWeight: 600, fontSize: 14 }}>{t.name}</div>
-                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>{t.location}</div>
+                <div style={{ color: '#1D1D1F', fontWeight: 600, fontSize: 14 }}>{t.name}</div>
+                <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 13 }}>{t.location}</div>
               </div>
             </div>
           ))}
@@ -537,7 +537,7 @@ function Footer() {
   return (
     <footer
       style={{
-        background: 'rgba(0,0,0,0.5)',
+        background: '#111827',
         borderTop: '1px solid rgba(255,255,255,0.08)',
         padding: '64px 0 32px',
       }}

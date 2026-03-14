@@ -11,10 +11,10 @@ function Navbar() {
         left: 0,
         right: 0,
         zIndex: 50,
-        background: 'rgba(10,10,15,0.85)',
+        background: '#FFFFFF',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        borderBottom: '1px solid rgba(0,0,0,0.08)',
       }}
     >
       <div
@@ -29,7 +29,7 @@ function Navbar() {
         }}
       >
         <Link href="/" style={{ textDecoration: 'none' }}>
-          <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 22, fontWeight: 600, color: '#fff' }}>
+          <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 22, fontWeight: 600, color: '#1D1D1F' }}>
             OPN Renovation
           </span>
         </Link>
@@ -43,7 +43,7 @@ function Navbar() {
             <Link
               key={item.href}
               href={item.href}
-              style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14, padding: '8px 14px' }}
+              style={{ color: 'rgba(0,0,0,0.6)', textDecoration: 'none', fontSize: 14, padding: '8px 14px' }}
             >
               {item.label}
             </Link>
@@ -62,7 +62,7 @@ export default function ContactPage() {
     <>
       <Navbar />
 
-      <main style={{ background: '#0A0A0F', minHeight: '100vh', paddingTop: 64 }}>
+      <main style={{ background: '#FFFFFF', minHeight: '100vh', paddingTop: 64 }}>
         {/* Header */}
         <section
           style={{
@@ -76,13 +76,13 @@ export default function ContactPage() {
               position: 'absolute',
               inset: 0,
               background:
-                'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(232,168,56,0.09) 0%, transparent 60%), #0A0A0F',
+                'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(232,168,56,0.06) 0%, transparent 60%), #FFFFFF',
             }}
           />
           <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', textAlign: 'center' }}>
             <h1
               className="site-headline"
-              style={{ fontSize: 'clamp(40px, 5vw, 60px)', color: '#fff', marginBottom: 16 }}
+              style={{ fontSize: 'clamp(40px, 5vw, 60px)', color: '#1D1D1F', marginBottom: 16 }}
             >
               Contact Us
             </h1>
@@ -104,7 +104,7 @@ export default function ContactPage() {
                       fontFamily: "'Cormorant Garamond', Georgia, serif",
                       fontSize: 24,
                       fontWeight: 600,
-                      color: '#fff',
+                      color: '#1D1D1F',
                       marginBottom: 24,
                     }}
                   >
@@ -114,7 +114,7 @@ export default function ContactPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {/* Phone */}
                     <div>
-                      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+                      <p style={{ color: 'rgba(0,0,0,0.4)', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
                         Phone
                       </p>
                       <a
@@ -129,7 +129,7 @@ export default function ContactPage() {
 
                     {/* Email */}
                     <div>
-                      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+                      <p style={{ color: 'rgba(0,0,0,0.4)', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
                         Email
                       </p>
                       <a
@@ -144,12 +144,12 @@ export default function ContactPage() {
 
                     {/* Location */}
                     <div>
-                      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+                      <p style={{ color: 'rgba(0,0,0,0.4)', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
                         Location
                       </p>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.08)', background: 'rgba(0,0,0,0.03)' }}>
                         <MapPin size={16} strokeWidth={1.5} style={{ color: '#E8A838', flexShrink: 0, marginTop: 2 }} />
-                        <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 15, lineHeight: 1.5 }}>
+                        <span style={{ color: 'rgba(0,0,0,0.65)', fontSize: 15, lineHeight: 1.5 }}>
                           Des Moines, Iowa
                           <br />
                           Serving the greater metro area
@@ -163,17 +163,17 @@ export default function ContactPage() {
                 <div className="glass" style={{ padding: '28px 36px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
                     <Clock size={18} strokeWidth={1.5} style={{ color: '#E8A838' }} />
-                    <h3 style={{ color: '#fff', fontWeight: 600, fontSize: 16 }}>Business Hours</h3>
+                    <h3 style={{ color: '#1D1D1F', fontWeight: 600, fontSize: 16 }}>Business Hours</h3>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Monday - Friday</span>
-                      <span style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>8:00 AM - 5:00 PM</span>
+                      <span style={{ color: 'rgba(0,0,0,0.5)', fontSize: 14 }}>Monday - Friday</span>
+                      <span style={{ color: '#1D1D1F', fontSize: 14, fontWeight: 500 }}>8:00 AM - 5:00 PM</span>
                     </div>
-                    <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                    <div style={{ height: 1, background: 'rgba(0,0,0,0.06)' }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Saturday - Sunday</span>
-                      <span style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>8:00 AM - 1:00 PM</span>
+                      <span style={{ color: 'rgba(0,0,0,0.5)', fontSize: 14 }}>Saturday - Sunday</span>
+                      <span style={{ color: '#1D1D1F', fontSize: 14, fontWeight: 500 }}>8:00 AM - 1:00 PM</span>
                     </div>
                   </div>
                 </div>
@@ -194,7 +194,7 @@ export default function ContactPage() {
                     fontFamily: "'Cormorant Garamond', Georgia, serif",
                     fontSize: 26,
                     fontWeight: 600,
-                    color: '#fff',
+                    color: '#1D1D1F',
                     marginBottom: 24,
                   }}
                 >

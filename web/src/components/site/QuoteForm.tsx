@@ -39,9 +39,9 @@ const inputStyle: React.CSSProperties = {
   padding: '12px 16px',
   fontSize: 15,
   borderRadius: 10,
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.12)',
-  color: '#fff',
+  background: '#FFFFFF',
+  border: '1px solid rgba(0,0,0,0.12)',
+  color: '#1D1D1F',
   outline: 'none',
   transition: 'border-color 0.2s',
   fontFamily: "'DM Sans', system-ui, sans-serif",
@@ -125,7 +125,7 @@ export default function QuoteForm() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
           <div>
             <label
-              style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}
+              style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,0.55)', marginBottom: 6 }}
             >
               First Name *
             </label>
@@ -141,7 +141,7 @@ export default function QuoteForm() {
           </div>
           <div>
             <label
-              style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}
+              style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,0.55)', marginBottom: 6 }}
             >
               Last Name *
             </label>
@@ -161,7 +161,7 @@ export default function QuoteForm() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
           <div>
             <label
-              style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}
+              style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,0.55)', marginBottom: 6 }}
             >
               Email *
             </label>
@@ -178,7 +178,7 @@ export default function QuoteForm() {
           </div>
           <div>
             <label
-              style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}
+              style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,0.55)', marginBottom: 6 }}
             >
               Phone
             </label>
@@ -198,7 +198,7 @@ export default function QuoteForm() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
           <div>
             <label
-              style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}
+              style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,0.55)', marginBottom: 6 }}
             >
               Service Needed *
             </label>
@@ -211,7 +211,7 @@ export default function QuoteForm() {
               className="glass-input"
             >
               {SERVICES.map((s) => (
-                <option key={s.value} value={s.value} style={{ background: '#1a1a2e' }}>
+                <option key={s.value} value={s.value} style={{ background: '#FFFFFF' }}>
                   {s.label}
                 </option>
               ))}
@@ -219,7 +219,7 @@ export default function QuoteForm() {
           </div>
           <div>
             <label
-              style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}
+              style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,0.55)', marginBottom: 6 }}
             >
               How did you hear about us?
             </label>
@@ -231,7 +231,7 @@ export default function QuoteForm() {
               className="glass-input"
             >
               {HEARD_FROM.map((s) => (
-                <option key={s.value} value={s.value} style={{ background: '#1a1a2e' }}>
+                <option key={s.value} value={s.value} style={{ background: '#FFFFFF' }}>
                   {s.label}
                 </option>
               ))}
@@ -242,7 +242,7 @@ export default function QuoteForm() {
         {/* Project address */}
         <div style={{ marginBottom: 16 }}>
           <label
-            style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}
+            style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,0.55)', marginBottom: 6 }}
           >
             Project Address
           </label>
@@ -259,7 +259,7 @@ export default function QuoteForm() {
         {/* Message */}
         <div style={{ marginBottom: 28 }}>
           <label
-            style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}
+            style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,0.55)', marginBottom: 6 }}
           >
             Tell us about your project
           </label>
@@ -294,7 +294,7 @@ export default function QuoteForm() {
           )}
         </button>
 
-        <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: 12, marginTop: 16 }}>
+        <p style={{ textAlign: 'center', color: 'rgba(0,0,0,0.40)', fontSize: 12, marginTop: 16 }}>
           We respond within 1 business day. No spam, ever.
         </p>
       </form>

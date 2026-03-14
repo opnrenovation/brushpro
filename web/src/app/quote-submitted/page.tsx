@@ -17,7 +17,7 @@ export default function QuoteSubmittedPage() {
     <main
       style={{
         minHeight: '100vh',
-        background: '#0A0A0F',
+        background: '#FFFFFF',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -32,7 +32,7 @@ export default function QuoteSubmittedPage() {
           position: 'absolute',
           inset: 0,
           background:
-            'radial-gradient(ellipse 60% 60% at 50% 40%, rgba(52,199,89,0.12) 0%, transparent 60%), #0A0A0F',
+            'radial-gradient(ellipse 60% 60% at 50% 40%, rgba(52,199,89,0.08) 0%, transparent 60%), #FFFFFF',
           zIndex: 0,
         }}
       />
@@ -70,7 +70,7 @@ export default function QuoteSubmittedPage() {
               fontFamily: "'Cormorant Garamond', Georgia, serif",
               fontSize: 40,
               fontWeight: 600,
-              color: '#fff',
+              color: '#1D1D1F',
               marginBottom: 16,
               lineHeight: 1.2,
             }}
@@ -80,7 +80,7 @@ export default function QuoteSubmittedPage() {
 
           <p
             style={{
-              color: 'rgba(255,255,255,0.65)',
+              color: 'rgba(0,0,0,0.65)',
               fontSize: 17,
               lineHeight: 1.7,
               marginBottom: 40,
@@ -103,7 +103,7 @@ export default function QuoteSubmittedPage() {
             <p style={{ color: '#E8A838', fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
               Want to skip the wait?
             </p>
-            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
+            <p style={{ color: 'rgba(0,0,0,0.6)', fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
               Book a time directly on our calendar and we will confirm your appointment immediately.
             </p>
             <Link href="/book" className="btn btn-accent" style={{ width: '100%', justifyContent: 'center' }}>
@@ -125,7 +125,7 @@ export default function QuoteSubmittedPage() {
             <Link
               href="/"
               style={{
-                color: 'rgba(255,255,255,0.4)',
+                color: 'rgba(0,0,0,0.45)',
                 textDecoration: 'none',
                 fontSize: 13,
                 marginTop: 4,

@@ -87,7 +87,7 @@ function MiniCalendar({
         >
           <ChevronLeft size={16} strokeWidth={1.5} />
         </button>
-        <span style={{ color: '#fff', fontWeight: 600, fontSize: 15 }}>
+        <span style={{ color: '#1D1D1F', fontWeight: 600, fontSize: 15 }}>
           {MONTHS[viewMonth]} {viewYear}
         </span>
         <button
@@ -103,7 +103,7 @@ function MiniCalendar({
       {/* Day headers */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 8 }}>
         {DAYS.map((d) => (
-          <div key={d} style={{ textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: 600, padding: '4px 0' }}>
+          <div key={d} style={{ textAlign: 'center', fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: 600, padding: '4px 0' }}>
             {d}
           </div>
         ))}
@@ -133,10 +133,10 @@ function MiniCalendar({
                   ? '#007AFF'
                   : 'transparent',
                 color: isPast
-                  ? 'rgba(255,255,255,0.2)'
+                  ? 'rgba(0,0,0,0.2)'
                   : isSelected
                   ? '#fff'
-                  : 'rgba(255,255,255,0.85)',
+                  : '#1D1D1F',
                 fontSize: 13,
                 fontWeight: isSelected ? 600 : 400,
                 cursor: isPast ? 'not-allowed' : 'pointer',
@@ -285,9 +285,9 @@ export default function BookPage() {
     padding: '12px 16px',
     fontSize: 15,
     borderRadius: 10,
-    background: 'rgba(255,255,255,0.06)',
-    border: '1px solid rgba(255,255,255,0.12)',
-    color: '#fff',
+    background: '#FFFFFF',
+    border: '1px solid rgba(0,0,0,0.12)',
+    color: '#1D1D1F',
     outline: 'none',
     fontFamily: "'DM Sans', system-ui, sans-serif",
   };
@@ -296,7 +296,7 @@ export default function BookPage() {
     <main
       style={{
         minHeight: '100vh',
-        background: '#0A0A0F',
+        background: '#FFFFFF',
         padding: '80px 24px 80px',
         position: 'relative',
         overflow: 'hidden',
@@ -307,7 +307,7 @@ export default function BookPage() {
           position: 'absolute',
           inset: 0,
           background:
-            'radial-gradient(ellipse 70% 50% at 50% 0%, rgba(0,122,255,0.1) 0%, transparent 60%), #0A0A0F',
+            'radial-gradient(ellipse 70% 50% at 50% 0%, rgba(0,122,255,0.06) 0%, transparent 60%), #FFFFFF',
           zIndex: 0,
         }}
       />
@@ -320,7 +320,7 @@ export default function BookPage() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            color: 'rgba(255,255,255,0.5)',
+            color: 'rgba(0,0,0,0.5)',
             textDecoration: 'none',
             fontSize: 14,
             marginBottom: 40,
@@ -340,14 +340,14 @@ export default function BookPage() {
                     width: 32,
                     height: 32,
                     borderRadius: '50%',
-                    background: step >= s ? '#007AFF' : 'rgba(255,255,255,0.08)',
-                    border: step >= s ? 'none' : '1px solid rgba(255,255,255,0.15)',
+                    background: step >= s ? '#007AFF' : 'rgba(0,0,0,0.06)',
+                    border: step >= s ? 'none' : '1px solid rgba(0,0,0,0.12)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: 13,
                     fontWeight: 600,
-                    color: step >= s ? '#fff' : 'rgba(255,255,255,0.4)',
+                    color: step >= s ? '#fff' : 'rgba(0,0,0,0.4)',
                     flexShrink: 0,
                     transition: 'all 0.3s',
                   }}
@@ -359,7 +359,7 @@ export default function BookPage() {
                     style={{
                       flex: 1,
                       height: 1,
-                      background: step > s ? '#007AFF' : 'rgba(255,255,255,0.1)',
+                      background: step > s ? '#007AFF' : 'rgba(0,0,0,0.1)',
                       transition: 'background 0.3s',
                     }}
                   />
@@ -378,13 +378,13 @@ export default function BookPage() {
                   fontFamily: "'Cormorant Garamond', Georgia, serif",
                   fontSize: 32,
                   fontWeight: 600,
-                  color: '#fff',
+                  color: '#1D1D1F',
                   marginBottom: 8,
                 }}
               >
                 Book an Appointment
               </h1>
-              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 15, marginBottom: 32 }}>
+              <p style={{ color: 'rgba(0,0,0,0.5)', fontSize: 15, marginBottom: 32 }}>
                 What type of appointment would you like to schedule?
               </p>
 
@@ -397,9 +397,9 @@ export default function BookPage() {
                   style={{
                     padding: '32px',
                     textAlign: 'center',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    border: '1px solid rgba(0,0,0,0.08)',
                     borderRadius: 12,
-                    color: 'rgba(255,255,255,0.4)',
+                    color: 'rgba(0,0,0,0.4)',
                     fontSize: 14,
                   }}
                 >
@@ -418,22 +418,22 @@ export default function BookPage() {
                         justifyContent: 'space-between',
                         padding: '18px 20px',
                         borderRadius: 12,
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(0,0,0,0.1)',
+                        background: 'rgba(0,0,0,0.02)',
                         cursor: 'pointer',
                         transition: 'all 0.15s',
                         textAlign: 'left',
                       }}
                     >
                       <div>
-                        <div style={{ color: '#fff', fontWeight: 600, fontSize: 15, marginBottom: 4 }}>
+                        <div style={{ color: '#1D1D1F', fontWeight: 600, fontSize: 15, marginBottom: 4 }}>
                           {t.name}
                         </div>
                         {t.description && (
-                          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{t.description}</div>
+                          <div style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>{t.description}</div>
                         )}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,0.4)', fontSize: 13, flexShrink: 0, marginLeft: 16 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(0,0,0,0.4)', fontSize: 13, flexShrink: 0, marginLeft: 16 }}>
                         <Clock size={14} strokeWidth={1.5} />
                         {t.duration_minutes} min
                       </div>
@@ -457,8 +457,8 @@ export default function BookPage() {
                   <ChevronLeft size={16} strokeWidth={1.5} />
                 </button>
                 <div>
-                  <h2 style={{ color: '#fff', fontWeight: 600, fontSize: 20 }}>Select a Date</h2>
-                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>{selectedType?.name}</p>
+                  <h2 style={{ color: '#1D1D1F', fontWeight: 600, fontSize: 20 }}>Select a Date</h2>
+                  <p style={{ color: 'rgba(0,0,0,0.45)', fontSize: 13 }}>{selectedType?.name}</p>
                 </div>
               </div>
 
@@ -492,8 +492,8 @@ export default function BookPage() {
                   <ChevronLeft size={16} strokeWidth={1.5} />
                 </button>
                 <div>
-                  <h2 style={{ color: '#fff', fontWeight: 600, fontSize: 20 }}>Select a Time</h2>
-                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>
+                  <h2 style={{ color: '#1D1D1F', fontWeight: 600, fontSize: 20 }}>Select a Time</h2>
+                  <p style={{ color: 'rgba(0,0,0,0.45)', fontSize: 13 }}>
                     {selectedDate ? formatDateDisplay(selectedDate) : ''}
                   </p>
                 </div>
@@ -508,9 +508,9 @@ export default function BookPage() {
                   style={{
                     padding: '32px',
                     textAlign: 'center',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    border: '1px solid rgba(0,0,0,0.08)',
                     borderRadius: 12,
-                    color: 'rgba(255,255,255,0.4)',
+                    color: 'rgba(0,0,0,0.4)',
                     fontSize: 14,
                   }}
                 >
@@ -528,11 +528,11 @@ export default function BookPage() {
                         borderRadius: 10,
                         border: selectedSlot?.time === slot.time
                           ? '1px solid #007AFF'
-                          : '1px solid rgba(255,255,255,0.1)',
+                          : '1px solid rgba(0,0,0,0.1)',
                         background: selectedSlot?.time === slot.time
-                          ? 'rgba(0,122,255,0.15)'
-                          : 'rgba(255,255,255,0.04)',
-                        color: selectedSlot?.time === slot.time ? '#007AFF' : 'rgba(255,255,255,0.8)',
+                          ? 'rgba(0,122,255,0.1)'
+                          : 'rgba(0,0,0,0.02)',
+                        color: selectedSlot?.time === slot.time ? '#007AFF' : '#1D1D1F',
                         fontSize: 14,
                         fontWeight: selectedSlot?.time === slot.time ? 600 : 400,
                         cursor: 'pointer',
@@ -573,8 +573,8 @@ export default function BookPage() {
                   <ChevronLeft size={16} strokeWidth={1.5} />
                 </button>
                 <div>
-                  <h2 style={{ color: '#fff', fontWeight: 600, fontSize: 20 }}>Your Details</h2>
-                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>
+                  <h2 style={{ color: '#1D1D1F', fontWeight: 600, fontSize: 20 }}>Your Details</h2>
+                  <p style={{ color: 'rgba(0,0,0,0.45)', fontSize: 13 }}>
                     {selectedDate ? formatDateDisplay(selectedDate) : ''} at {selectedSlot?.display}
                   </p>
                 </div>
@@ -602,7 +602,7 @@ export default function BookPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 6 }}>
+                  <label style={{ display: 'block', fontSize: 13, color: 'rgba(0,0,0,0.55)', marginBottom: 6 }}>
                     First Name *
                   </label>
                   <input
@@ -615,7 +615,7 @@ export default function BookPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 6 }}>
+                  <label style={{ display: 'block', fontSize: 13, color: 'rgba(0,0,0,0.55)', marginBottom: 6 }}>
                     Last Name *
                   </label>
                   <input
@@ -631,7 +631,7 @@ export default function BookPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 6 }}>
+                  <label style={{ display: 'block', fontSize: 13, color: 'rgba(0,0,0,0.55)', marginBottom: 6 }}>
                     Email *
                   </label>
                   <input
@@ -645,7 +645,7 @@ export default function BookPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 6 }}>
+                  <label style={{ display: 'block', fontSize: 13, color: 'rgba(0,0,0,0.55)', marginBottom: 6 }}>
                     Phone
                   </label>
                   <input
@@ -660,7 +660,7 @@ export default function BookPage() {
               </div>
 
               <div style={{ marginBottom: 28 }}>
-                <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: 13, color: 'rgba(0,0,0,0.55)', marginBottom: 6 }}>
                   Notes (optional)
                 </label>
                 <textarea
@@ -720,13 +720,13 @@ export default function BookPage() {
                   fontFamily: "'Cormorant Garamond', Georgia, serif",
                   fontSize: 32,
                   fontWeight: 600,
-                  color: '#fff',
+                  color: '#1D1D1F',
                   marginBottom: 12,
                 }}
               >
                 Booking Confirmed
               </h2>
-              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, marginBottom: 32, lineHeight: 1.7 }}>
+              <p style={{ color: 'rgba(0,0,0,0.55)', fontSize: 15, marginBottom: 32, lineHeight: 1.7 }}>
                 Your appointment has been booked. You will receive a confirmation email shortly.
               </p>
 
@@ -736,23 +736,23 @@ export default function BookPage() {
                   padding: '20px 24px',
                   textAlign: 'left',
                   marginBottom: 28,
-                  background: 'rgba(255,255,255,0.04)',
+                  background: 'rgba(0,0,0,0.02)',
                 }}
               >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Calendar size={16} strokeWidth={1.5} style={{ color: '#007AFF', flexShrink: 0 }} />
-                    <span style={{ color: '#fff', fontSize: 14 }}>
+                    <span style={{ color: '#1D1D1F', fontSize: 14 }}>
                       {selectedDate ? formatDateDisplay(selectedDate) : ''}
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Clock size={16} strokeWidth={1.5} style={{ color: '#007AFF', flexShrink: 0 }} />
-                    <span style={{ color: '#fff', fontSize: 14 }}>{selectedSlot?.display}</span>
+                    <span style={{ color: '#1D1D1F', fontSize: 14 }}>{selectedSlot?.display}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <User size={16} strokeWidth={1.5} style={{ color: '#007AFF', flexShrink: 0 }} />
-                    <span style={{ color: '#fff', fontSize: 14 }}>
+                    <span style={{ color: '#1D1D1F', fontSize: 14 }}>
                       {form.first_name} {form.last_name}
                     </span>
                   </div>

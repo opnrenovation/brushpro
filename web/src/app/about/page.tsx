@@ -42,10 +42,10 @@ function Navbar() {
         left: 0,
         right: 0,
         zIndex: 50,
-        background: 'rgba(10,10,15,0.85)',
+        background: '#FFFFFF',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        borderBottom: '1px solid rgba(0,0,0,0.08)',
       }}
     >
       <div
@@ -60,7 +60,7 @@ function Navbar() {
         }}
       >
         <Link href="/" style={{ textDecoration: 'none' }}>
-          <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 22, fontWeight: 600, color: '#fff' }}>
+          <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 22, fontWeight: 600, color: '#1D1D1F' }}>
             OPN Renovation
           </span>
         </Link>
@@ -74,7 +74,7 @@ function Navbar() {
             <Link
               key={item.href}
               href={item.href}
-              style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14, padding: '8px 14px' }}
+              style={{ color: 'rgba(0,0,0,0.6)', textDecoration: 'none', fontSize: 14, padding: '8px 14px' }}
             >
               {item.label}
             </Link>
@@ -93,7 +93,7 @@ export default function AboutPage() {
     <>
       <Navbar />
 
-      <main style={{ background: '#0A0A0F', minHeight: '100vh', paddingTop: 64 }}>
+      <main style={{ background: '#FFFFFF', minHeight: '100vh', paddingTop: 64 }}>
         {/* Hero */}
         <section
           style={{
@@ -107,7 +107,7 @@ export default function AboutPage() {
               position: 'absolute',
               inset: 0,
               background:
-                'radial-gradient(ellipse 70% 60% at 50% 20%, rgba(0,122,255,0.09) 0%, transparent 60%), #0A0A0F',
+                'radial-gradient(ellipse 70% 60% at 50% 20%, rgba(0,122,255,0.06) 0%, transparent 60%), #FFFFFF',
             }}
           />
           <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto' }}>
@@ -118,7 +118,7 @@ export default function AboutPage() {
               </div>
               <h1
                 className="site-headline"
-                style={{ fontSize: 'clamp(44px, 6vw, 72px)', color: '#fff', marginBottom: 24 }}
+                style={{ fontSize: 'clamp(44px, 6vw, 72px)', color: '#1D1D1F', marginBottom: 24 }}
               >
                 Family-Owned.
                 <br />
@@ -144,13 +144,13 @@ export default function AboutPage() {
         </section>
 
         {/* Story section */}
-        <section style={{ padding: '80px 0', background: 'rgba(0,0,0,0.3)' }}>
+        <section style={{ padding: '80px 0', background: '#F5F5F7' }}>
           <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center' }}>
               <div>
                 <h2
                   className="site-headline"
-                  style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#fff', marginBottom: 24 }}
+                  style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#1D1D1F', marginBottom: 24 }}
                 >
                   Our Story
                 </h2>
@@ -197,7 +197,7 @@ export default function AboutPage() {
                     >
                       {stat.number}
                     </div>
-                    <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>{stat.label}</div>
+                    <div style={{ color: 'rgba(0,0,0,0.55)', fontSize: 14 }}>{stat.label}</div>
                   </div>
                 ))}
               </div>
@@ -211,7 +211,7 @@ export default function AboutPage() {
             <div style={{ textAlign: 'center', marginBottom: 64 }}>
               <h2
                 className="site-headline"
-                style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#fff', marginBottom: 16 }}
+                style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#1D1D1F', marginBottom: 16 }}
               >
                 Our Core Values
               </h2>
@@ -244,7 +244,7 @@ export default function AboutPage() {
                       fontFamily: "'Cormorant Garamond', Georgia, serif",
                       fontSize: 22,
                       fontWeight: 600,
-                      color: '#fff',
+                      color: '#1D1D1F',
                       marginBottom: 10,
                     }}
                   >
@@ -258,13 +258,13 @@ export default function AboutPage() {
         </section>
 
         {/* Service area */}
-        <section style={{ padding: '80px 0 100px', background: 'rgba(0,0,0,0.3)' }}>
+        <section style={{ padding: '80px 0 100px', background: '#F5F5F7' }}>
           <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center' }}>
               <div>
                 <h2
                   className="site-headline"
-                  style={{ fontSize: 'clamp(28px, 4vw, 42px)', color: '#fff', marginBottom: 16 }}
+                  style={{ fontSize: 'clamp(28px, 4vw, 42px)', color: '#1D1D1F', marginBottom: 16 }}
                 >
                   Serving Greater Des Moines
                 </h2>
@@ -279,7 +279,7 @@ export default function AboutPage() {
                   ].map((city) => (
                     <div key={city} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <CheckCircle size={15} strokeWidth={1.5} style={{ color: '#34C759', flexShrink: 0 }} />
-                      <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 15 }}>{city}</span>
+                      <span style={{ color: 'rgba(0,0,0,0.65)', fontSize: 15 }}>{city}</span>
                     </div>
                   ))}
                 </div>
@@ -291,7 +291,7 @@ export default function AboutPage() {
                     fontFamily: "'Cormorant Garamond', Georgia, serif",
                     fontSize: 28,
                     fontWeight: 600,
-                    color: '#fff',
+                    color: '#1D1D1F',
                     marginBottom: 12,
                   }}
                 >
