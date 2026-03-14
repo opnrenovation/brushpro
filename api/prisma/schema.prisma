@@ -202,14 +202,13 @@ model Contact {
   tags              String[]    @default([])
   source            String?
   notes             String?
-  customer_id       String?
   subscribed        Boolean     @default(true)
   resend_contact_id String?
   deleted_at        DateTime?
   created_at        DateTime    @default(now())
   updated_at        DateTime    @updatedAt
 
-  customer     Customer?           @relation
+  customer     Customer?           @relation("ContactToCustomer")
   list_members ContactListMember[]
   leads        Lead[]
 
@@ -253,7 +252,7 @@ model Lead {
   stage           LeadStage  @default(NEW)
   lost_reason     String?
   appointment_id  String?
-  estimate_id     String?
+  estimate_id     String?   @unique
   job_id          String?
   assigned_to     String?
   notes           String?
@@ -411,7 +410,6 @@ model Estimate {
   created_at                DateTime       @default(now())
 
   job               Job?              @relation(fields: [job_id], references: [id])
-  lead              Lead?             @relation(fields: [lead_id], references: [id])
   tax_profile       TaxProfile        @relation(fields: [tax_profile_id], references: [id])
   contract_template ContractTemplate? @relation(fields: [contract_template_id], references: [id])
   contracts         Contract[]
@@ -424,7 +422,7 @@ model Estimate {
 
 model Customer {
   id         String    @id @default(cuid())
-  contact_id String?
+  contact_id String?   @unique
   name       String
   email      String?
   phone      String?
@@ -433,7 +431,7 @@ model Customer {
   deleted_at DateTime?
   created_at DateTime  @default(now())
 
-  contact Contact? @relation
+  contact Contact? @relation("ContactToCustomer", fields: [contact_id], references: [id])
   jobs    Job[]
 
   @@map("customers")
