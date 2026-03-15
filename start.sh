@@ -1,13 +1,13 @@
 #!/bin/bash
 echo "=== BrushPro API Startup ==="
 
-echo "--- Running migrations ---"
-npx prisma migrate deploy
+echo "--- Syncing database schema ---"
+npx prisma db push --accept-data-loss --schema api/prisma/schema.prisma
 if [ $? -ne 0 ]; then
-  echo "ERROR: migrations failed — aborting"
+  echo "ERROR: schema sync failed — aborting"
   exit 1
 fi
-echo "--- Migrations complete ---"
+echo "--- Schema sync complete ---"
 
 echo "--- Running seed ---"
 npx tsx api/prisma/seed.ts
