@@ -25,8 +25,8 @@ mobile/.expo/
 mobile/dist/
 mobile/web-build/
 
-# Prisma — keep migration SQL out of history, generated client auto-built
-prisma/migrations/
+# Prisma — generated client is auto-built, but migrations MUST be committed
+# prisma/migrations/  <-- do NOT ignore, Railway needs these to create tables
 
 # Logs
 npm-debug.log*
