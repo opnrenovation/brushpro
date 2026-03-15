@@ -4,27 +4,25 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  // Idempotent — only create if the email does not already exist
-  const existing = await prisma.user.findUnique({
+  // Upsert — always ensures correct password and clears force-change flag
+  const hash = await bcrypt.hash('Kaname07!', 12);
+  await prisma.user.upsert({
     where: { email: 'harunakata@hotmail.com' },
+    update: {
+      password_hash: hash,
+      must_change_password: false,
+      is_active: true,
+    },
+    create: {
+      email: 'harunakata@hotmail.com',
+      name: 'Admin',
+      role: 'OWNER',
+      password_hash: hash,
+      must_change_password: false,
+      is_active: true,
+    },
   });
-
-  if (!existing) {
-    const hash = await bcrypt.hash('Kaname07!', 12);
-    await prisma.user.create({
-      data: {
-        email: 'harunakata@hotmail.com',
-        name: 'Admin',
-        role: 'OWNER',
-        password_hash: hash,
-        must_change_password: true,
-        is_active: true,
-      },
-    });
-    console.log('Seed user created: harunakata@hotmail.com');
-  } else {
-    console.log('Seed user already exists — skipping.');
-  }
+  console.log('Admin user upserted: harunakata@hotmail.com');
 
   // Seed default company settings row if missing
   const settingsCount = await prisma.companySettings.count();
