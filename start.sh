@@ -2,16 +2,10 @@
 echo "=== BrushPro API Startup ==="
 
 echo "--- Syncing database schema ---"
-npx prisma db push --accept-data-loss --schema api/prisma/schema.prisma
-if [ $? -ne 0 ]; then
-  echo "ERROR: schema sync failed — aborting"
-  exit 1
-fi
-echo "--- Schema sync complete ---"
+npx prisma db push --accept-data-loss --schema api/prisma/schema.prisma && echo "--- Schema sync OK ---" || echo "--- Schema sync failed (non-fatal) ---"
 
 echo "--- Running seed ---"
-npx tsx api/prisma/seed.ts
-echo "--- Seed complete ---"
+npx tsx api/prisma/seed.ts && echo "--- Seed OK ---" || echo "--- Seed failed (non-fatal) ---"
 
 echo "--- Starting server ---"
 exec node api/dist/index.js
