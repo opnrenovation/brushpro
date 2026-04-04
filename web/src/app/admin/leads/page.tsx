@@ -2,8 +2,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Target, Plus, Search } from 'lucide-react';
-import { leadsApi } from '@/lib/api';
+import { Target, Plus, Search, X } from 'lucide-react';
+import { leadsApi, contactsApi } from '@/lib/api';
 
 const STAGES = ['NEW', 'CONTACTED', 'APPOINTMENT', 'ESTIMATE_SENT', 'NEGOTIATING', 'WON', 'LOST'];
 
@@ -32,9 +32,17 @@ const FALLBACK: Lead[] = [
   { id: '4', stage: 'WON', source: 'WEBSITE_FORM', service_needed: 'Exterior Painting', created_at: new Date(Date.now() - 86400000 * 10).toISOString(), updated_at: new Date(Date.now() - 86400000 * 3).toISOString(), contact: { first_name: 'Tom', last_name: 'Eriksen', email: 'tom@example.com', phone: '(515) 555-0404' }, estimate: { estimate_number: 'EST-0039', status: 'APPROVED' } },
 ];
 
+const SERVICES = ['Residential Painting', 'Commercial Painting', 'Interior Painting', 'Exterior Painting', 'Cabinet Painting', 'Deck Staining', 'Accent Walls', 'Color Consultation'];
+const SOURCES = ['MANUAL', 'WEBSITE_FORM', 'REFERRAL', 'GOOGLE', 'FACEBOOK', 'INSTAGRAM', 'YELP', 'OTHER'];
+
+const emptyForm = { first_name: '', last_name: '', email: '', phone: '', service_needed: '', source: 'MANUAL', project_address: '', notes: '' };
+
 export default function LeadsPage() {
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
   const [search, setSearch] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [formError, setFormError] = useState('');
   const qc = useQueryClient();
 
   const { data } = useQuery({
@@ -46,6 +54,42 @@ export default function LeadsPage() {
     mutationFn: ({ id, stage }: { id: string; stage: string }) => leadsApi.update(id, { stage }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['leads'] }),
   });
+
+  const createMutation = useMutation({
+    mutationFn: async (f: typeof emptyForm) => {
+      const contact = await contactsApi.create({
+        first_name: f.first_name, last_name: f.last_name,
+        email: f.email, phone: f.phone || undefined, type: 'PROSPECT',
+      });
+      const contactId = contact.data?.id || contact.data?.data?.id;
+      return leadsApi.create({
+        contact_id: contactId,
+        source: f.source,
+        service_needed: f.service_needed || undefined,
+        project_address: f.project_address || undefined,
+        notes: f.notes || undefined,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      setShowModal(false);
+      setForm(emptyForm);
+      setFormError('');
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setFormError(msg || 'Failed to create lead. Please try again.');
+    },
+  });
+
+  function handleSubmit() {
+    if (!form.first_name || !form.last_name || !form.email) {
+      setFormError('First name, last name, and email are required.');
+      return;
+    }
+    setFormError('');
+    createMutation.mutate(form);
+  }
 
   const leads: Lead[] = data?.data?.data || data?.data || FALLBACK;
   const filtered = leads.filter((l) => {
@@ -71,8 +115,74 @@ export default function LeadsPage() {
             {total} leads · {winRate}% win rate
           </p>
         </div>
-        <button className="btn btn-primary"><Plus size={16} strokeWidth={2} /> New Lead</button>
+        <button className="btn btn-primary" onClick={() => { setShowModal(true); setFormError(''); }}><Plus size={16} strokeWidth={2} /> New Lead</button>
       </div>
+
+      {showModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 520, padding: 32, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>New Lead</h2>
+              <button onClick={() => { setShowModal(false); setForm(emptyForm); setFormError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)' }}>
+                <X size={20} strokeWidth={1.5} />
+              </button>
+            </div>
+
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginBottom: 20 }}>Contact details</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>First Name *</label>
+                <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.first_name} onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))} placeholder="Alex" />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Last Name *</label>
+                <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.last_name} onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))} placeholder="Johnson" />
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Email *</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="alex@example.com" />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Phone</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} type="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="(515) 555-0100" />
+            </div>
+
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginBottom: 12 }}>Lead details</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Service</label>
+                <select className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.service_needed} onChange={(e) => setForm((f) => ({ ...f, service_needed: e.target.value }))}>
+                  <option value="">Select service...</option>
+                  {SERVICES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Source</label>
+                <select className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.source} onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}>
+                  {SOURCES.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Project Address</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.project_address} onChange={(e) => setForm((f) => ({ ...f, project_address: e.target.value }))} placeholder="123 Main St, Des Moines, IA" />
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Notes</label>
+              <textarea className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14, minHeight: 72, resize: 'vertical' }} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Any additional details..." />
+            </div>
+
+            {formError && <p style={{ color: '#FF3B30', fontSize: 13, marginBottom: 16 }}>{formError}</p>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowModal(false); setForm(emptyForm); setFormError(''); }}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSubmit} disabled={createMutation.isPending}>
+                {createMutation.isPending ? 'Creating...' : 'Create Lead'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Controls */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center' }}>
