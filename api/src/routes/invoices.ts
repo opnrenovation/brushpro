@@ -3,7 +3,13 @@ import { prisma } from '../lib/prisma';
 import { sendEmail } from '../lib/resend';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2025-02-24.acacia' });
+let _stripe: Stripe | null = null;
+function getStripe(): Stripe {
+  if (_stripe) return _stripe;
+  if (!process.env.STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY is not set.');
+  _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' });
+  return _stripe;
+}
 
 export const invoicesRouter = Router();
 
@@ -182,7 +188,7 @@ invoicesRouter.post('/:id/stripe-link', async (req, res) => {
     const alreadyPaid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
     const amountDue = Math.round((total - alreadyPaid) * 100); // cents
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
       line_items: [
