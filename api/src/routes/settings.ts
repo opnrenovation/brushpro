@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
-import { supabase, uploadFile } from '../lib/supabase';
+import { uploadFile } from '../lib/supabase';
 import { uploadLogo } from '../middleware/upload';
 import { v4 as uuidv4 } from 'uuid';
 
