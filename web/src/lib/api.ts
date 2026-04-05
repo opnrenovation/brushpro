@@ -170,6 +170,15 @@ export const emailTemplatesApi = {
   delete: (id: string) => api.delete(`/email-templates/${id}`),
 };
 
+// Vendors
+export const vendorsApi = {
+  list: (params?: Record<string, string>) => api.get('/vendors', { params }),
+  get: (id: string) => api.get(`/vendors/${id}`),
+  create: (data: unknown) => api.post('/vendors', data),
+  update: (id: string, data: unknown) => api.patch(`/vendors/${id}`, data),
+  delete: (id: string) => api.delete(`/vendors/${id}`),
+};
+
 // Reports
 export const reportsApi = {
   tax: (params?: Record<string, string>) => api.get('/reports/tax', { params }),

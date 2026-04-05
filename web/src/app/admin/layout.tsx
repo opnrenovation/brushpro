@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Target, Briefcase, Users,
-  Mail, BarChart2, Settings, LogOut, PaintBucket, Menu, X,
+  Mail, BarChart2, Settings, LogOut, PaintBucket, Menu, X, Truck,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 
@@ -13,6 +13,7 @@ const NAV = [
   { href: '/admin/leads',     label: 'Leads',     icon: Target },
   { href: '/admin/jobs',      label: 'Jobs',       icon: Briefcase },
   { href: '/admin/contacts',  label: 'Contacts',   icon: Users },
+  { href: '/admin/vendors',   label: 'Vendors',    icon: Truck },
   { href: '/admin/marketing', label: 'Marketing',  icon: Mail },
   { href: '/admin/reports',   label: 'Reports',    icon: BarChart2 },
   { href: '/admin/settings',  label: 'Settings',   icon: Settings },

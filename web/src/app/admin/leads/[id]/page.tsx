@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Phone, Mail, Calendar, FileText, Clock, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Calendar, FileText, Clock, ChevronRight, X } from 'lucide-react';
 import { leadsApi } from '@/lib/api';
 
 const STAGES = ['NEW', 'CONTACTED', 'APPOINTMENT', 'ESTIMATE_SENT', 'NEGOTIATING', 'WON', 'LOST'];
@@ -17,6 +17,9 @@ export default function LeadDetailPage() {
   const qc = useQueryClient();
   const [lostReason, setLostReason] = useState('');
   const [showLostModal, setShowLostModal] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [convertForm, setConvertForm] = useState({ job_name: '', address: '', municipality: '' });
+  const [convertError, setConvertError] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['leads', id],
@@ -26,6 +29,22 @@ export default function LeadDetailPage() {
   const stageMutation = useMutation({
     mutationFn: (body: { stage: string; lost_reason?: string }) => leadsApi.update(id, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['leads'] }),
+  });
+
+  const convertMutation = useMutation({
+    mutationFn: (body: { job_name: string; address: string; municipality: string }) =>
+      leadsApi.convert(id, body),
+    onSuccess: (res) => {
+      const jobId = res?.data?.data?.job?.id || res?.data?.job?.id;
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      setShowConvertModal(false);
+      if (jobId) router.push(`/admin/jobs/${jobId}`);
+      else router.push('/admin/jobs');
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setConvertError(msg || 'Failed to convert lead. Please try again.');
+    },
   });
 
   if (isLoading) return <div style={{ padding: 40, color: 'rgba(255,255,255,0.4)' }}>Loading...</div>;
@@ -176,12 +195,76 @@ export default function LeadDetailPage() {
           )}
 
           {lead.stage === 'WON' && !lead.job_id && (
-            <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+            <button
+              className="btn btn-primary"
+              style={{ width: '100%', justifyContent: 'center' }}
+              onClick={() => {
+                setConvertForm({ job_name: lead.service_needed || '', address: lead.project_address || '', municipality: '' });
+                setConvertError('');
+                setShowConvertModal(true);
+              }}
+            >
               Convert to Job
             </button>
           )}
         </div>
       </div>
+
+      {/* Convert to Job modal */}
+      {showConvertModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 440, padding: 32 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>Convert to Job</h2>
+              <button onClick={() => setShowConvertModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)' }}>
+                <X size={20} strokeWidth={1.5} />
+              </button>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Job Name *</label>
+              <input
+                className="glass-input"
+                style={{ width: '100%', padding: '9px 12px', fontSize: 14 }}
+                value={convertForm.job_name}
+                onChange={(e) => setConvertForm((f) => ({ ...f, job_name: e.target.value }))}
+                placeholder="e.g. Interior Repaint"
+              />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Address</label>
+              <input
+                className="glass-input"
+                style={{ width: '100%', padding: '9px 12px', fontSize: 14 }}
+                value={convertForm.address}
+                onChange={(e) => setConvertForm((f) => ({ ...f, address: e.target.value }))}
+                placeholder="123 Main St"
+              />
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Municipality</label>
+              <input
+                className="glass-input"
+                style={{ width: '100%', padding: '9px 12px', fontSize: 14 }}
+                value={convertForm.municipality}
+                onChange={(e) => setConvertForm((f) => ({ ...f, municipality: e.target.value }))}
+                placeholder="e.g. Des Moines"
+              />
+            </div>
+            {convertError && <p style={{ color: '#FF3B30', fontSize: 13, marginBottom: 16 }}>{convertError}</p>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowConvertModal(false)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                style={{ flex: 1 }}
+                disabled={!convertForm.job_name.trim() || convertMutation.isPending}
+                onClick={() => convertMutation.mutate(convertForm)}
+              >
+                {convertMutation.isPending ? 'Converting...' : 'Create Job'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lost reason modal */}
       {showLostModal && (

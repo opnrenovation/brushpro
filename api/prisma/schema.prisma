@@ -646,6 +646,32 @@ model CampaignEvent {
   @@map("campaign_events")
 }
 
+// ─── Vendors ───────────────────────────────────────────────────────────────
+
+enum VendorCategory {
+  PAINT_SUPPLIER
+  EQUIPMENT
+  SUBCONTRACTOR
+  MATERIALS
+  OTHER
+}
+
+model Vendor {
+  id           String         @id @default(cuid())
+  name         String
+  category     VendorCategory @default(OTHER)
+  contact_name String?
+  email        String?
+  phone        String?
+  address      String?
+  notes        String?
+  deleted_at   DateTime?
+  created_at   DateTime       @default(now())
+  updated_at   DateTime       @updatedAt
+
+  @@map("vendors")
+}
+
 // ─── Imports ───────────────────────────────────────────────────────────────
 
 model CsvImport {

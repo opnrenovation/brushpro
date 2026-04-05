@@ -6,12 +6,13 @@ import { contactsApi } from '@/lib/api';
 
 const TYPES = ['ALL', 'PROSPECT', 'CUSTOMER', 'BOTH'];
 const SOURCES = ['MANUAL', 'WEBSITE_FORM', 'REFERRAL', 'GOOGLE', 'FACEBOOK', 'INSTAGRAM', 'YELP', 'OTHER'];
-const emptyForm = { first_name: '', last_name: '', email: '', phone: '', type: 'PROSPECT', source: '', subscribed: false };
+const emptyForm = { first_name: '', last_name: '', company: '', email: '', phone: '', type: 'PROSPECT', source: '', subscribed: false };
 
 interface Contact {
   id: string;
   first_name: string;
   last_name: string;
+  company: string | null;
   email: string;
   phone: string | null;
   type: string;
@@ -29,6 +30,7 @@ export default function ContactsPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState('');
+  const [listsNotice, setListsNotice] = useState(false);
   const qc = useQueryClient();
 
   const { data } = useQuery({ queryKey: ['contacts'], queryFn: () => contactsApi.list() });
@@ -37,6 +39,7 @@ export default function ContactsPage() {
   const createMutation = useMutation({
     mutationFn: (f: typeof emptyForm) => contactsApi.create({
       first_name: f.first_name, last_name: f.last_name, email: f.email,
+      company: f.company || undefined,
       phone: f.phone || undefined, type: f.type,
       source: f.source || undefined, subscribed: f.subscribed,
     }),
@@ -109,6 +112,10 @@ export default function ContactsPage() {
                 <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Last Name *</label>
                 <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.last_name} onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))} placeholder="Johnson" />
               </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Company</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.company} onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))} placeholder="Acme Corp" />
             </div>
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Email *</label>
@@ -218,12 +225,12 @@ export default function ContactsPage() {
           <div className="glass" style={{ overflow: 'hidden' }}>
             <table className="data-table">
               <thead>
-                <tr><th>Name</th><th>Email</th><th>Phone</th><th>Type</th><th>Tags</th><th>Subscribed</th></tr>
+                <tr><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Type</th><th>Tags</th><th>Subscribed</th></tr>
               </thead>
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', padding: 40 }}>
+                    <td colSpan={7} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', padding: 40 }}>
                       No contacts found
                     </td>
                   </tr>
@@ -233,6 +240,7 @@ export default function ContactsPage() {
                     <td style={{ fontWeight: 500, color: '#fff' }}>
                       {c.first_name} {c.last_name}
                     </td>
+                    <td style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{c.company || '—'}</td>
                     <td style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>{c.email}</td>
                     <td style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{c.phone || '—'}</td>
                     <td>
@@ -278,9 +286,14 @@ export default function ContactsPage() {
           <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>
             Create lists to segment your contacts for targeted email campaigns.
           </p>
-          <button className="btn btn-primary" style={{ marginTop: 20 }}>
+          <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={() => setListsNotice(true)}>
             <Plus size={15} strokeWidth={1.5} /> Create List
           </button>
+          {listsNotice && (
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 12 }}>
+              Contact lists are coming in a future update.
+            </p>
+          )}
         </div>
       )}
 

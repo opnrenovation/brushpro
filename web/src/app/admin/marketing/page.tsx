@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Mail, Plus, BarChart2, TrendingUp, MousePointer, Eye,
+  Mail, Plus, BarChart2, TrendingUp, MousePointer, Eye, X,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -59,14 +59,78 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   );
 };
 
+const emptyCampaignForm = { name: '', subject: '', preview_text: '', html_body: '' };
+const emptyTemplateForm = { name: '', subject: '', preview_text: '', html_body: '' };
+
 export default function MarketingPage() {
   const [tab, setTab] = useState<'campaigns' | 'templates' | 'analytics'>('campaigns');
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [campaignForm, setCampaignForm] = useState(emptyCampaignForm);
+  const [campaignError, setCampaignError] = useState('');
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templateForm, setTemplateForm] = useState(emptyTemplateForm);
+  const [templateError, setTemplateError] = useState('');
+  const qc = useQueryClient();
 
   const { data: campData } = useQuery({ queryKey: ['campaigns'], queryFn: () => campaignsApi.list() });
   const { data: tmplData } = useQuery({ queryKey: ['email-templates'], queryFn: () => emailTemplatesApi.list() });
 
   const campaigns: Campaign[] = campData?.data?.data || campData?.data || [];
   const templates: EmailTemplate[] = tmplData?.data?.data || tmplData?.data || [];
+
+  const createCampaignMutation = useMutation({
+    mutationFn: (f: typeof emptyCampaignForm) => campaignsApi.create({
+      name: f.name, subject: f.subject,
+      preview_text: f.preview_text || undefined,
+      html_body: f.html_body || '<p>Campaign content goes here.</p>',
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['campaigns'] });
+      setShowCampaignModal(false);
+      setCampaignForm(emptyCampaignForm);
+      setCampaignError('');
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setCampaignError(msg || 'Failed to create campaign.');
+    },
+  });
+
+  const createTemplateMutation = useMutation({
+    mutationFn: (f: typeof emptyTemplateForm) => emailTemplatesApi.create({
+      name: f.name, subject: f.subject,
+      preview_text: f.preview_text || undefined,
+      html_body: f.html_body || '<p>Template content goes here.</p>',
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['email-templates'] });
+      setShowTemplateModal(false);
+      setTemplateForm(emptyTemplateForm);
+      setTemplateError('');
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setTemplateError(msg || 'Failed to create template.');
+    },
+  });
+
+  function handleCampaignSubmit() {
+    if (!campaignForm.name || !campaignForm.subject) {
+      setCampaignError('Name and subject are required.');
+      return;
+    }
+    setCampaignError('');
+    createCampaignMutation.mutate(campaignForm);
+  }
+
+  function handleTemplateSubmit() {
+    if (!templateForm.name || !templateForm.subject) {
+      setTemplateError('Name and subject are required.');
+      return;
+    }
+    setTemplateError('');
+    createTemplateMutation.mutate(templateForm);
+  }
 
   const totalSent = campaigns.filter((c) => c.status === 'SENT').length;
   const avgOpenRate =
@@ -86,16 +150,88 @@ export default function MarketingPage() {
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff' }}>Marketing</h1>
         </div>
         {tab === 'campaigns' && (
-          <button className="btn btn-primary">
+          <button className="btn btn-primary" onClick={() => { setShowCampaignModal(true); setCampaignError(''); }}>
             <Plus size={16} strokeWidth={1.5} /> New Campaign
           </button>
         )}
         {tab === 'templates' && (
-          <button className="btn btn-primary">
+          <button className="btn btn-primary" onClick={() => { setShowTemplateModal(true); setTemplateError(''); }}>
             <Plus size={16} strokeWidth={1.5} /> New Template
           </button>
         )}
       </div>
+
+      {showCampaignModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 520, padding: 32, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>New Campaign</h2>
+              <button onClick={() => { setShowCampaignModal(false); setCampaignForm(emptyCampaignForm); setCampaignError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)' }}>
+                <X size={20} strokeWidth={1.5} />
+              </button>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Campaign Name *</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={campaignForm.name} onChange={(e) => setCampaignForm((f) => ({ ...f, name: e.target.value }))} placeholder="Spring Promo 2026" />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Subject Line *</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={campaignForm.subject} onChange={(e) => setCampaignForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Get 10% off exterior painting this spring" />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Preview Text</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={campaignForm.preview_text} onChange={(e) => setCampaignForm((f) => ({ ...f, preview_text: e.target.value }))} placeholder="Limited time offer for our valued customers..." />
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>HTML Body</label>
+              <textarea className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 13, fontFamily: 'Menlo, monospace', minHeight: 120, resize: 'vertical' }} value={campaignForm.html_body} onChange={(e) => setCampaignForm((f) => ({ ...f, html_body: e.target.value }))} placeholder="<p>Your email content here...</p>" />
+            </div>
+            {campaignError && <p style={{ color: '#FF3B30', fontSize: 13, marginBottom: 16 }}>{campaignError}</p>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowCampaignModal(false); setCampaignForm(emptyCampaignForm); setCampaignError(''); }}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleCampaignSubmit} disabled={createCampaignMutation.isPending}>
+                {createCampaignMutation.isPending ? 'Creating...' : 'Create Campaign'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTemplateModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 520, padding: 32, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>New Template</h2>
+              <button onClick={() => { setShowTemplateModal(false); setTemplateForm(emptyTemplateForm); setTemplateError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)' }}>
+                <X size={20} strokeWidth={1.5} />
+              </button>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Template Name *</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={templateForm.name} onChange={(e) => setTemplateForm((f) => ({ ...f, name: e.target.value }))} placeholder="Welcome Email" />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Subject Line *</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={templateForm.subject} onChange={(e) => setTemplateForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Welcome to OPN Renovation!" />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Preview Text</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={templateForm.preview_text} onChange={(e) => setTemplateForm((f) => ({ ...f, preview_text: e.target.value }))} placeholder="Thanks for choosing us..." />
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>HTML Body</label>
+              <textarea className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 13, fontFamily: 'Menlo, monospace', minHeight: 120, resize: 'vertical' }} value={templateForm.html_body} onChange={(e) => setTemplateForm((f) => ({ ...f, html_body: e.target.value }))} placeholder="<p>Your template content here...</p>" />
+            </div>
+            {templateError && <p style={{ color: '#FF3B30', fontSize: 13, marginBottom: 16 }}>{templateError}</p>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowTemplateModal(false); setTemplateForm(emptyTemplateForm); setTemplateError(''); }}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleTemplateSubmit} disabled={createTemplateMutation.isPending}>
+                {createTemplateMutation.isPending ? 'Creating...' : 'Create Template'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 0 }}>

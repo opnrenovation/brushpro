@@ -1,9 +1,9 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
-import { Briefcase, Search, Plus } from 'lucide-react';
-import { jobsApi } from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Briefcase, Search, Plus, X } from 'lucide-react';
+import { jobsApi, customersApi } from '@/lib/api';
 
 const STATUSES = ['ALL', 'ESTIMATING', 'ACTIVE', 'INVOICED', 'COMPLETE', 'CANCELLED'];
 const STATUS_PILL: Record<string, string> = {
@@ -12,6 +12,7 @@ const STATUS_PILL: Record<string, string> = {
 };
 
 interface Job { id: string; name: string; address: string; status: string; municipality: string; customer?: { name: string }; created_at: string; }
+interface Customer { id: string; name: string; }
 
 const FALLBACK: Job[] = [
   { id: '1', name: 'Henderson Exterior', address: '142 Maple Ave', status: 'ACTIVE', municipality: 'Des Moines', customer: { name: 'Mark Henderson' }, created_at: new Date().toISOString() },
@@ -19,12 +20,55 @@ const FALLBACK: Job[] = [
   { id: '3', name: 'Garcia Residence Interior', address: '55 Birchwood Ct', status: 'COMPLETE', municipality: 'Ankeny', customer: { name: 'Elena Garcia' }, created_at: new Date().toISOString() },
 ];
 
+const emptyForm = { customer_id: '', name: '', address: '', municipality: '', labor_rate: '', start_date: '', notes: '' };
+
 export default function JobsPage() {
   const [status, setStatus] = useState('ALL');
   const [search, setSearch] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [formError, setFormError] = useState('');
+  const qc = useQueryClient();
 
   const { data } = useQuery({ queryKey: ['jobs'], queryFn: () => jobsApi.list() });
+  const { data: customersData } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list() });
   const jobs: Job[] = data?.data?.data || data?.data || FALLBACK;
+  const customers: Customer[] = customersData?.data?.data || customersData?.data || [];
+
+  const createMutation = useMutation({
+    mutationFn: (f: typeof emptyForm) => jobsApi.create({
+      customer_id: f.customer_id,
+      name: f.name,
+      address: f.address,
+      municipality: f.municipality,
+      labor_rate: parseFloat(f.labor_rate),
+      start_date: f.start_date || undefined,
+      notes: f.notes || undefined,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+      setShowModal(false);
+      setForm(emptyForm);
+      setFormError('');
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setFormError(msg || 'Failed to create job. Please try again.');
+    },
+  });
+
+  function handleSubmit() {
+    if (!form.customer_id || !form.name || !form.address || !form.municipality || !form.labor_rate) {
+      setFormError('Customer, job name, address, municipality, and labor rate are required.');
+      return;
+    }
+    if (isNaN(parseFloat(form.labor_rate)) || parseFloat(form.labor_rate) <= 0) {
+      setFormError('Labor rate must be a positive number.');
+      return;
+    }
+    setFormError('');
+    createMutation.mutate(form);
+  }
 
   const filtered = jobs.filter((j) => {
     const matchStatus = status === 'ALL' || j.status === status;
@@ -40,8 +84,63 @@ export default function JobsPage() {
           <Briefcase size={20} color="#007AFF" strokeWidth={1.5} />
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff' }}>Jobs</h1>
         </div>
-        <button className="btn btn-primary"><Plus size={16} strokeWidth={2} /> New Job</button>
+        <button className="btn btn-primary" onClick={() => { setShowModal(true); setFormError(''); }}><Plus size={16} strokeWidth={2} /> New Job</button>
       </div>
+
+      {showModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 520, padding: 32, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>New Job</h2>
+              <button onClick={() => { setShowModal(false); setForm(emptyForm); setFormError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)' }}>
+                <X size={20} strokeWidth={1.5} />
+              </button>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Customer *</label>
+              <select className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.customer_id} onChange={(e) => setForm((f) => ({ ...f, customer_id: e.target.value }))}>
+                <option value="">Select customer...</option>
+                {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Job Name *</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Henderson Exterior" />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Address *</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} placeholder="123 Main St" />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Municipality *</label>
+                <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.municipality} onChange={(e) => setForm((f) => ({ ...f, municipality: e.target.value }))} placeholder="Des Moines" />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Labor Rate ($/hr) *</label>
+                <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} type="number" min="0" step="0.01" value={form.labor_rate} onChange={(e) => setForm((f) => ({ ...f, labor_rate: e.target.value }))} placeholder="65.00" />
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Start Date</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} />
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Notes</label>
+              <textarea className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14, minHeight: 72, resize: 'vertical' }} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Any additional details..." />
+            </div>
+
+            {formError && <p style={{ color: '#FF3B30', fontSize: 13, marginBottom: 16 }}>{formError}</p>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowModal(false); setForm(emptyForm); setFormError(''); }}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSubmit} disabled={createMutation.isPending}>
+                {createMutation.isPending ? 'Creating...' : 'Create Job'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
