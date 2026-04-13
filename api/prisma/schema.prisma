@@ -466,6 +466,7 @@ model Job {
   address      String
   municipality String
   status       JobStatus @default(ESTIMATING)
+  tax_exempt   Boolean   @default(false)
   start_date   DateTime?
   end_date     DateTime?
   labor_rate   Decimal   @db.Decimal(10, 2)

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, X, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, X, Trash2, Send } from 'lucide-react';
 import { jobsApi, estimatesApi } from '@/lib/api';
 
 const TABS = ['Overview', 'Estimates', 'Labor', 'Expenses', 'Invoices'];
@@ -46,6 +46,15 @@ export default function JobDetailPage() {
     },
   });
 
+  const sendEstimate = useMutation({
+    mutationFn: (estId: string) => estimatesApi.send(estId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs', id] }),
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      alert(msg || 'Failed to send estimate. Check that Resend is configured.');
+    },
+  });
+
   function closeEstModal() {
     setShowEstModal(false);
     setEstMode('flat');
@@ -57,6 +66,7 @@ export default function JobDetailPage() {
   }
 
   function handleCreateEstimate() {
+    const taxable = !job.tax_exempt;
     if (estMode === 'flat') {
       if (!flatAmount || isNaN(parseFloat(flatAmount)) || parseFloat(flatAmount) <= 0) {
         setEstError('Enter a valid amount.');
@@ -66,7 +76,7 @@ export default function JobDetailPage() {
         description: flatDesc || 'Painting services',
         type: 'LABOR', qty: 1, unit: 'flat',
         unit_price: parseFloat(flatAmount),
-        taxable: true,
+        taxable,
       }];
       createEstimate.mutate({ job_id: id, line_items: items, notes: estNotes || undefined });
     } else {
@@ -79,7 +89,7 @@ export default function JobDetailPage() {
         description: li.description,
         type: 'LABOR', qty: li.qty || 1, unit: 'flat',
         unit_price: li.unit_price,
-        taxable: true,
+        taxable,
       }));
       createEstimate.mutate({ job_id: id, line_items: items, notes: estNotes || undefined });
     }
@@ -251,7 +261,7 @@ export default function JobDetailPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
               {[
                 { label: 'Status', value: job.status },
-                { label: 'Labor Rate', value: job.labor_rate ? `$${job.labor_rate}/hr` : '—' },
+                { label: 'Sales Tax', value: job.tax_exempt ? 'Exempt' : 'Taxable' },
                 { label: 'Start Date', value: job.start_date ? new Date(job.start_date).toLocaleDateString() : '—' },
                 { label: 'End Date', value: job.end_date ? new Date(job.end_date).toLocaleDateString() : '—' },
               ].map(({ label, value }) => (
@@ -279,17 +289,31 @@ export default function JobDetailPage() {
               ? <p style={{ color: 'rgba(0,0,0,0.4)' }}>No estimates yet.</p>
               : (
                 <table className="data-table">
-                  <thead><tr><th>Number</th><th>Status</th><th>Total</th><th>Created</th></tr></thead>
+                  <thead><tr><th>Number</th><th>Status</th><th>Total</th><th>Created</th><th></th></tr></thead>
                   <tbody>
                     {(job.estimates as { id: string; estimate_number: string; status: string; line_items: unknown; created_at: string }[]).map((e) => {
                       const items = (e.line_items as { qty: number; unit_price: number }[]) || [];
                       const total = items.reduce((s, li) => s + li.qty * li.unit_price, 0);
+                      const canSend = e.status === 'DRAFT' || e.status === 'SENT';
                       return (
                         <tr key={e.id}>
                           <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{e.estimate_number}</td>
                           <td><span className="pill pill-blue">{e.status}</span></td>
                           <td style={{ fontFamily: 'Menlo,monospace', color: 'var(--text-primary)' }}>{fmt(total)}</td>
                           <td style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>{new Date(e.created_at).toLocaleDateString()}</td>
+                          <td>
+                            {canSend && (
+                              <button
+                                onClick={() => sendEstimate.mutate(e.id)}
+                                disabled={sendEstimate.isPending}
+                                className="btn btn-primary"
+                                style={{ padding: '5px 12px', fontSize: 12 }}
+                              >
+                                <Send size={12} strokeWidth={1.5} />
+                                {e.status === 'SENT' ? 'Resend' : 'Send'}
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}

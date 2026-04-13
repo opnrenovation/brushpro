@@ -19,7 +19,7 @@ interface CustomerRecord { id: string; contact_id?: string; name: string; }
 
 type SearchResult = { kind: 'contact'; data: Contact } | { kind: 'company'; data: Company };
 
-const emptyForm = { contact_id: '', company_id: '', selected_label: '', name: '', address: '', municipality: '', notes: '' };
+const emptyForm = { contact_id: '', company_id: '', selected_label: '', name: '', address: '', municipality: '', tax_exempt: false, notes: '' };
 
 function JobsPageInner() {
   const searchParams = useSearchParams();
@@ -158,6 +158,7 @@ function JobsPageInner() {
         name: f.name,
         address: f.address,
         municipality: f.municipality,
+        tax_exempt: f.tax_exempt,
         notes: f.notes || undefined,
       });
     },
@@ -287,6 +288,15 @@ function JobsPageInner() {
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Municipality *</label>
               <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.municipality} onChange={(e) => setForm((f) => ({ ...f, municipality: e.target.value }))} placeholder="Des Moines" />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Sales Tax</label>
+              <select className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }}
+                value={form.tax_exempt ? 'exempt' : 'taxable'}
+                onChange={(e) => setForm((f) => ({ ...f, tax_exempt: e.target.value === 'exempt' }))}>
+                <option value="taxable">Taxable</option>
+                <option value="exempt">Tax Exempt</option>
+              </select>
             </div>
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Notes</label>
