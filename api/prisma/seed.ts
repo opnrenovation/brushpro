@@ -111,6 +111,77 @@ async function main() {
     console.log('Default contract template created.');
   }
 
+  // Seed Iowa municipality tax profiles
+  const taxCount = await prisma.taxProfile.count();
+  if (taxCount === 0) {
+    // Iowa state sales tax: 6%. Most incorporated municipalities have adopted the 1% Local Option Sales Tax (LOST).
+    // Rates sourced from Iowa Dept of Revenue. Verify before filing.
+    const iowaMunicipalities = [
+      // Des Moines metro – Polk County
+      { name: 'Des Moines, IA', municipality: 'Des Moines', state_rate: 0.06, local_rate: 0.01, is_default: true },
+      { name: 'Ankeny, IA', municipality: 'Ankeny', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'West Des Moines, IA', municipality: 'West Des Moines', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Urbandale, IA', municipality: 'Urbandale', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Johnston, IA', municipality: 'Johnston', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Waukee, IA', municipality: 'Waukee', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Clive, IA', municipality: 'Clive', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Windsor Heights, IA', municipality: 'Windsor Heights', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Pleasant Hill, IA', municipality: 'Pleasant Hill', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Altoona, IA', municipality: 'Altoona', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Bondurant, IA', municipality: 'Bondurant', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Grimes, IA', municipality: 'Grimes', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Polk City, IA', municipality: 'Polk City', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Mitchellville, IA', municipality: 'Mitchellville', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      // Warren County (south metro)
+      { name: 'Norwalk, IA', municipality: 'Norwalk', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Indianola, IA', municipality: 'Indianola', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Carlisle, IA', municipality: 'Carlisle', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      // Dallas County (west metro)
+      { name: 'Adel, IA', municipality: 'Adel', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Perry, IA', municipality: 'Perry', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Woodward, IA', municipality: 'Woodward', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      // Madison County
+      { name: 'Winterset, IA', municipality: 'Winterset', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      // Other major Iowa cities
+      { name: 'Cedar Rapids, IA', municipality: 'Cedar Rapids', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Iowa City, IA', municipality: 'Iowa City', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Coralville, IA', municipality: 'Coralville', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'North Liberty, IA', municipality: 'North Liberty', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Marion, IA', municipality: 'Marion', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Davenport, IA', municipality: 'Davenport', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Bettendorf, IA', municipality: 'Bettendorf', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Sioux City, IA', municipality: 'Sioux City', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Waterloo, IA', municipality: 'Waterloo', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Cedar Falls, IA', municipality: 'Cedar Falls', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Ames, IA', municipality: 'Ames', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Dubuque, IA', municipality: 'Dubuque', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Council Bluffs, IA', municipality: 'Council Bluffs', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Mason City, IA', municipality: 'Mason City', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Burlington, IA', municipality: 'Burlington', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Clinton, IA', municipality: 'Clinton', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Ottumwa, IA', municipality: 'Ottumwa', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Fort Dodge, IA', municipality: 'Fort Dodge', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Marshalltown, IA', municipality: 'Marshalltown', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Muscatine, IA', municipality: 'Muscatine', state_rate: 0.06, local_rate: 0.01, is_default: false },
+      { name: 'Keokuk, IA', municipality: 'Keokuk', state_rate: 0.06, local_rate: 0.01, is_default: false },
+    ];
+
+    for (const m of iowaMunicipalities) {
+      await prisma.taxProfile.create({
+        data: {
+          name: m.name,
+          state_code: 'IA',
+          state_rate: m.state_rate,
+          local_rate: m.local_rate,
+          municipality: m.municipality,
+          taxable_labor: false,
+          is_default: m.is_default,
+        },
+      });
+    }
+    console.log(`Iowa tax profiles seeded: ${iowaMunicipalities.length} municipalities.`);
+  }
+
   // Seed default availability rules (Mon–Fri 8am–5pm, Sat 8am–1pm)
   const availCount = await prisma.availabilityRule.count();
   if (availCount === 0) {

@@ -193,6 +193,7 @@ export const vendorsApi = {
 export const reportsApi = {
   tax: (params?: Record<string, string>) => api.get('/reports/tax', { params }),
   taxExport: () => api.get('/reports/tax/export', { responseType: 'blob' }),
+  taxOutstanding: (params?: Record<string, string>) => api.get('/reports/tax/outstanding', { params }),
   profit: (params?: Record<string, string>) => api.get('/reports/profit', { params }),
   profitExport: () => api.get('/reports/profit/export', { responseType: 'blob' }),
   materials: (params?: Record<string, string>) => api.get('/reports/materials', { params }),

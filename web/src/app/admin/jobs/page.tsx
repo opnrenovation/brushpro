@@ -7,6 +7,16 @@ import { Briefcase, Search, Plus, X, Building2, User } from 'lucide-react';
 import { jobsApi, customersApi, contactsApi, companiesApi } from '@/lib/api';
 
 const STATUSES = ['ALL', 'ESTIMATING', 'ACTIVE', 'INVOICED', 'COMPLETE', 'CANCELLED'];
+
+const IOWA_MUNICIPALITIES = [
+  'Des Moines','Ankeny','West Des Moines','Urbandale','Johnston','Waukee','Clive',
+  'Windsor Heights','Pleasant Hill','Altoona','Bondurant','Grimes','Polk City','Mitchellville',
+  'Norwalk','Indianola','Carlisle','Adel','Perry','Woodward','Winterset',
+  'Cedar Rapids','Iowa City','Coralville','North Liberty','Marion',
+  'Davenport','Bettendorf','Sioux City','Waterloo','Cedar Falls','Ames',
+  'Dubuque','Council Bluffs','Mason City','Burlington','Clinton',
+  'Ottumwa','Fort Dodge','Marshalltown','Muscatine','Keokuk',
+];
 const STATUS_PILL: Record<string, string> = {
   ESTIMATING: 'pill-blue', ACTIVE: 'pill-green', INVOICED: 'pill-orange',
   COMPLETE: 'pill-muted', CANCELLED: 'pill-muted',
@@ -287,7 +297,17 @@ function JobsPageInner() {
             </div>
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Municipality *</label>
-              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.municipality} onChange={(e) => setForm((f) => ({ ...f, municipality: e.target.value }))} placeholder="Des Moines" />
+              <input
+                className="glass-input"
+                style={{ width: '100%', padding: '9px 12px', fontSize: 14 }}
+                value={form.municipality}
+                onChange={(e) => setForm((f) => ({ ...f, municipality: e.target.value }))}
+                placeholder="Des Moines"
+                list="iowa-municipalities"
+              />
+              <datalist id="iowa-municipalities">
+                {IOWA_MUNICIPALITIES.map(m => <option key={m} value={m} />)}
+              </datalist>
             </div>
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Sales Tax</label>

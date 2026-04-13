@@ -103,6 +103,70 @@ reportsRouter.get('/tax/export', async (req, res) => {
   }
 });
 
+reportsRouter.get('/tax/outstanding', async (req, res) => {
+  try {
+    const { start, end } = req.query as Record<string, string>;
+    const dateFilter = dateRange(start, end);
+
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        status: 'SENT',
+        deleted_at: null,
+        ...(dateFilter ? { due_date: dateFilter } : {}),
+      },
+      include: { tax_profile: true, exemptions: true, job: { include: { customer: true } } },
+      orderBy: { due_date: 'asc' },
+    });
+
+    interface OutstandingEntry {
+      municipality: string;
+      state_rate: number;
+      local_rate: number;
+      invoice_count: number;
+      taxable_subtotal: number;
+      state_tax_outstanding: number;
+      local_tax_outstanding: number;
+      total_tax_outstanding: number;
+    }
+
+    const byMunicipality: Record<string, OutstandingEntry> = {};
+
+    for (const inv of invoices) {
+      const key = inv.tax_profile.municipality;
+      if (!byMunicipality[key]) {
+        byMunicipality[key] = {
+          municipality: inv.tax_profile.municipality,
+          state_rate: Number(inv.tax_profile.state_rate),
+          local_rate: Number(inv.tax_profile.local_rate),
+          invoice_count: 0,
+          taxable_subtotal: 0,
+          state_tax_outstanding: 0,
+          local_tax_outstanding: 0,
+          total_tax_outstanding: 0,
+        };
+      }
+      const exemption = inv.exemptions[0];
+      const lineItems = inv.line_items as Array<{ qty: number; unit_price: number; taxable: boolean }>;
+      const taxableAmount = lineItems
+        .filter((li) => li.taxable && !exemption)
+        .reduce((s, li) => s + li.qty * li.unit_price, 0);
+      const stateTax = taxableAmount * Number(inv.tax_profile.state_rate);
+      const localTax = taxableAmount * Number(inv.tax_profile.local_rate);
+
+      byMunicipality[key].invoice_count++;
+      byMunicipality[key].taxable_subtotal += taxableAmount;
+      byMunicipality[key].state_tax_outstanding += stateTax;
+      byMunicipality[key].local_tax_outstanding += localTax;
+      byMunicipality[key].total_tax_outstanding += stateTax + localTax;
+    }
+
+    const rows = Object.values(byMunicipality).sort((a, b) => b.total_tax_outstanding - a.total_tax_outstanding);
+    res.json({ data: rows });
+  } catch {
+    res.status(500).json({ error: 'Failed to generate outstanding tax report' });
+  }
+});
+
 reportsRouter.get('/profit', async (req, res) => {
   try {
     const { start, end } = req.query as Record<string, string>;
