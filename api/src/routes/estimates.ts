@@ -67,7 +67,8 @@ estimatesRouter.post('/', async (req, res) => {
       data: { ...req.body, tax_profile_id, estimate_number },
     });
     res.status(201).json({ data: estimate });
-  } catch {
+  } catch (err) {
+    console.error('Failed to create estimate:', err);
     res.status(500).json({ error: 'Failed to create estimate' });
   }
 });
