@@ -138,7 +138,7 @@ estimatesRouter.post('/:id/send', async (req, res) => {
     const customerEmail = estimate.job?.customer.email;
     if (customerEmail) {
       try {
-        await sendEmail({
+        const emailData = await sendEmail({
           to: customerEmail,
           subject: `Estimate ${estimate.estimate_number} from ${settings?.company_name || 'BrushPro'}`,
           html: `
@@ -150,8 +150,15 @@ estimatesRouter.post('/:id/send', async (req, res) => {
             <p>This link expires in 30 days.</p>
             <p>${settings?.company_name || ''}</p>
           `,
+          tags: [{ name: 'estimate_id', value: estimate.id }],
         });
         email_sent = true;
+        if (emailData?.id) {
+          await prisma.estimate.update({
+            where: { id: estimate.id },
+            data: { resend_email_id: emailData.id },
+          });
+        }
       } catch (emailErr) {
         console.error('Email send failed (non-fatal):', emailErr);
       }

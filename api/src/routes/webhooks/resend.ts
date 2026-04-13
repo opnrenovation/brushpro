@@ -12,6 +12,7 @@ interface ResendWebhookPayload {
     subject?: string;
     click?: { link: string };
     contact?: { email: string };
+    tags?: Record<string, string>;
   };
 }
 
@@ -38,6 +39,25 @@ resendWebhookRouter.post('/', async (req, res) => {
         | 'BOUNCED'
         | 'UNSUBSCRIBED'
         | 'COMPLAINED';
+
+      // Check if this is an estimate email (tagged with estimate_id)
+      const estimateId = data.tags?.estimate_id;
+      if (estimateId) {
+        const now = new Date();
+        const updateData: Record<string, Date | null> = {};
+        if (type === 'email.delivered') updateData.email_delivered_at = now;
+        else if (type === 'email.opened') updateData.email_opened_at = now;
+        else if (type === 'email.clicked') updateData.email_clicked_at = now;
+
+        if (Object.keys(updateData).length > 0) {
+          await prisma.estimate.updateMany({
+            where: { id: estimateId },
+            data: updateData,
+          });
+        }
+        res.json({ received: true });
+        return;
+      }
 
       const recipientEmail = data.to?.[0];
       if (recipientEmail) {

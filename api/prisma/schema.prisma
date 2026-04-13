@@ -429,7 +429,11 @@ model Estimate {
   rejection_note            String?
   paint_codes               Json?
   client_notes              String?
+  resend_email_id           String?
   sent_at                   DateTime?
+  email_delivered_at        DateTime?
+  email_opened_at           DateTime?
+  email_clicked_at          DateTime?
   deleted_at                DateTime?
   created_at                DateTime       @default(now())
 

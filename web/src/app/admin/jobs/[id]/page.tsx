@@ -14,6 +14,7 @@ interface EstimateRow {
   id: string; estimate_number: string; status: string;
   line_items: { qty: number; unit_price: number; description: string; taxable: boolean }[];
   notes?: string; created_at: string; approval_token_expires_at?: string; approval_token?: string | null;
+  email_delivered_at?: string | null; email_opened_at?: string | null; email_clicked_at?: string | null;
 }
 
 const emptyItem: LineItem = { description: '', qty: 1, unit_price: 0 };
@@ -690,7 +691,7 @@ export default function JobDetailPage() {
               ? <p style={{ color: 'rgba(0,0,0,0.4)' }}>No estimates yet.</p>
               : (
                 <table className="data-table">
-                  <thead><tr><th>Number</th><th>Status</th><th>Total</th><th>Created</th><th></th></tr></thead>
+                  <thead><tr><th>Number</th><th>Status</th><th>Total</th><th>Created</th><th>Tracking</th><th></th></tr></thead>
                   <tbody>
                     {(job.estimates as EstimateRow[]).map((e) => {
                       const items = e.line_items || [];
@@ -710,6 +711,23 @@ export default function JobDetailPage() {
                           </td>
                           <td style={{ fontFamily: 'Menlo,monospace', color: 'var(--text-primary)' }}>{fmt(total)}</td>
                           <td style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>{new Date(e.created_at).toLocaleDateString()}</td>
+                          <td>
+                            {e.status === 'SENT' || e.status === 'APPROVED' ? (
+                              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                {e.email_delivered_at ? (
+                                  <span title={`Delivered ${new Date(e.email_delivered_at).toLocaleString()}`} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: 'rgba(52,199,89,0.12)', color: '#34C759', fontWeight: 500 }}>Delivered</span>
+                                ) : (
+                                  <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: 'rgba(0,0,0,0.06)', color: 'rgba(0,0,0,0.3)', fontWeight: 500 }}>Sent</span>
+                                )}
+                                {e.email_opened_at && (
+                                  <span title={`Opened ${new Date(e.email_opened_at).toLocaleString()}`} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: 'rgba(0,122,255,0.12)', color: '#007AFF', fontWeight: 500 }}>Opened</span>
+                                )}
+                                {e.email_clicked_at && (
+                                  <span title={`Clicked ${new Date(e.email_clicked_at).toLocaleString()}`} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: 'rgba(255,149,0,0.12)', color: '#FF9500', fontWeight: 500 }}>Clicked</span>
+                                )}
+                              </div>
+                            ) : <span style={{ color: 'rgba(0,0,0,0.2)', fontSize: 12 }}>—</span>}
+                          </td>
                           <td>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
                               {e.status === 'SENT' && e.approval_token && (

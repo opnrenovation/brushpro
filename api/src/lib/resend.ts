@@ -9,6 +9,7 @@ export async function sendEmail(params: {
   from?: string;
   replyTo?: string;
   text?: string;
+  tags?: Array<{ name: string; value: string }>;
 }) {
   const { data, error } = await resend.emails.send({
     from: params.from || `${process.env.EMAIL_FROM_NAME} <${process.env.EMAIL_FROM}>`,
@@ -17,6 +18,7 @@ export async function sendEmail(params: {
     html: params.html,
     text: params.text,
     replyTo: params.replyTo,
+    tags: params.tags,
   });
   if (error) throw new Error(`Email send failed: ${error.message}`);
   return data;
