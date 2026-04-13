@@ -31,8 +31,29 @@ estimatesRouter.post('/', async (req, res) => {
     const count = await prisma.estimate.count();
     const estimate_number = `${prefix}-${String(count + 1).padStart(4, '0')}`;
 
+    // Auto-resolve tax_profile_id if not provided
+    let { tax_profile_id } = req.body;
+    if (!tax_profile_id) {
+      let profile = await prisma.taxProfile.findFirst({ where: { is_default: true } });
+      if (!profile) profile = await prisma.taxProfile.findFirst();
+      if (!profile) {
+        profile = await prisma.taxProfile.create({
+          data: {
+            name: 'Iowa Standard',
+            state_code: 'IA',
+            state_rate: 0,
+            local_rate: 0,
+            municipality: 'Des Moines',
+            taxable_labor: false,
+            is_default: true,
+          },
+        });
+      }
+      tax_profile_id = profile.id;
+    }
+
     const estimate = await prisma.estimate.create({
-      data: { ...req.body, estimate_number },
+      data: { ...req.body, tax_profile_id, estimate_number },
     });
     res.status(201).json({ data: estimate });
   } catch {

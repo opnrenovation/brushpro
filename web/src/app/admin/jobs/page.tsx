@@ -19,7 +19,7 @@ interface CustomerRecord { id: string; contact_id?: string; name: string; }
 
 type SearchResult = { kind: 'contact'; data: Contact } | { kind: 'company'; data: Company };
 
-const emptyForm = { contact_id: '', company_id: '', selected_label: '', name: '', address: '', municipality: '', labor_rate: '', start_date: '', notes: '' };
+const emptyForm = { contact_id: '', company_id: '', selected_label: '', name: '', address: '', municipality: '', notes: '' };
 
 function JobsPageInner() {
   const searchParams = useSearchParams();
@@ -158,8 +158,6 @@ function JobsPageInner() {
         name: f.name,
         address: f.address,
         municipality: f.municipality,
-        labor_rate: parseFloat(f.labor_rate),
-        start_date: f.start_date || undefined,
         notes: f.notes || undefined,
       });
     },
@@ -180,12 +178,8 @@ function JobsPageInner() {
       setFormError('Please select a contact or company.');
       return;
     }
-    if (!form.name || !form.address || !form.municipality || !form.labor_rate) {
-      setFormError('Job name, address, municipality, and labor rate are required.');
-      return;
-    }
-    if (isNaN(parseFloat(form.labor_rate)) || parseFloat(form.labor_rate) <= 0) {
-      setFormError('Labor rate must be a positive number.');
+    if (!form.name || !form.address || !form.municipality) {
+      setFormError('Job name, address, and municipality are required.');
       return;
     }
     setFormError('');
@@ -290,19 +284,9 @@ function JobsPageInner() {
               <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Address *</label>
               <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} placeholder="123 Main St" />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Municipality *</label>
-                <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.municipality} onChange={(e) => setForm((f) => ({ ...f, municipality: e.target.value }))} placeholder="Des Moines" />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Labor Rate ($/hr) *</label>
-                <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} type="number" min="0" step="0.01" value={form.labor_rate} onChange={(e) => setForm((f) => ({ ...f, labor_rate: e.target.value }))} placeholder="65.00" />
-              </div>
-            </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Start Date</label>
-              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} />
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Municipality *</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.municipality} onChange={(e) => setForm((f) => ({ ...f, municipality: e.target.value }))} placeholder="Des Moines" />
             </div>
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Notes</label>
