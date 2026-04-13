@@ -121,24 +121,7 @@ estimatesRouter.post('/:id/send', async (req, res) => {
 
     const total = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
 
-    // Send email with approval link
-    const customerEmail = estimate.job?.customer.email;
-    if (customerEmail) {
-      await sendEmail({
-        to: customerEmail,
-        subject: `Estimate ${estimate.estimate_number} from ${settings?.company_name || 'BrushPro'}`,
-        html: `
-          <p>Dear ${estimate.job?.customer.name},</p>
-          <p>Please review and approve your estimate for ${estimate.job?.address}.</p>
-          <p><strong>Estimate #:</strong> ${estimate.estimate_number}</p>
-          <p><strong>Total:</strong> $${total.toFixed(2)}</p>
-          <p><a href="${approvalUrl}" style="background:#007AFF;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Review &amp; Approve</a></p>
-          <p>This link expires in 30 days.</p>
-          <p>${settings?.company_name || ''}</p>
-        `,
-      });
-    }
-
+    // Update estimate to SENT first — email is best-effort
     const updated = await prisma.estimate.update({
       where: { id: estimate.id },
       data: {
@@ -149,7 +132,31 @@ estimatesRouter.post('/:id/send', async (req, res) => {
       },
     });
 
-    res.json({ data: updated });
+    // Try to email customer — non-fatal so approval link is always generated
+    let email_sent = false;
+    const customerEmail = estimate.job?.customer.email;
+    if (customerEmail) {
+      try {
+        await sendEmail({
+          to: customerEmail,
+          subject: `Estimate ${estimate.estimate_number} from ${settings?.company_name || 'BrushPro'}`,
+          html: `
+            <p>Dear ${estimate.job?.customer.name},</p>
+            <p>Please review and approve your estimate for ${estimate.job?.address}.</p>
+            <p><strong>Estimate #:</strong> ${estimate.estimate_number}</p>
+            <p><strong>Total:</strong> $${total.toFixed(2)}</p>
+            <p><a href="${approvalUrl}" style="background:#007AFF;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Review &amp; Approve</a></p>
+            <p>This link expires in 30 days.</p>
+            <p>${settings?.company_name || ''}</p>
+          `,
+        });
+        email_sent = true;
+      } catch (emailErr) {
+        console.error('Email send failed (non-fatal):', emailErr);
+      }
+    }
+
+    res.json({ data: updated, approval_url: approvalUrl, email_sent });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to send estimate' });

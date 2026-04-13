@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, X, Trash2, Send, Eye, Pencil, Clock, MoreHorizontal, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Plus, X, Trash2, Send, Eye, Pencil, Clock, MoreHorizontal, AlertTriangle, Link } from 'lucide-react';
 import { jobsApi, estimatesApi, settingsApi } from '@/lib/api';
 
 const TABS = ['Overview', 'Estimates', 'Labor', 'Expenses', 'Invoices'];
@@ -13,7 +13,7 @@ interface LineItem { description: string; qty: number; unit_price: number; }
 interface EstimateRow {
   id: string; estimate_number: string; status: string;
   line_items: { qty: number; unit_price: number; description: string; taxable: boolean }[];
-  notes?: string; created_at: string; approval_token_expires_at?: string;
+  notes?: string; created_at: string; approval_token_expires_at?: string; approval_token?: string | null;
 }
 
 const emptyItem: LineItem = { description: '', qty: 1, unit_price: 0 };
@@ -96,7 +96,14 @@ export default function JobDetailPage() {
 
   const sendEstimate = useMutation({
     mutationFn: (estId: string) => estimatesApi.send(estId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs', id] }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['jobs', id] });
+      const d = res.data?.data || res.data;
+      if (d?.email_sent === false && d?.approval_url) {
+        const copy = confirm(`Email delivery failed. Copy the approval link to share manually?\n\n${d.approval_url}`);
+        if (copy) navigator.clipboard.writeText(d.approval_url).catch(() => {});
+      }
+    },
     onError: (e: unknown) => {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
       alert(msg || 'Failed to send estimate. Check that Resend is configured.');
@@ -705,6 +712,20 @@ export default function JobDetailPage() {
                           <td style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>{new Date(e.created_at).toLocaleDateString()}</td>
                           <td>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
+                              {e.status === 'SENT' && e.approval_token && (
+                                <button
+                                  onClick={() => {
+                                    const url = `${window.location.origin}/approve/${e.approval_token}`;
+                                    navigator.clipboard.writeText(url).then(() => alert('Approval link copied!')).catch(() => prompt('Copy this link:', url));
+                                  }}
+                                  className="btn btn-ghost"
+                                  style={{ padding: '5px 12px', fontSize: 12 }}
+                                  title="Copy approval link"
+                                >
+                                  <Link size={12} strokeWidth={1.5} />
+                                  Copy Link
+                                </button>
+                              )}
                               {canSend && (
                                 <button
                                   onClick={() => sendEstimate.mutate(e.id)}
