@@ -95,6 +95,7 @@ export const estimatesApi = {
   get: (id: string) => api.get(`/estimates/${id}`),
   create: (data: unknown) => api.post('/estimates', data),
   update: (id: string, data: unknown) => api.patch(`/estimates/${id}`, data),
+  delete: (id: string) => api.delete(`/estimates/${id}`),
   send: (id: string) => api.post(`/estimates/${id}/send`),
   convert: (id: string) => api.post(`/estimates/${id}/convert`),
 };

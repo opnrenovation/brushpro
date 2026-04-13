@@ -1,25 +1,40 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, X, Trash2, Send } from 'lucide-react';
-import { jobsApi, estimatesApi } from '@/lib/api';
+import { ArrowLeft, Plus, X, Trash2, Send, Eye, Pencil, Clock, MoreHorizontal } from 'lucide-react';
+import { jobsApi, estimatesApi, settingsApi } from '@/lib/api';
 
 const TABS = ['Overview', 'Estimates', 'Labor', 'Expenses', 'Invoices'];
 
 function fmt(n: number) { return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`; }
 
 interface LineItem { description: string; qty: number; unit_price: number; }
+interface EstimateRow {
+  id: string; estimate_number: string; status: string;
+  line_items: { qty: number; unit_price: number; description: string; taxable: boolean }[];
+  notes?: string; created_at: string; approval_token_expires_at?: string;
+}
 
 const emptyItem: LineItem = { description: '', qty: 1, unit_price: 0 };
+
+const STATUS_COLORS: Record<string, string> = {
+  DRAFT: 'rgba(0,0,0,0.3)',
+  SENT: '#007AFF',
+  APPROVED: '#34C759',
+  DECLINED: '#FF3B30',
+  EXPIRED: '#FF9500',
+};
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
   const [tab, setTab] = useState('Overview');
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  // Estimate modal state
+  // New estimate modal state
   const [showEstModal, setShowEstModal] = useState(false);
   const [estMode, setEstMode] = useState<'flat' | 'itemized'>('flat');
   const [flatDesc, setFlatDesc] = useState('');
@@ -28,11 +43,36 @@ export default function JobDetailPage() {
   const [estNotes, setEstNotes] = useState('');
   const [estError, setEstError] = useState('');
 
+  // Edit estimate modal state
+  const [editEst, setEditEst] = useState<EstimateRow | null>(null);
+  const [editMode, setEditMode] = useState<'flat' | 'itemized'>('flat');
+  const [editFlatDesc, setEditFlatDesc] = useState('');
+  const [editFlatAmount, setEditFlatAmount] = useState('');
+  const [editLineItems, setEditLineItems] = useState<LineItem[]>([{ ...emptyItem }]);
+  const [editNotes, setEditNotes] = useState('');
+  const [editError, setEditError] = useState('');
+
+  // Preview modal state
+  const [previewEst, setPreviewEst] = useState<EstimateRow | null>(null);
+
   const { data: jobData } = useQuery({ queryKey: ['jobs', id], queryFn: () => jobsApi.get(id) });
   const { data: profitData } = useQuery({ queryKey: ['jobs', id, 'profitability'], queryFn: () => jobsApi.profitability(id) });
+  const { data: settingsData } = useQuery({ queryKey: ['settings'], queryFn: () => settingsApi.get() });
 
   const job = jobData?.data?.data || jobData?.data;
   const profit = profitData?.data?.data || profitData?.data;
+  const settings = settingsData?.data?.data || settingsData?.data;
+
+  // Close action menu on outside click
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    }
+    if (openMenuId) document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [openMenuId]);
 
   const createEstimate = useMutation({
     mutationFn: (payload: unknown) => estimatesApi.create(payload),
@@ -55,6 +95,30 @@ export default function JobDetailPage() {
     },
   });
 
+  const updateEstimate = useMutation({
+    mutationFn: ({ estId, payload }: { estId: string; payload: unknown }) => estimatesApi.update(estId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jobs', id] });
+      setEditEst(null);
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setEditError(msg || 'Failed to update estimate.');
+    },
+  });
+
+  const deleteEstimate = useMutation({
+    mutationFn: (estId: string) => estimatesApi.delete(estId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs', id] }),
+    onError: () => alert('Failed to delete estimate.'),
+  });
+
+  const expireEstimate = useMutation({
+    mutationFn: (estId: string) => estimatesApi.update(estId, { status: 'EXPIRED' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs', id] }),
+    onError: () => alert('Failed to expire estimate.'),
+  });
+
   function closeEstModal() {
     setShowEstModal(false);
     setEstMode('flat');
@@ -63,6 +127,53 @@ export default function JobDetailPage() {
     setLineItems([{ ...emptyItem }]);
     setEstNotes('');
     setEstError('');
+  }
+
+  function openEdit(est: EstimateRow) {
+    setOpenMenuId(null);
+    const items = est.line_items || [];
+    if (items.length === 1 && items[0].qty === 1) {
+      setEditMode('flat');
+      setEditFlatDesc(items[0].description || '');
+      setEditFlatAmount(String(items[0].unit_price || ''));
+    } else {
+      setEditMode('itemized');
+      setEditLineItems(items.map(li => ({ description: li.description, qty: li.qty, unit_price: li.unit_price })));
+    }
+    setEditNotes(est.notes || '');
+    setEditError('');
+    setEditEst(est);
+  }
+
+  function handleSaveEdit() {
+    if (!editEst) return;
+    const taxable = !job.tax_exempt;
+    if (editMode === 'flat') {
+      if (!editFlatAmount || isNaN(parseFloat(editFlatAmount)) || parseFloat(editFlatAmount) <= 0) {
+        setEditError('Enter a valid amount.');
+        return;
+      }
+      const items = [{
+        description: editFlatDesc || 'Painting services',
+        type: 'LABOR', qty: 1, unit: 'flat',
+        unit_price: parseFloat(editFlatAmount),
+        taxable,
+      }];
+      updateEstimate.mutate({ estId: editEst.id, payload: { line_items: items, notes: editNotes || undefined } });
+    } else {
+      const valid = editLineItems.filter(li => li.description.trim() && li.unit_price > 0);
+      if (valid.length === 0) {
+        setEditError('Add at least one service with a description and price.');
+        return;
+      }
+      const items = valid.map(li => ({
+        description: li.description,
+        type: 'LABOR', qty: li.qty || 1, unit: 'flat',
+        unit_price: li.unit_price,
+        taxable,
+      }));
+      updateEstimate.mutate({ estId: editEst.id, payload: { line_items: items, notes: editNotes || undefined } });
+    }
   }
 
   function handleCreateEstimate() {
@@ -101,12 +212,68 @@ export default function JobDetailPage() {
     setLineItems(l => l.map((item, idx) => idx === i ? { ...item, ...patch } : item));
   }
 
+  function addEditLineItem() { setEditLineItems(l => [...l, { ...emptyItem }]); }
+  function removeEditLineItem(i: number) { setEditLineItems(l => l.filter((_, idx) => idx !== i)); }
+  function updateEditLineItem(i: number, patch: Partial<LineItem>) {
+    setEditLineItems(l => l.map((item, idx) => idx === i ? { ...item, ...patch } : item));
+  }
+
   const itemizedTotal = lineItems.reduce((s, li) => s + (li.qty || 1) * (li.unit_price || 0), 0);
+  const editItemizedTotal = editLineItems.reduce((s, li) => s + (li.qty || 1) * (li.unit_price || 0), 0);
 
   if (!job) return <div style={{ padding: 40, color: 'rgba(0,0,0,0.4)' }}>Loading...</div>;
 
   const margin = profit?.margin ?? 0;
   const marginColor = margin >= 35 ? '#34C759' : margin >= 25 ? '#FF9500' : '#FF3B30';
+
+  // Shared line items form used in both create and edit modals
+  function LineItemsForm({
+    mode, items, onAddItem, onRemoveItem, onUpdateItem, total,
+  }: {
+    mode: 'flat' | 'itemized';
+    items: LineItem[];
+    onAddItem: () => void;
+    onRemoveItem: (i: number) => void;
+    onUpdateItem: (i: number, p: Partial<LineItem>) => void;
+    total: number;
+  }) {
+    return mode === 'itemized' ? (
+      <div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 32px', gap: 8, marginBottom: 8 }}>
+          {['Service / Description', 'Qty', 'Price', ''].map((h) => (
+            <div key={h} style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</div>
+          ))}
+        </div>
+        {items.map((li, i) => (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 32px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+            <input className="glass-input" style={{ width: '100%', padding: '8px 10px', fontSize: 13 }}
+              value={li.description} onChange={(e) => onUpdateItem(i, { description: e.target.value })}
+              placeholder="e.g. Exterior painting" />
+            <input className="glass-input" style={{ width: '100%', padding: '8px 10px', fontSize: 13 }}
+              type="number" min="1" step="1"
+              value={li.qty} onChange={(e) => onUpdateItem(i, { qty: parseInt(e.target.value) || 1 })} />
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>$</span>
+              <input className="glass-input" style={{ width: '100%', padding: '8px 8px 8px 18px', fontSize: 13 }}
+                type="number" min="0" step="0.01"
+                value={li.unit_price || ''} onChange={(e) => onUpdateItem(i, { unit_price: parseFloat(e.target.value) || 0 })}
+                placeholder="0.00" />
+            </div>
+            <button onClick={() => onRemoveItem(i)} disabled={items.length === 1}
+              style={{ background: 'none', border: 'none', cursor: items.length === 1 ? 'default' : 'pointer', color: items.length === 1 ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Trash2 size={14} strokeWidth={1.5} />
+            </button>
+          </div>
+        ))}
+        <button onClick={onAddItem} className="btn btn-ghost" style={{ fontSize: 13, padding: '6px 12px', marginBottom: 12 }}>
+          <Plus size={13} strokeWidth={1.5} /> Add Line
+        </button>
+        <div style={{ textAlign: 'right', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'Menlo,monospace', marginBottom: 4 }}>
+          Total: {fmt(total)}
+        </div>
+      </div>
+    ) : null;
+  }
 
   return (
     <div>
@@ -159,7 +326,6 @@ export default function JobDetailPage() {
               <button onClick={closeEstModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}><X size={20} strokeWidth={1.5} /></button>
             </div>
 
-            {/* Mode toggle */}
             <div style={{ display: 'flex', gap: 0, marginBottom: 24, background: 'rgba(0,0,0,0.06)', borderRadius: 10, padding: 4 }}>
               {(['flat', 'itemized'] as const).map((m) => (
                 <button key={m} onClick={() => setEstMode(m)}
@@ -175,7 +341,6 @@ export default function JobDetailPage() {
               ))}
             </div>
 
-            {/* Flat mode */}
             {estMode === 'flat' && (
               <div>
                 <div style={{ marginBottom: 12 }}>
@@ -197,43 +362,8 @@ export default function JobDetailPage() {
               </div>
             )}
 
-            {/* Itemized mode */}
             {estMode === 'itemized' && (
-              <div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 32px', gap: 8, marginBottom: 8 }}>
-                  <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Service / Description</div>
-                  <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Qty</div>
-                  <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Price</div>
-                  <div />
-                </div>
-                {lineItems.map((li, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 32px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                    <input className="glass-input" style={{ width: '100%', padding: '8px 10px', fontSize: 13 }}
-                      value={li.description} onChange={(e) => updateLineItem(i, { description: e.target.value })}
-                      placeholder="e.g. Exterior painting" />
-                    <input className="glass-input" style={{ width: '100%', padding: '8px 10px', fontSize: 13 }}
-                      type="number" min="1" step="1"
-                      value={li.qty} onChange={(e) => updateLineItem(i, { qty: parseInt(e.target.value) || 1 })} />
-                    <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>$</span>
-                      <input className="glass-input" style={{ width: '100%', padding: '8px 8px 8px 18px', fontSize: 13 }}
-                        type="number" min="0" step="0.01"
-                        value={li.unit_price || ''} onChange={(e) => updateLineItem(i, { unit_price: parseFloat(e.target.value) || 0 })}
-                        placeholder="0.00" />
-                    </div>
-                    <button onClick={() => removeLineItem(i)} disabled={lineItems.length === 1}
-                      style={{ background: 'none', border: 'none', cursor: lineItems.length === 1 ? 'default' : 'pointer', color: lineItems.length === 1 ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Trash2 size={14} strokeWidth={1.5} />
-                    </button>
-                  </div>
-                ))}
-                <button onClick={addLineItem} className="btn btn-ghost" style={{ fontSize: 13, padding: '6px 12px', marginBottom: 12 }}>
-                  <Plus size={13} strokeWidth={1.5} /> Add Line
-                </button>
-                <div style={{ textAlign: 'right', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'Menlo,monospace', marginBottom: 4 }}>
-                  Total: {fmt(itemizedTotal)}
-                </div>
-              </div>
+              <LineItemsForm mode="itemized" items={lineItems} onAddItem={addLineItem} onRemoveItem={removeLineItem} onUpdateItem={updateLineItem} total={itemizedTotal} />
             )}
 
             <div style={{ marginTop: 16, marginBottom: 20 }}>
@@ -253,6 +383,217 @@ export default function JobDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Edit Estimate Modal */}
+      {editEst && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 560, padding: 32, background: '#fff', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>Edit {editEst.estimate_number}</h2>
+              <button onClick={() => setEditEst(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}><X size={20} strokeWidth={1.5} /></button>
+            </div>
+
+            <div style={{ display: 'flex', gap: 0, marginBottom: 24, background: 'rgba(0,0,0,0.06)', borderRadius: 10, padding: 4 }}>
+              {(['flat', 'itemized'] as const).map((m) => (
+                <button key={m} onClick={() => setEditMode(m)}
+                  style={{
+                    flex: 1, padding: '8px 0', fontSize: 14, fontWeight: 500, border: 'none', cursor: 'pointer',
+                    borderRadius: 8, transition: 'all 0.15s',
+                    background: editMode === m ? '#fff' : 'transparent',
+                    color: editMode === m ? 'var(--text-primary)' : 'rgba(0,0,0,0.45)',
+                    boxShadow: editMode === m ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+                  }}>
+                  {m === 'flat' ? 'Flat Amount' : 'Itemized'}
+                </button>
+              ))}
+            </div>
+
+            {editMode === 'flat' && (
+              <div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Description</label>
+                  <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }}
+                    value={editFlatDesc} onChange={(e) => setEditFlatDesc(e.target.value)}
+                    placeholder="e.g. Interior painting — living room and hallway" />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Total Amount *</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgba(0,0,0,0.4)', fontSize: 14 }}>$</span>
+                    <input className="glass-input" style={{ width: '100%', padding: '9px 12px 9px 24px', fontSize: 14 }}
+                      type="number" min="0" step="0.01"
+                      value={editFlatAmount} onChange={(e) => setEditFlatAmount(e.target.value)}
+                      placeholder="0.00" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {editMode === 'itemized' && (
+              <LineItemsForm mode="itemized" items={editLineItems} onAddItem={addEditLineItem} onRemoveItem={removeEditLineItem} onUpdateItem={updateEditLineItem} total={editItemizedTotal} />
+            )}
+
+            <div style={{ marginTop: 16, marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Notes (optional)</label>
+              <textarea className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14, minHeight: 64, resize: 'vertical' }}
+                value={editNotes} onChange={(e) => setEditNotes(e.target.value)}
+                placeholder="Any notes for this estimate..." />
+            </div>
+
+            {editError && <p style={{ color: '#FF3B30', fontSize: 13, marginBottom: 16 }}>{editError}</p>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setEditEst(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSaveEdit} disabled={updateEstimate.isPending}>
+                {updateEstimate.isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview Estimate Modal */}
+      {previewEst && (() => {
+        const items = previewEst.line_items || [];
+        const subtotal = items.reduce((s, li) => s + li.qty * li.unit_price, 0);
+        const taxableSubtotal = items.filter(li => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0);
+        // Use 7% Iowa default for preview (6% state + 1% local)
+        const taxRate = 0.07;
+        const taxAmount = job.tax_exempt ? 0 : taxableSubtotal * taxRate;
+        const total = subtotal + taxAmount;
+        const expiryDate = previewEst.approval_token_expires_at
+          ? new Date(previewEst.approval_token_expires_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+          : null;
+
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+            <div className="glass" style={{ width: '100%', maxWidth: 620, padding: 0, background: '#fff', maxHeight: '90vh', overflowY: 'auto', borderRadius: 16 }}>
+              {/* Header */}
+              <div style={{ padding: '28px 32px 20px', borderBottom: '1px solid rgba(0,0,0,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
+                    {settings?.company_name || 'BrushPro'}
+                  </div>
+                  {settings?.company_address && (
+                    <div style={{ fontSize: 13, color: 'rgba(0,0,0,0.45)' }}>{settings.company_address}</div>
+                  )}
+                  {settings?.company_phone && (
+                    <div style={{ fontSize: 13, color: 'rgba(0,0,0,0.45)' }}>{settings.company_phone}</div>
+                  )}
+                </div>
+                <button onClick={() => setPreviewEst(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)', padding: 4 }}>
+                  <X size={20} strokeWidth={1.5} />
+                </button>
+              </div>
+
+              {/* Estimate info */}
+              <div style={{ padding: '20px 32px', borderBottom: '1px solid rgba(0,0,0,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.35)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Estimate</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>{previewEst.estimate_number}</div>
+                  <div style={{ fontSize: 13, color: 'rgba(0,0,0,0.45)', marginTop: 4 }}>
+                    Prepared for: {job.customer?.name}
+                  </div>
+                  <div style={{ fontSize: 13, color: 'rgba(0,0,0,0.45)' }}>
+                    Property: {job.address}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.35)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Date</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>
+                    {new Date(previewEst.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  </div>
+                  {expiryDate && (
+                    <>
+                      <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.35)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 12, marginBottom: 4 }}>Expires</div>
+                      <div style={{ fontSize: 14, color: '#FF9500' }}>{expiryDate}</div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Line items */}
+              <div style={{ padding: '20px 32px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+                      {['Description', 'Qty', 'Unit Price', 'Amount'].map((h, i) => (
+                        <th key={h} style={{
+                          fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px',
+                          fontWeight: 600, padding: '0 0 10px', textAlign: i > 0 ? 'right' : 'left',
+                        }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((li, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                        <td style={{ padding: '12px 0', fontSize: 14, color: 'var(--text-primary)' }}>{li.description}</td>
+                        <td style={{ padding: '12px 0', fontSize: 14, color: 'rgba(0,0,0,0.6)', textAlign: 'right' }}>{li.qty}</td>
+                        <td style={{ padding: '12px 0', fontSize: 14, color: 'rgba(0,0,0,0.6)', textAlign: 'right', fontFamily: 'Menlo,monospace' }}>
+                          ${li.unit_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td style={{ padding: '12px 0', fontSize: 14, color: 'var(--text-primary)', textAlign: 'right', fontFamily: 'Menlo,monospace', fontWeight: 600 }}>
+                          ${(li.qty * li.unit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Totals */}
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <div style={{ width: 240 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: 14, color: 'rgba(0,0,0,0.5)' }}>Subtotal</span>
+                        <span style={{ fontSize: 14, color: 'var(--text-primary)', fontFamily: 'Menlo,monospace' }}>
+                          ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      {!job.tax_exempt && taxAmount > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <span style={{ fontSize: 14, color: 'rgba(0,0,0,0.5)' }}>Sales Tax (7%)</span>
+                          <span style={{ fontSize: 14, color: 'var(--text-primary)', fontFamily: 'Menlo,monospace' }}>
+                            ${taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      )}
+                      {job.tax_exempt && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <span style={{ fontSize: 14, color: 'rgba(0,0,0,0.5)' }}>Sales Tax</span>
+                          <span style={{ fontSize: 14, color: '#34C759', fontFamily: 'Menlo,monospace' }}>Exempt</span>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                        <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Total</span>
+                        <span style={{ fontSize: 16, fontWeight: 700, color: '#007AFF', fontFamily: 'Menlo,monospace' }}>
+                          ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                {previewEst.notes && (
+                  <div style={{ marginTop: 24, padding: 16, background: 'rgba(0,0,0,0.03)', borderRadius: 10, borderLeft: '3px solid #007AFF' }}>
+                    <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.35)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Notes</div>
+                    <p style={{ fontSize: 14, color: 'rgba(0,0,0,0.65)', lineHeight: 1.6, margin: 0 }}>{previewEst.notes}</p>
+                  </div>
+                )}
+
+                {/* CTA button (visual only) */}
+                <div style={{ marginTop: 28, textAlign: 'center', paddingBottom: 8 }}>
+                  <div style={{ display: 'inline-block', background: '#007AFF', color: '#fff', padding: '14px 32px', borderRadius: 12, fontSize: 15, fontWeight: 600, opacity: 0.7 }}>
+                    Review &amp; Approve
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(0,0,0,0.35)' }}>Customer approval button (preview only)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Tab content */}
       <div className="glass" style={{ padding: 24 }}>
@@ -291,28 +632,88 @@ export default function JobDetailPage() {
                 <table className="data-table">
                   <thead><tr><th>Number</th><th>Status</th><th>Total</th><th>Created</th><th></th></tr></thead>
                   <tbody>
-                    {(job.estimates as { id: string; estimate_number: string; status: string; line_items: unknown; created_at: string }[]).map((e) => {
-                      const items = (e.line_items as { qty: number; unit_price: number }[]) || [];
+                    {(job.estimates as EstimateRow[]).map((e) => {
+                      const items = e.line_items || [];
                       const total = items.reduce((s, li) => s + li.qty * li.unit_price, 0);
                       const canSend = e.status === 'DRAFT' || e.status === 'SENT';
+                      const canExpire = e.status === 'SENT' || e.status === 'DRAFT';
+                      const canEdit = e.status === 'DRAFT' || e.status === 'SENT';
+                      const statusColor = STATUS_COLORS[e.status] || 'rgba(0,0,0,0.3)';
                       return (
                         <tr key={e.id}>
                           <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{e.estimate_number}</td>
-                          <td><span className="pill pill-blue">{e.status}</span></td>
+                          <td>
+                            <span style={{
+                              display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                              background: `${statusColor}18`, color: statusColor,
+                            }}>{e.status}</span>
+                          </td>
                           <td style={{ fontFamily: 'Menlo,monospace', color: 'var(--text-primary)' }}>{fmt(total)}</td>
                           <td style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>{new Date(e.created_at).toLocaleDateString()}</td>
                           <td>
-                            {canSend && (
-                              <button
-                                onClick={() => sendEstimate.mutate(e.id)}
-                                disabled={sendEstimate.isPending}
-                                className="btn btn-primary"
-                                style={{ padding: '5px 12px', fontSize: 12 }}
-                              >
-                                <Send size={12} strokeWidth={1.5} />
-                                {e.status === 'SENT' ? 'Resend' : 'Send'}
-                              </button>
-                            )}
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
+                              {canSend && (
+                                <button
+                                  onClick={() => sendEstimate.mutate(e.id)}
+                                  disabled={sendEstimate.isPending}
+                                  className="btn btn-primary"
+                                  style={{ padding: '5px 12px', fontSize: 12 }}
+                                >
+                                  <Send size={12} strokeWidth={1.5} />
+                                  {e.status === 'SENT' ? 'Resend' : 'Send'}
+                                </button>
+                              )}
+                              {/* 3-dot action menu */}
+                              <div style={{ position: 'relative' }} ref={openMenuId === e.id ? menuRef : undefined}>
+                                <button
+                                  onClick={() => setOpenMenuId(openMenuId === e.id ? null : e.id)}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)', padding: '4px 6px', borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                                >
+                                  <MoreHorizontal size={16} strokeWidth={1.5} />
+                                </button>
+                                {openMenuId === e.id && (
+                                  <div style={{
+                                    position: 'absolute', right: 0, top: '100%', marginTop: 4, background: '#fff',
+                                    border: '1px solid rgba(0,0,0,0.1)', borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                                    zIndex: 50, minWidth: 160, overflow: 'hidden',
+                                  }}>
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); setPreviewEst(e); }}
+                                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text-primary)', textAlign: 'left' }}
+                                    >
+                                      <Eye size={14} strokeWidth={1.5} /> Preview
+                                    </button>
+                                    {canEdit && (
+                                      <button
+                                        onClick={() => openEdit(e)}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text-primary)', textAlign: 'left' }}
+                                      >
+                                        <Pencil size={14} strokeWidth={1.5} /> Edit
+                                      </button>
+                                    )}
+                                    {canExpire && (
+                                      <button
+                                        onClick={() => { setOpenMenuId(null); expireEstimate.mutate(e.id); }}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#FF9500', textAlign: 'left' }}
+                                      >
+                                        <Clock size={14} strokeWidth={1.5} /> Mark Expired
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => {
+                                        setOpenMenuId(null);
+                                        if (confirm(`Delete ${e.estimate_number}? This cannot be undone.`)) {
+                                          deleteEstimate.mutate(e.id);
+                                        }
+                                      }}
+                                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#FF3B30', textAlign: 'left', borderTop: '1px solid rgba(0,0,0,0.06)' }}
+                                    >
+                                      <Trash2 size={14} strokeWidth={1.5} /> Delete
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </td>
                         </tr>
                       );

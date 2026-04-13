@@ -370,6 +370,9 @@ function BillingSection() {
         <Field label="Payment Terms (days)">
           <GlassInput value={val('payment_terms_days')} onChange={set('payment_terms_days')} type="number" placeholder="30" />
         </Field>
+        <Field label="Estimate Expiry (days)">
+          <GlassInput value={val('estimate_expiry_days')} onChange={set('estimate_expiry_days')} type="number" placeholder="30" />
+        </Field>
       </div>
       <Field label="Deposit Message">
         <textarea

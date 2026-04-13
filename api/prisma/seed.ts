@@ -69,46 +69,83 @@ async function main() {
     console.log('Default appointment type created.');
   }
 
-  // Seed default contract template
-  const contractCount = await prisma.contractTemplate.count();
-  if (contractCount === 0) {
+  // Upsert default service agreement template (updates body if already exists)
+  const defaultTemplate = await prisma.contractTemplate.findFirst({ where: { is_default: true } });
+  const serviceAgreementBody = `PAINTING SERVICES AGREEMENT
+
+This Painting Services Agreement ("Agreement") is entered into as of {date} between {company_name} ("Service Provider") and {customer_name} ("Client").
+
+1. SCOPE OF WORK
+
+Service Provider agrees to furnish all labor and materials necessary to complete the following services at the property located at {job_address}:
+
+{scope_of_work}
+
+2. AGREEMENT PRICE
+
+The total price for the services described above is {total_price} (Reference: Estimate {estimate_number}). This price includes all labor and materials unless otherwise noted in the estimate.
+
+3. PAYMENT TERMS
+
+A deposit of 30% is due upon signing this agreement. The remaining balance is due upon completion of the project and final walkthrough. Accepted forms of payment include check, cash, and credit card.
+
+4. PAINT SELECTIONS
+
+Client is responsible for selecting and confirming all paint colors prior to the commencement of work. Color changes requested after work has begun may result in additional charges and schedule adjustments.
+
+5. CHANGES TO SCOPE
+
+Any additions or modifications to the agreed scope of work require written approval by both parties prior to execution. Such changes may affect the agreement price and project timeline.
+
+6. PROPERTY ACCESS AND PREPARATION
+
+Client agrees to provide reasonable access to the property during scheduled work hours. Client is responsible for clearing personal belongings, furniture, and valuables from work areas before the scheduled start.
+
+7. COMPLETION AND INSPECTION
+
+Upon completion, Client will have the opportunity to inspect all completed work. Any workmanship concerns must be communicated to Service Provider in writing within 3 business days of project completion.
+
+8. WORKMANSHIP WARRANTY
+
+Service Provider warrants all workmanship for one (1) year from the date of project completion. This warranty covers defects in application and does not extend to damage caused by moisture intrusion, structural movement, substrate failure, or normal wear and tear.
+
+9. INSURANCE
+
+Service Provider maintains general liability insurance coverage. A certificate of insurance is available upon request.
+
+10. CANCELLATION POLICY
+
+Client may cancel this agreement with 48 hours written notice prior to the scheduled start date. If materials have been ordered or work has commenced, Client is responsible for all costs incurred to that point.
+
+11. LIMITATION OF LIABILITY
+
+Service Provider's liability under this agreement is limited to the total agreement price. Service Provider is not responsible for pre-existing damage or deficiencies discovered during the course of work.
+
+12. GOVERNING LAW
+
+This Agreement shall be governed by the laws of the State of Iowa. Any disputes arising from this Agreement shall first be submitted to mediation before proceeding to arbitration or litigation.
+
+By signing this agreement, Client acknowledges having read, understood, and agreed to all terms and conditions set forth herein.`;
+
+  if (!defaultTemplate) {
     await prisma.contractTemplate.create({
       data: {
         name: 'Residential Standard',
-        description: 'Standard residential painting contract',
-        body_text: `<h2>PAINTING SERVICES AGREEMENT</h2>
-<p>This agreement is entered into between <strong>{company_name}</strong> and <strong>{customer_name}</strong> (the "Client").</p>
-
-<h3>Project Details</h3>
-<p><strong>Property Address:</strong> {job_address}</p>
-<p><strong>Estimate Number:</strong> {estimate_number}</p>
-<p><strong>Total Contract Price:</strong> {total_price}</p>
-<p><strong>Deposit Amount:</strong> {deposit_amount}</p>
-
-<h3>Scope of Work</h3>
-<p>OPN Renovation agrees to perform the painting services as detailed in the estimate referenced above.</p>
-
-<h3>Payment Terms</h3>
-<p>A deposit of {deposit_amount} is due upon signing this contract. The remaining balance is due within {payment_terms} days of project completion.</p>
-
-<h3>Terms & Conditions</h3>
-<p>1. OPN Renovation will supply all labor, materials, and equipment unless otherwise specified.</p>
-<p>2. Client agrees to provide reasonable access to the property during scheduled work hours.</p>
-<p>3. Any changes to the scope of work must be agreed upon in writing by both parties.</p>
-<p>4. OPN Renovation is fully insured. Proof of insurance available upon request.</p>
-<p>5. OPN Renovation is not responsible for existing damage discovered during preparation.</p>
-
-<h3>Warranty</h3>
-<p>OPN Renovation warrants all workmanship for one (1) year from the date of completion.</p>
-
-<p>By signing below, both parties agree to the terms and conditions of this contract.</p>`,
+        description: 'Standard residential painting services agreement',
+        body_text: serviceAgreementBody,
         requires_initials: false,
-        signature_label: 'Customer Signature',
-        company_sig_label: 'Authorized by OPN Renovation',
+        signature_label: 'Client Signature',
+        company_sig_label: 'Authorized by Service Provider',
         is_default: true,
       },
     });
-    console.log('Default contract template created.');
+    console.log('Default service agreement template created.');
+  } else {
+    await prisma.contractTemplate.update({
+      where: { id: defaultTemplate.id },
+      data: { body_text: serviceAgreementBody, name: 'Residential Standard' },
+    });
+    console.log('Default service agreement template updated.');
   }
 
   // Seed Iowa municipality tax profiles

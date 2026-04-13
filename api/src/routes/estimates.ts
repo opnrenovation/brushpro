@@ -83,6 +83,15 @@ estimatesRouter.patch('/:id', async (req, res) => {
   }
 });
 
+estimatesRouter.delete('/:id', async (req, res) => {
+  try {
+    await prisma.estimate.update({ where: { id: req.params.id }, data: { deleted_at: new Date() } });
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to delete estimate' });
+  }
+});
+
 estimatesRouter.post('/:id/send', async (req, res) => {
   try {
     const estimate = await prisma.estimate.findUnique({
@@ -95,7 +104,8 @@ estimatesRouter.post('/:id/send', async (req, res) => {
     }
 
     const token = uuidv4();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const expiryDays = settings?.estimate_expiry_days ?? 30;
+    const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
     const approvalUrl = `${process.env.APP_URL}/approve/${token}`;
 
     // Generate proposal PDF

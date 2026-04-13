@@ -180,6 +180,7 @@ model CompanySettings {
   deposit_message         String?
   final_payment_message   String?
   payment_terms_days      Int      @default(7)
+  estimate_expiry_days    Int      @default(30)
   updated_at              DateTime @updatedAt
 
   @@map("company_settings")
@@ -426,6 +427,8 @@ model Estimate {
   approved_at               DateTime?
   rejected_at               DateTime?
   rejection_note            String?
+  paint_codes               Json?
+  client_notes              String?
   sent_at                   DateTime?
   deleted_at                DateTime?
   created_at                DateTime       @default(now())
