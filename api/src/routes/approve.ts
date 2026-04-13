@@ -29,7 +29,7 @@ approveRouter.get('/:token', async (req, res) => {
       const msg =
         estimate.status === 'APPROVED'
           ? 'This estimate has already been approved. Thank you!'
-          : estimate.status === 'DECLINED' || estimate.status === 'REJECTED'
+          : estimate.status === 'REJECTED'
           ? 'This estimate was declined.'
           : estimate.status === 'EXPIRED'
           ? 'This estimate has expired. Please contact us.'

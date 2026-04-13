@@ -103,13 +103,13 @@ estimatesRouter.post('/:id/send', async (req, res) => {
       return;
     }
 
+    // Generate proposal PDF
+    const settings = await prisma.companySettings.findFirst();
+
     const token = uuidv4();
     const expiryDays = settings?.estimate_expiry_days ?? 30;
     const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
     const approvalUrl = `${process.env.APP_URL}/approve/${token}`;
-
-    // Generate proposal PDF
-    const settings = await prisma.companySettings.findFirst();
     const lineItems = estimate.line_items as Array<{
       description: string;
       type: string;
