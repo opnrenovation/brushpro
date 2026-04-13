@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Briefcase, Search, Plus, X, Building2, User } from 'lucide-react';
 import { jobsApi, customersApi, contactsApi, companiesApi } from '@/lib/api';
@@ -21,6 +22,8 @@ type SearchResult = { kind: 'contact'; data: Contact } | { kind: 'company'; data
 const emptyForm = { contact_id: '', company_id: '', selected_label: '', name: '', address: '', municipality: '', labor_rate: '', start_date: '', notes: '' };
 
 export default function JobsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [status, setStatus] = useState('ALL');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -64,6 +67,21 @@ export default function JobsPage() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  // Auto-open modal when navigated from Contacts with ?new=1&contact_id=...
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    const contactId = searchParams.get('contact_id');
+    const contactName = searchParams.get('contact_name') || '';
+    const address = searchParams.get('address') || '';
+    const city = searchParams.get('city') || '';
+    if (contactId) {
+      setForm(f => ({ ...f, contact_id: contactId, selected_label: contactName, address, municipality: city }));
+      setShowModal(true);
+      // Clean up URL params
+      router.replace('/admin/jobs');
+    }
+  }, [searchParams, router]);
 
   function selectResult(result: SearchResult) {
     if (result.kind === 'contact') {

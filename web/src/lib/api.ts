@@ -59,6 +59,7 @@ export const contactsApi = {
   get: (id: string) => api.get(`/contacts/${id}`),
   create: (data: unknown) => api.post('/contacts', data),
   update: (id: string, data: unknown) => api.patch(`/contacts/${id}`, data),
+  delete: (id: string) => api.delete(`/contacts/${id}`),
   convert: (id: string) => api.post(`/contacts/${id}/convert`),
 };
 
