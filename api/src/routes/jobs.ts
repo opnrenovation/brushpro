@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
+import { AuthRequest } from '../middleware/auth';
 
 export const jobsRouter = Router();
 
@@ -150,5 +151,70 @@ jobsRouter.get('/:id/profitability', async (req, res) => {
     });
   } catch {
     res.status(500).json({ error: 'Failed to compute profitability' });
+  }
+});
+
+jobsRouter.post('/:id/labor', async (req: AuthRequest, res) => {
+  try {
+    const { description, hours, rate, work_date } = req.body;
+    if (!description || !hours || !rate || !work_date) {
+      res.status(400).json({ error: 'description, hours, rate, and work_date are required' });
+      return;
+    }
+    const entry = await prisma.laborEntry.create({
+      data: {
+        job_id: req.params.id,
+        user_id: req.user!.id,
+        description,
+        hours,
+        rate,
+        work_date: new Date(work_date),
+      },
+    });
+    res.status(201).json({ data: entry });
+  } catch {
+    res.status(500).json({ error: 'Failed to create labor entry' });
+  }
+});
+
+jobsRouter.delete('/:id/labor/:entryId', async (req, res) => {
+  try {
+    await prisma.laborEntry.delete({ where: { id: req.params.entryId } });
+    res.json({ data: { id: req.params.entryId } });
+  } catch {
+    res.status(500).json({ error: 'Failed to delete labor entry' });
+  }
+});
+
+jobsRouter.post('/:id/expenses', async (req, res) => {
+  try {
+    const { vendor, description, amount, expense_date, category, notes } = req.body;
+    if (!vendor || !description || !amount || !expense_date || !category) {
+      res.status(400).json({ error: 'vendor, description, amount, expense_date, and category are required' });
+      return;
+    }
+    const expense = await prisma.expense.create({
+      data: {
+        job_id: req.params.id,
+        vendor,
+        description,
+        amount,
+        expense_date: new Date(expense_date),
+        category,
+        notes: notes || null,
+      },
+    });
+    res.status(201).json({ data: expense });
+  } catch {
+    res.status(500).json({ error: 'Failed to create expense' });
+  }
+});
+
+jobsRouter.delete('/:id/expenses/:expenseId', async (req, res) => {
+  try {
+    await prisma.expense.delete({ where: { id: req.params.expenseId } });
+    res.json({ data: { id: req.params.expenseId } });
+  } catch {
+    res.status(500).json({ error: 'Failed to delete expense' });
   }
 });

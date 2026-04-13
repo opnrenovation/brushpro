@@ -219,6 +219,12 @@ approveRouter.post('/:token/sign', async (req, res) => {
       },
     });
 
+    // Advance job from ESTIMATING → ACTIVE
+    await prisma.job.updateMany({
+      where: { id: estimate.job_id, status: 'ESTIMATING' },
+      data: { status: 'ACTIVE' },
+    });
+
     // Notify owner
     if (settings?.email) {
       const paintInfo =

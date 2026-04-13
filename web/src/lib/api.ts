@@ -88,6 +88,10 @@ export const jobsApi = {
   update: (id: string, data: unknown) => api.patch(`/jobs/${id}`, data),
   delete: (id: string) => api.delete(`/jobs/${id}`),
   profitability: (id: string) => api.get(`/jobs/${id}/profitability`),
+  addLabor: (id: string, data: unknown) => api.post(`/jobs/${id}/labor`, data),
+  deleteLabor: (id: string, entryId: string) => api.delete(`/jobs/${id}/labor/${entryId}`),
+  addExpense: (id: string, data: unknown) => api.post(`/jobs/${id}/expenses`, data),
+  deleteExpense: (id: string, expenseId: string) => api.delete(`/jobs/${id}/expenses/${expenseId}`),
 };
 
 // Estimates

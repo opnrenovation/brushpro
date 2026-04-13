@@ -32,7 +32,8 @@ materialItemsRouter.get('/', async (req, res) => {
     ]);
 
     res.json({ data: items, total });
-  } catch {
+  } catch (err) {
+    console.error('materialItems GET error:', err);
     res.status(500).json({ error: 'Failed to fetch materials' });
   }
 });
@@ -52,8 +53,19 @@ materialItemsRouter.patch('/:id', async (req, res) => {
     delete data.id;
     const item = await prisma.materialItem.update({ where: { id: req.params.id }, data });
     res.json({ data: item });
-  } catch {
+  } catch (err) {
+    console.error('materialItems PATCH error:', err);
     res.status(500).json({ error: 'Failed to update material item' });
+  }
+});
+
+materialItemsRouter.delete('/:id', async (req, res) => {
+  try {
+    await prisma.materialItem.delete({ where: { id: req.params.id } });
+    res.json({ data: { id: req.params.id } });
+  } catch (err) {
+    console.error('materialItems DELETE error:', err);
+    res.status(500).json({ error: 'Failed to delete material item' });
   }
 });
 

@@ -53,6 +53,16 @@ export default function JobDetailPage() {
   const [editNotes, setEditNotes] = useState('');
   const [editError, setEditError] = useState('');
 
+  // Labor modal state
+  const [showLaborModal, setShowLaborModal] = useState(false);
+  const [laborForm, setLaborForm] = useState({ description: '', hours: '', rate: '', work_date: new Date().toISOString().slice(0, 10) });
+  const [laborError, setLaborError] = useState('');
+
+  // Expense modal state
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [expenseForm, setExpenseForm] = useState({ vendor: '', description: '', amount: '', expense_date: new Date().toISOString().slice(0, 10), category: 'MATERIALS', notes: '' });
+  const [expenseError, setExpenseError] = useState('');
+
   // Edit job modal state
   const [showEditJob, setShowEditJob] = useState(false);
   const [editJobForm, setEditJobForm] = useState({ name: '', address: '', municipality: '', status: '', tax_exempt: false, notes: '' });
@@ -150,6 +160,73 @@ export default function JobDetailPage() {
     onSuccess: () => router.push('/admin/jobs'),
     onError: () => alert('Failed to delete job.'),
   });
+
+  const addLabor = useMutation({
+    mutationFn: (payload: unknown) => jobsApi.addLabor(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jobs', id] });
+      qc.invalidateQueries({ queryKey: ['jobs', id, 'profitability'] });
+      setShowLaborModal(false);
+      setLaborForm({ description: '', hours: '', rate: '', work_date: new Date().toISOString().slice(0, 10) });
+      setLaborError('');
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setLaborError(msg || 'Failed to add labor entry.');
+    },
+  });
+
+  const deleteLabor = useMutation({
+    mutationFn: (entryId: string) => jobsApi.deleteLabor(id, entryId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jobs', id] });
+      qc.invalidateQueries({ queryKey: ['jobs', id, 'profitability'] });
+    },
+    onError: () => alert('Failed to delete labor entry.'),
+  });
+
+  const addExpense = useMutation({
+    mutationFn: (payload: unknown) => jobsApi.addExpense(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jobs', id] });
+      qc.invalidateQueries({ queryKey: ['jobs', id, 'profitability'] });
+      setShowExpenseModal(false);
+      setExpenseForm({ vendor: '', description: '', amount: '', expense_date: new Date().toISOString().slice(0, 10), category: 'MATERIALS', notes: '' });
+      setExpenseError('');
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setExpenseError(msg || 'Failed to add expense.');
+    },
+  });
+
+  const deleteExpense = useMutation({
+    mutationFn: (expenseId: string) => jobsApi.deleteExpense(id, expenseId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jobs', id] });
+      qc.invalidateQueries({ queryKey: ['jobs', id, 'profitability'] });
+    },
+    onError: () => alert('Failed to delete expense.'),
+  });
+
+  function handleAddLabor() {
+    const hours = parseFloat(laborForm.hours);
+    const rate = parseFloat(laborForm.rate);
+    if (!laborForm.description.trim()) { setLaborError('Description is required.'); return; }
+    if (isNaN(hours) || hours <= 0) { setLaborError('Enter valid hours.'); return; }
+    if (isNaN(rate) || rate <= 0) { setLaborError('Enter valid rate.'); return; }
+    if (!laborForm.work_date) { setLaborError('Work date is required.'); return; }
+    addLabor.mutate({ description: laborForm.description, hours, rate, work_date: laborForm.work_date });
+  }
+
+  function handleAddExpense() {
+    const amount = parseFloat(expenseForm.amount);
+    if (!expenseForm.vendor.trim()) { setExpenseError('Vendor is required.'); return; }
+    if (!expenseForm.description.trim()) { setExpenseError('Description is required.'); return; }
+    if (isNaN(amount) || amount <= 0) { setExpenseError('Enter a valid amount.'); return; }
+    if (!expenseForm.expense_date) { setExpenseError('Date is required.'); return; }
+    addExpense.mutate({ vendor: expenseForm.vendor, description: expenseForm.description, amount, expense_date: expenseForm.expense_date, category: expenseForm.category, notes: expenseForm.notes || undefined });
+  }
 
   function closeEstModal() {
     setShowEstModal(false);
@@ -818,14 +895,22 @@ export default function JobDetailPage() {
 
         {tab === 'Labor' && (
           <div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+              <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => { setLaborError(''); setLaborForm(f => ({ ...f, rate: String(job.labor_rate || '') })); setShowLaborModal(true); }}>
+                <Plus size={16} strokeWidth={1.5} /> Add Labor
+              </button>
+            </div>
             {(job.labor || []).length === 0
               ? <p style={{ color: 'rgba(0,0,0,0.4)' }}>No labor entries.</p>
-              : <table className="data-table"><thead><tr><th>Description</th><th>Hours</th><th>Rate</th><th>Total</th></tr></thead>
-                  <tbody>{(job.labor as { id: string; description: string; hours: number; rate: number }[]).map((l) => (
-                    <tr key={l.id}><td style={{ color: 'var(--text-primary)' }}>{l.description}</td>
+              : <table className="data-table"><thead><tr><th>Description</th><th>Date</th><th>Hours</th><th>Rate</th><th>Total</th><th></th></tr></thead>
+                  <tbody>{(job.labor as { id: string; description: string; hours: number; rate: number; work_date: string }[]).map((l) => (
+                    <tr key={l.id}>
+                      <td style={{ color: 'var(--text-primary)' }}>{l.description}</td>
+                      <td style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>{new Date(l.work_date).toLocaleDateString()}</td>
                       <td style={{ color: 'rgba(0,0,0,0.7)' }}>{l.hours}h</td>
                       <td style={{ color: 'rgba(0,0,0,0.7)' }}>{fmt(l.rate)}/hr</td>
-                      <td style={{ fontFamily: 'Menlo,monospace', color: 'var(--text-primary)' }}>{fmt(l.hours * l.rate)}</td>
+                      <td style={{ fontFamily: 'Menlo,monospace', color: 'var(--text-primary)' }}>{fmt(Number(l.hours) * Number(l.rate))}</td>
+                      <td><button onClick={() => { if (confirm('Delete this labor entry?')) deleteLabor.mutate(l.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.3)', padding: 4 }}><Trash2 size={14} strokeWidth={1.5} /></button></td>
                     </tr>))}
                   </tbody></table>}
           </div>
@@ -833,14 +918,22 @@ export default function JobDetailPage() {
 
         {tab === 'Expenses' && (
           <div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+              <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => { setExpenseError(''); setShowExpenseModal(true); }}>
+                <Plus size={16} strokeWidth={1.5} /> Add Expense
+              </button>
+            </div>
             {(job.expenses || []).length === 0
               ? <p style={{ color: 'rgba(0,0,0,0.4)' }}>No expenses yet.</p>
-              : <table className="data-table"><thead><tr><th>Vendor</th><th>Description</th><th>Category</th><th>Amount</th></tr></thead>
-                  <tbody>{(job.expenses as { id: string; vendor: string; description: string; category: string; amount: number }[]).map((e) => (
-                    <tr key={e.id}><td style={{ color: 'var(--text-primary)' }}>{e.vendor}</td>
+              : <table className="data-table"><thead><tr><th>Vendor</th><th>Description</th><th>Category</th><th>Date</th><th>Amount</th><th></th></tr></thead>
+                  <tbody>{(job.expenses as { id: string; vendor: string; description: string; category: string; amount: number; expense_date: string }[]).map((e) => (
+                    <tr key={e.id}>
+                      <td style={{ color: 'var(--text-primary)' }}>{e.vendor}</td>
                       <td style={{ color: 'rgba(0,0,0,0.6)' }}>{e.description}</td>
-                      <td style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>{e.category}</td>
+                      <td style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>{e.category.replace(/_/g, ' ')}</td>
+                      <td style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>{new Date(e.expense_date).toLocaleDateString()}</td>
                       <td style={{ fontFamily: 'Menlo,monospace', color: '#FF9500' }}>{fmt(e.amount)}</td>
+                      <td><button onClick={() => { if (confirm('Delete this expense?')) deleteExpense.mutate(e.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.3)', padding: 4 }}><Trash2 size={14} strokeWidth={1.5} /></button></td>
                     </tr>))}
                   </tbody></table>}
           </div>
@@ -861,6 +954,98 @@ export default function JobDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Add Labor Modal */}
+      {showLaborModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 440, padding: 32, background: '#fff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>Add Labor Entry</h2>
+              <button onClick={() => setShowLaborModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}><X size={20} strokeWidth={1.5} /></button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Description</label>
+                <input className="input" value={laborForm.description} onChange={e => setLaborForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g. Prep and prime exterior" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Hours</label>
+                  <input className="input" type="number" min="0.25" step="0.25" value={laborForm.hours} onChange={e => setLaborForm(f => ({ ...f, hours: e.target.value }))} placeholder="8" />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Rate ($/hr)</label>
+                  <input className="input" type="number" min="0" step="0.01" value={laborForm.rate} onChange={e => setLaborForm(f => ({ ...f, rate: e.target.value }))} placeholder={String(job.labor_rate || '')} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Work Date</label>
+                <input className="input" type="date" value={laborForm.work_date} onChange={e => setLaborForm(f => ({ ...f, work_date: e.target.value }))} />
+              </div>
+              {laborError && <p style={{ color: '#FF3B30', fontSize: 13 }}>{laborError}</p>}
+              <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowLaborModal(false)}>Cancel</button>
+                <button className="btn-primary" style={{ flex: 1 }} onClick={handleAddLabor} disabled={addLabor.isPending}>
+                  {addLabor.isPending ? 'Saving...' : 'Add Entry'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Expense Modal */}
+      {showExpenseModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 440, padding: 32, background: '#fff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>Add Expense</h2>
+              <button onClick={() => setShowExpenseModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}><X size={20} strokeWidth={1.5} /></button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Vendor</label>
+                <input className="input" value={expenseForm.vendor} onChange={e => setExpenseForm(f => ({ ...f, vendor: e.target.value }))} placeholder="e.g. Sherwin-Williams" />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Description</label>
+                <input className="input" value={expenseForm.description} onChange={e => setExpenseForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g. Exterior paint - 5 gal" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Amount ($)</label>
+                  <input className="input" type="number" min="0" step="0.01" value={expenseForm.amount} onChange={e => setExpenseForm(f => ({ ...f, amount: e.target.value }))} placeholder="0.00" />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Date</label>
+                  <input className="input" type="date" value={expenseForm.expense_date} onChange={e => setExpenseForm(f => ({ ...f, expense_date: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Category</label>
+                <select className="input" value={expenseForm.category} onChange={e => setExpenseForm(f => ({ ...f, category: e.target.value }))}>
+                  <option value="MATERIALS">Materials</option>
+                  <option value="SUBCONTRACTOR">Subcontractor</option>
+                  <option value="EQUIPMENT_RENTAL">Equipment Rental</option>
+                  <option value="SUPPLIES">Supplies</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Notes (optional)</label>
+                <input className="input" value={expenseForm.notes} onChange={e => setExpenseForm(f => ({ ...f, notes: e.target.value }))} placeholder="Any additional notes" />
+              </div>
+              {expenseError && <p style={{ color: '#FF3B30', fontSize: 13 }}>{expenseError}</p>}
+              <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowExpenseModal(false)}>Cancel</button>
+                <button className="btn-primary" style={{ flex: 1 }} onClick={handleAddExpense} disabled={addExpense.isPending}>
+                  {addExpense.isPending ? 'Saving...' : 'Add Expense'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Job Modal */}
       {showEditJob && (
