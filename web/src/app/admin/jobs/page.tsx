@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -21,7 +21,7 @@ type SearchResult = { kind: 'contact'; data: Contact } | { kind: 'company'; data
 
 const emptyForm = { contact_id: '', company_id: '', selected_label: '', name: '', address: '', municipality: '', labor_rate: '', start_date: '', notes: '' };
 
-export default function JobsPage() {
+function JobsPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState('ALL');
@@ -360,4 +360,8 @@ export default function JobsPage() {
       </div>
     </div>
   );
+}
+
+export default function JobsPage() {
+  return <Suspense fallback={null}><JobsPageInner /></Suspense>;
 }
