@@ -26,8 +26,8 @@ const SECTIONS = [
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div style={{ marginBottom: 24 }}>
-      <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{title}</h2>
-      {subtitle && <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)' }}>{subtitle}</p>}
+      <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{title}</h2>
+      {subtitle && <p style={{ fontSize: 14, color: 'rgba(0,0,0,0.45)' }}>{subtitle}</p>}
     </div>
   );
 }
@@ -35,7 +35,7 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 16 }}>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.45)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.45)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
         {label}
       </label>
       {children}
@@ -94,7 +94,7 @@ function BrandingSection() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           {settings.logo_url && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={settings.logo_url} alt="Company logo" style={{ height: 48, borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)' }} />
+            <img src={settings.logo_url} alt="Company logo" style={{ height: 48, borderRadius: 8, border: '1px solid rgba(0,0,0,0.1)' }} />
           )}
           <label style={{ cursor: 'pointer' }}>
             <div className="btn btn-ghost" style={{ fontSize: 13, padding: '8px 16px' }}>
@@ -246,10 +246,10 @@ function ContractsSection() {
           <div key={t.id} className="glass" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontWeight: 600, color: '#fff' }}>{t.name}</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{t.name}</span>
                 {t.is_default && <span className="pill pill-green" style={{ fontSize: 10 }}>Default</span>}
               </div>
-              {t.description && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>{t.description}</div>}
+              {t.description && <div style={{ fontSize: 13, color: 'rgba(0,0,0,0.4)', marginTop: 4 }}>{t.description}</div>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button
@@ -273,7 +273,7 @@ function ContractsSection() {
           </div>
         ))}
         {templates.length === 0 && (
-          <div className="glass" style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>
+          <div className="glass" style={{ padding: 32, textAlign: 'center', color: 'rgba(0,0,0,0.4)', fontSize: 14 }}>
             No contract templates yet.
           </div>
         )}
@@ -290,7 +290,7 @@ function ContractsSection() {
       {showModal && editTemplate && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
           <div className="glass" style={{ width: '100%', maxWidth: 640, padding: 32, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ color: '#fff', fontWeight: 700, fontSize: 18, marginBottom: 20 }}>
+            <h3 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18, marginBottom: 20 }}>
               {editTemplate.id ? 'Edit Template' : 'New Contract Template'}
             </h3>
             <Field label="Template Name">
@@ -315,7 +315,7 @@ function ContractsSection() {
                 onChange={(e) => setEditTemplate((t) => t && { ...t, is_default: e.target.checked })}
                 style={{ accentColor: '#007AFF', width: 16, height: 16 }}
               />
-              <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>Set as default template</span>
+              <span style={{ color: 'rgba(0,0,0,0.7)', fontSize: 14 }}>Set as default template</span>
             </label>
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn btn-ghost" onClick={() => { setShowModal(false); setEditTemplate(null); }} style={{ flex: 1, justifyContent: 'center' }}>
@@ -418,7 +418,7 @@ function PriceBookSection() {
       <SectionHeader title="Price Book" subtitle="Manage standard material items and labor rates" />
       <div className="glass" style={{ overflow: 'hidden', marginBottom: 16 }}>
         {items.length === 0 && !adding ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>
+          <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(0,0,0,0.4)', fontSize: 14 }}>
             No items yet. Add your first material item.
           </div>
         ) : (
@@ -429,10 +429,10 @@ function PriceBookSection() {
             <tbody>
               {(items as { id: string; name: string; unit: string; unit_cost: number; description: string | null }[]).map((item) => (
                 <tr key={item.id}>
-                  <td style={{ color: '#fff', fontWeight: 500 }}>{item.name}</td>
-                  <td style={{ color: 'rgba(255,255,255,0.6)' }}>{item.unit}</td>
+                  <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{item.name}</td>
+                  <td style={{ color: 'rgba(0,0,0,0.6)' }}>{item.unit}</td>
                   <td style={{ fontFamily: 'Menlo,monospace', color: '#34C759' }}>${Number(item.unit_cost).toFixed(2)}</td>
-                  <td style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>{item.description || '—'}</td>
+                  <td style={{ color: 'rgba(0,0,0,0.45)', fontSize: 13 }}>{item.description || '—'}</td>
                   <td>
                     <button
                       className="btn btn-danger"
@@ -549,7 +549,7 @@ function TaxSection() {
       <SectionHeader title="Tax Profiles" subtitle="Configure tax rates by municipality" />
       <div className="glass" style={{ overflow: 'hidden', marginBottom: 16 }}>
         {profiles.length === 0 && !adding ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>
+          <div style={{ padding: 40, textAlign: 'center', color: 'rgba(0,0,0,0.4)' }}>
             No tax profiles. Add one to enable tax on invoices.
           </div>
         ) : (
@@ -558,10 +558,10 @@ function TaxSection() {
             <tbody>
               {(profiles as { id: string; name: string; municipality: string; state_rate: number; local_rate: number; is_default: boolean }[]).map((p) => (
                 <tr key={p.id}>
-                  <td style={{ color: '#fff', fontWeight: 500 }}>{p.name}</td>
-                  <td style={{ color: 'rgba(255,255,255,0.6)' }}>{p.municipality}</td>
-                  <td style={{ color: 'rgba(255,255,255,0.6)' }}>{(Number(p.state_rate) * 100).toFixed(3)}%</td>
-                  <td style={{ color: 'rgba(255,255,255,0.6)' }}>{(Number(p.local_rate) * 100).toFixed(3)}%</td>
+                  <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{p.name}</td>
+                  <td style={{ color: 'rgba(0,0,0,0.6)' }}>{p.municipality}</td>
+                  <td style={{ color: 'rgba(0,0,0,0.6)' }}>{(Number(p.state_rate) * 100).toFixed(3)}%</td>
+                  <td style={{ color: 'rgba(0,0,0,0.6)' }}>{(Number(p.local_rate) * 100).toFixed(3)}%</td>
                   <td>{p.is_default && <span className="pill pill-green">Default</span>}</td>
                   <td>
                     <button className="btn btn-danger" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => deleteMutation.mutate(p.id)}>
@@ -579,7 +579,7 @@ function TaxSection() {
                   <td>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                       <input type="checkbox" checked={newProfile.is_default} onChange={(e) => setNewProfile((n) => ({ ...n, is_default: e.target.checked }))} style={{ accentColor: '#007AFF' }} />
-                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Default</span>
+                      <span style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Default</span>
                     </label>
                   </td>
                   <td>
@@ -636,8 +636,8 @@ function SchedulerSection() {
       <SectionHeader title="Scheduler" subtitle="Configure online booking settings and availability" />
 
       {/* Settings */}
-      <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '20px 24px', marginBottom: 24 }}>
-        <h3 style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 16 }}>
+      <div style={{ background: 'rgba(0,0,0,0.04)', borderRadius: 12, padding: '20px 24px', marginBottom: 24 }}>
+        <h3 style={{ color: 'rgba(0,0,0,0.5)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 16 }}>
           Booking Rules
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
@@ -658,18 +658,18 @@ function SchedulerSection() {
 
       {/* Appointment Types */}
       <div style={{ marginBottom: 24 }}>
-        <h3 style={{ color: '#fff', fontWeight: 600, fontSize: 15, marginBottom: 12 }}>Appointment Types</h3>
+        <h3 style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 15, marginBottom: 12 }}>Appointment Types</h3>
         <div className="glass" style={{ overflow: 'hidden' }}>
           {types.length === 0 ? (
-            <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>No appointment types configured.</div>
+            <div style={{ padding: 32, textAlign: 'center', color: 'rgba(0,0,0,0.4)', fontSize: 14 }}>No appointment types configured.</div>
           ) : (
             <table className="data-table">
               <thead><tr><th>Name</th><th>Duration</th><th>Active</th></tr></thead>
               <tbody>
                 {(types as { id: string; name: string; duration_minutes: number; is_active: boolean }[]).map((t) => (
                   <tr key={t.id}>
-                    <td style={{ color: '#fff', fontWeight: 500 }}>{t.name}</td>
-                    <td style={{ color: 'rgba(255,255,255,0.6)' }}>{t.duration_minutes} min</td>
+                    <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{t.name}</td>
+                    <td style={{ color: 'rgba(0,0,0,0.6)' }}>{t.duration_minutes} min</td>
                     <td><span className={`pill ${t.is_active ? 'pill-green' : 'pill-muted'}`}>{t.is_active ? 'Active' : 'Inactive'}</span></td>
                   </tr>
                 ))}
@@ -681,19 +681,19 @@ function SchedulerSection() {
 
       {/* Availability Rules */}
       <div>
-        <h3 style={{ color: '#fff', fontWeight: 600, fontSize: 15, marginBottom: 12 }}>Availability Rules</h3>
+        <h3 style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 15, marginBottom: 12 }}>Availability Rules</h3>
         <div className="glass" style={{ overflow: 'hidden' }}>
           {rules.length === 0 ? (
-            <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>No availability rules configured.</div>
+            <div style={{ padding: 32, textAlign: 'center', color: 'rgba(0,0,0,0.4)', fontSize: 14 }}>No availability rules configured.</div>
           ) : (
             <table className="data-table">
               <thead><tr><th>Day</th><th>Start</th><th>End</th><th>Active</th><th></th></tr></thead>
               <tbody>
                 {(rules as { id: string; day_of_week: number; start_time: string; end_time: string; is_active: boolean }[]).map((r) => (
                   <tr key={r.id}>
-                    <td style={{ color: '#fff', fontWeight: 500 }}>{DAYS[r.day_of_week]}</td>
-                    <td style={{ color: 'rgba(255,255,255,0.6)' }}>{r.start_time}</td>
-                    <td style={{ color: 'rgba(255,255,255,0.6)' }}>{r.end_time}</td>
+                    <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{DAYS[r.day_of_week]}</td>
+                    <td style={{ color: 'rgba(0,0,0,0.6)' }}>{r.start_time}</td>
+                    <td style={{ color: 'rgba(0,0,0,0.6)' }}>{r.end_time}</td>
                     <td><span className={`pill ${r.is_active ? 'pill-green' : 'pill-muted'}`}>{r.is_active ? 'Active' : 'Off'}</span></td>
                     <td>
                       <button className="btn btn-danger" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => deleteRuleMutation.mutate(r.id)}>
@@ -786,7 +786,7 @@ function UsersSection() {
       <div>
         <SectionHeader title="Users" />
         <div className="glass" style={{ padding: 24 }}>
-          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Only owners can manage users.</p>
+          <p style={{ color: 'rgba(0,0,0,0.5)', fontSize: 14 }}>Only owners can manage users.</p>
         </div>
       </div>
     );
@@ -801,10 +801,10 @@ function UsersSection() {
           <tbody>
             {(users as { id: string; name: string; email: string; role: string; last_login_at: string | null; is_active: boolean }[]).map((u) => (
               <tr key={u.id}>
-                <td style={{ color: '#fff', fontWeight: 500 }}>{u.name}</td>
-                <td style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>{u.email}</td>
+                <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{u.name}</td>
+                <td style={{ color: 'rgba(0,0,0,0.6)', fontSize: 13 }}>{u.email}</td>
                 <td><span className={`pill ${u.role === 'OWNER' ? 'pill-blue' : 'pill-muted'}`}>{u.role}</span></td>
-                <td style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
+                <td style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>
                   {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : 'Never'}
                 </td>
                 <td><span className={`pill ${u.is_active ? 'pill-green' : 'pill-red'}`}>{u.is_active ? 'Active' : 'Inactive'}</span></td>
@@ -831,7 +831,7 @@ function UsersSection() {
       {showInvite && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
           <div className="glass" style={{ width: '100%', maxWidth: 440, padding: 32 }}>
-            <h3 style={{ color: '#fff', fontWeight: 700, fontSize: 18, marginBottom: 20 }}>Invite Team Member</h3>
+            <h3 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18, marginBottom: 20 }}>Invite Team Member</h3>
             <Field label="Full Name">
               <GlassInput value={inviteName} onChange={setInviteName} placeholder="Jane Smith" />
             </Field>
@@ -888,7 +888,7 @@ export default function SettingsPage() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28 }}>
         <Settings size={20} color="#007AFF" strokeWidth={1.5} />
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff' }}>Settings</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' }}>Settings</h1>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 24 }}>
@@ -910,7 +910,7 @@ export default function SettingsPage() {
                 cursor: 'pointer',
                 border: 'none',
                 background: section === key ? 'rgba(0,122,255,0.1)' : 'transparent',
-                color: section === key ? '#007AFF' : 'rgba(255,255,255,0.6)',
+                color: section === key ? '#007AFF' : 'rgba(0,0,0,0.6)',
                 marginBottom: 2,
                 textAlign: 'left',
               }}
@@ -926,7 +926,7 @@ export default function SettingsPage() {
           {SectionComp ? <SectionComp /> : (
             <div>
               <SectionHeader title={SECTIONS.find((s) => s.key === section)?.label || ''} />
-              <p style={{ color: 'rgba(255,255,255,0.4)' }}>This section is coming soon.</p>
+              <p style={{ color: 'rgba(0,0,0,0.4)' }}>This section is coming soon.</p>
             </div>
           )}
         </div>

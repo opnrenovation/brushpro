@@ -47,7 +47,7 @@ export default function LeadDetailPage() {
     },
   });
 
-  if (isLoading) return <div style={{ padding: 40, color: 'rgba(255,255,255,0.4)' }}>Loading...</div>;
+  if (isLoading) return <div style={{ padding: 40, color: 'rgba(0,0,0,0.4)' }}>Loading...</div>;
   const lead = data?.data?.data || data?.data;
   if (!lead) return <div style={{ padding: 40, color: '#FF3B30' }}>Lead not found</div>;
 
@@ -74,10 +74,10 @@ export default function LeadDetailPage() {
           <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <h1 style={{ fontSize: 22, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+                <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
                   {lead.contact.first_name} {lead.contact.last_name}
                 </h1>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>{lead.service_needed || 'General Inquiry'}</p>
+                <p style={{ color: 'rgba(0,0,0,0.5)', fontSize: 14 }}>{lead.service_needed || 'General Inquiry'}</p>
               </div>
               <span style={{ fontSize: 12, fontWeight: 700, color: STAGE_COLORS[lead.stage], background: STAGE_COLORS[lead.stage] + '20', padding: '5px 12px', borderRadius: 20, border: `1px solid ${STAGE_COLORS[lead.stage]}40` }}>
                 {lead.stage.replace(/_/g, ' ')}
@@ -96,7 +96,7 @@ export default function LeadDetailPage() {
 
           {/* Stage Pipeline */}
           <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
-            <h3 style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 16 }}>
+            <h3 style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 16 }}>
               Pipeline Stage
             </h3>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -107,8 +107,8 @@ export default function LeadDetailPage() {
                   <button key={s} onClick={() => handleStage(s)}
                     style={{
                       padding: '7px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: `1px solid ${color}40`,
-                      background: active ? color + '20' : 'rgba(255,255,255,0.05)',
-                      color: active ? color : 'rgba(255,255,255,0.5)',
+                      background: active ? color + '20' : 'rgba(0,0,0,0.05)',
+                      color: active ? color : 'rgba(0,0,0,0.5)',
                       transition: 'all 0.15s',
                     }}>
                     {s.replace(/_/g, ' ')}
@@ -122,14 +122,14 @@ export default function LeadDetailPage() {
           {/* Activity Timeline */}
           {lead.activities?.length > 0 && (
             <div className="glass" style={{ padding: 24 }}>
-              <h3 style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 16 }}>Activity</h3>
+              <h3 style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 16 }}>Activity</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {lead.activities.map((a: { id: string; type: string; description: string; created_at: string; user?: { name: string } }) => (
                   <div key={a.id} style={{ display: 'flex', gap: 12 }}>
-                    <Clock size={14} color="rgba(255,255,255,0.3)" strokeWidth={1.5} style={{ marginTop: 2, flexShrink: 0 }} />
+                    <Clock size={14} color="rgba(0,0,0,0.3)" strokeWidth={1.5} style={{ marginTop: 2, flexShrink: 0 }} />
                     <div>
-                      <p style={{ fontSize: 14, color: '#fff' }}>{a.description}</p>
-                      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>
+                      <p style={{ fontSize: 14, color: 'var(--text-primary)' }}>{a.description}</p>
+                      <p style={{ fontSize: 11, color: 'rgba(0,0,0,0.35)', marginTop: 2 }}>
                         {a.user?.name && `${a.user.name} · `}
                         {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                       </p>
@@ -145,21 +145,21 @@ export default function LeadDetailPage() {
         <div>
           {/* Details */}
           <div className="glass" style={{ padding: 20, marginBottom: 16 }}>
-            <h3 style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Details</h3>
+            <h3 style={{ fontSize: 11, fontWeight: 600, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Details</h3>
             {[
               { label: 'Source', value: lead.source?.replace(/_/g, ' ') },
               { label: 'Address', value: lead.project_address },
               { label: 'Heard From', value: lead.heard_from },
             ].filter((r) => r.value).map(({ label, value }) => (
               <div key={label} style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 2 }}>{label}</div>
-                <div style={{ fontSize: 14, color: '#fff' }}>{value}</div>
+                <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.35)', marginBottom: 2 }}>{label}</div>
+                <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>{value}</div>
               </div>
             ))}
             {lead.message && (
               <div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 2 }}>Message</div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>{lead.message}</div>
+                <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.35)', marginBottom: 2 }}>Message</div>
+                <div style={{ fontSize: 13, color: 'rgba(0,0,0,0.7)', lineHeight: 1.5 }}>{lead.message}</div>
               </div>
             )}
           </div>
@@ -167,10 +167,10 @@ export default function LeadDetailPage() {
           {/* Estimate */}
           {lead.estimate && (
             <div className="glass" style={{ padding: 20, marginBottom: 16 }}>
-              <h3 style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Estimate</h3>
+              <h3 style={{ fontSize: 11, fontWeight: 600, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Estimate</h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <FileText size={16} color="#007AFF" strokeWidth={1.5} />
-                <span style={{ fontWeight: 600, color: '#fff' }}>{lead.estimate.estimate_number}</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{lead.estimate.estimate_number}</span>
                 <span className="pill pill-blue" style={{ marginLeft: 'auto' }}>{lead.estimate.status}</span>
               </div>
             </div>
@@ -179,14 +179,14 @@ export default function LeadDetailPage() {
           {/* Appointment */}
           {lead.appointment && (
             <div className="glass" style={{ padding: 20, marginBottom: 16 }}>
-              <h3 style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Appointment</h3>
+              <h3 style={{ fontSize: 11, fontWeight: 600, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Appointment</h3>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <Calendar size={16} color="#FF9500" strokeWidth={1.5} style={{ marginTop: 2 }} />
                 <div>
-                  <div style={{ fontWeight: 600, color: '#fff', marginBottom: 2 }}>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
                     {new Date(lead.appointment.scheduled_at).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                   </div>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
+                  <div style={{ fontSize: 13, color: 'rgba(0,0,0,0.5)' }}>
                     {new Date(lead.appointment.scheduled_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                   </div>
                 </div>
@@ -215,13 +215,13 @@ export default function LeadDetailPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
           <div className="glass" style={{ width: '100%', maxWidth: 440, padding: 32 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-              <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>Convert to Job</h2>
-              <button onClick={() => setShowConvertModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)' }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>Convert to Job</h2>
+              <button onClick={() => setShowConvertModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}>
                 <X size={20} strokeWidth={1.5} />
               </button>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Job Name *</label>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Job Name *</label>
               <input
                 className="glass-input"
                 style={{ width: '100%', padding: '9px 12px', fontSize: 14 }}
@@ -231,7 +231,7 @@ export default function LeadDetailPage() {
               />
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Address</label>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Address</label>
               <input
                 className="glass-input"
                 style={{ width: '100%', padding: '9px 12px', fontSize: 14 }}
@@ -241,7 +241,7 @@ export default function LeadDetailPage() {
               />
             </div>
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Municipality</label>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Municipality</label>
               <input
                 className="glass-input"
                 style={{ width: '100%', padding: '9px 12px', fontSize: 14 }}
@@ -270,8 +270,8 @@ export default function LeadDetailPage() {
       {showLostModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
           <div className="glass" style={{ width: 400, padding: 28 }}>
-            <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: 6 }}>Mark as Lost</h3>
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 16 }}>Please provide a reason for losing this lead.</p>
+            <h3 style={{ color: 'var(--text-primary)', fontWeight: 700, marginBottom: 6 }}>Mark as Lost</h3>
+            <p style={{ color: 'rgba(0,0,0,0.5)', fontSize: 14, marginBottom: 16 }}>Please provide a reason for losing this lead.</p>
             <textarea
               value={lostReason}
               onChange={(e) => setLostReason(e.target.value)}

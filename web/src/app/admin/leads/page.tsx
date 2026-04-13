@@ -109,9 +109,9 @@ export default function LeadsPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <Target size={20} color="#007AFF" strokeWidth={1.5} />
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff' }}>Lead Pipeline</h1>
+            <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' }}>Lead Pipeline</h1>
           </div>
-          <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14 }}>
+          <p style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>
             {total} leads · {winRate}% win rate
           </p>
         </div>
@@ -122,54 +122,54 @@ export default function LeadsPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
           <div className="glass" style={{ width: '100%', maxWidth: 520, padding: 32, maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-              <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>New Lead</h2>
-              <button onClick={() => { setShowModal(false); setForm(emptyForm); setFormError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)' }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>New Lead</h2>
+              <button onClick={() => { setShowModal(false); setForm(emptyForm); setFormError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}>
                 <X size={20} strokeWidth={1.5} />
               </button>
             </div>
 
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginBottom: 20 }}>Contact details</p>
+            <p style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13, marginBottom: 20 }}>Contact details</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>First Name *</label>
+                <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>First Name *</label>
                 <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.first_name} onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))} placeholder="Alex" />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Last Name *</label>
+                <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Last Name *</label>
                 <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.last_name} onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))} placeholder="Johnson" />
               </div>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Email *</label>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Email *</label>
               <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="alex@example.com" />
             </div>
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Phone</label>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Phone</label>
               <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} type="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="(515) 555-0100" />
             </div>
 
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginBottom: 12 }}>Lead details</p>
+            <p style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13, marginBottom: 12 }}>Lead details</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Service</label>
+                <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Service</label>
                 <select className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.service_needed} onChange={(e) => setForm((f) => ({ ...f, service_needed: e.target.value }))}>
                   <option value="">Select service...</option>
                   {SERVICES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Source</label>
+                <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Source</label>
                 <select className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.source} onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}>
                   {SOURCES.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
                 </select>
               </div>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Project Address</label>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Project Address</label>
               <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.project_address} onChange={(e) => setForm((f) => ({ ...f, project_address: e.target.value }))} placeholder="123 Main St, Des Moines, IA" />
             </div>
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Notes</label>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Notes</label>
               <textarea className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14, minHeight: 72, resize: 'vertical' }} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Any additional details..." />
             </div>
 
@@ -187,7 +187,7 @@ export default function LeadsPage() {
       {/* Controls */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1, maxWidth: 320 }}>
-          <Search size={15} strokeWidth={1.5} color="rgba(255,255,255,0.3)"
+          <Search size={15} strokeWidth={1.5} color="rgba(0,0,0,0.3)"
             style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
           <input
             value={search}
@@ -197,13 +197,13 @@ export default function LeadsPage() {
             style={{ width: '100%', padding: '9px 12px 9px 36px', fontSize: 14 }}
           />
         </div>
-        <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: 3 }}>
+        <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 3 }}>
           {(['kanban', 'list'] as const).map((v) => (
             <button key={v} onClick={() => setView(v)}
               className="btn"
               style={{ padding: '6px 14px', fontSize: 13,
                 background: view === v ? 'rgba(0,122,255,0.15)' : 'transparent',
-                color: view === v ? '#007AFF' : 'rgba(255,255,255,0.5)',
+                color: view === v ? '#007AFF' : 'rgba(0,0,0,0.5)',
               }}>
               {v.charAt(0).toUpperCase() + v.slice(1)}
             </button>
@@ -222,7 +222,7 @@ export default function LeadsPage() {
                   <span style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     {stage.replace(/_/g, ' ')}
                   </span>
-                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.08)', padding: '1px 7px', borderRadius: 6 }}>
+                  <span style={{ fontSize: 12, color: 'rgba(0,0,0,0.3)', background: 'rgba(0,0,0,0.08)', padding: '1px 7px', borderRadius: 6 }}>
                     {col.length}
                   </span>
                 </div>
@@ -230,17 +230,17 @@ export default function LeadsPage() {
                   {col.map((lead) => (
                     <Link key={lead.id} href={`/admin/leads/${lead.id}`} style={{ textDecoration: 'none' }}>
                       <div className="glass" style={{ padding: '14px', cursor: 'pointer', transition: 'background 0.15s' }}>
-                        <div style={{ fontWeight: 600, fontSize: 14, color: '#fff', marginBottom: 3 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', marginBottom: 3 }}>
                           {lead.contact.first_name} {lead.contact.last_name}
                         </div>
-                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>
+                        <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 10 }}>
                           {lead.service_needed || 'General'}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: 11, background: 'rgba(255,255,255,0.08)', borderRadius: 6, padding: '2px 7px', color: 'rgba(255,255,255,0.5)' }}>
+                          <span style={{ fontSize: 11, background: 'rgba(0,0,0,0.08)', borderRadius: 6, padding: '2px 7px', color: 'rgba(0,0,0,0.5)' }}>
                             {lead.source.replace(/_/g, ' ')}
                           </span>
-                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
+                          <span style={{ fontSize: 11, color: 'rgba(0,0,0,0.35)' }}>
                             {daysSince(lead.updated_at)}d
                           </span>
                         </div>
@@ -248,7 +248,7 @@ export default function LeadsPage() {
                     </Link>
                   ))}
                   {col.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '20px 0', color: 'rgba(255,255,255,0.2)', fontSize: 13 }}>Empty</div>
+                    <div style={{ textAlign: 'center', padding: '20px 0', color: 'rgba(0,0,0,0.2)', fontSize: 13 }}>Empty</div>
                   )}
                 </div>
               </div>
@@ -267,19 +267,19 @@ export default function LeadsPage() {
               {filtered.map((lead) => (
                 <tr key={lead.id}>
                   <td>
-                    <Link href={`/admin/leads/${lead.id}`} style={{ color: '#fff', textDecoration: 'none', fontWeight: 500 }}>
+                    <Link href={`/admin/leads/${lead.id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 500 }}>
                       {lead.contact.first_name} {lead.contact.last_name}
                     </Link>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{lead.contact.email}</div>
+                    <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)' }}>{lead.contact.email}</div>
                   </td>
-                  <td style={{ color: 'rgba(255,255,255,0.7)' }}>{lead.service_needed || '—'}</td>
+                  <td style={{ color: 'rgba(0,0,0,0.7)' }}>{lead.service_needed || '—'}</td>
                   <td>
                     <span style={{ fontSize: 11, fontWeight: 600, color: STAGE_COLORS[lead.stage], background: STAGE_COLORS[lead.stage] + '20', padding: '3px 9px', borderRadius: 20 }}>
                       {lead.stage.replace(/_/g, ' ')}
                     </span>
                   </td>
-                  <td style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{lead.source.replace(/_/g, ' ')}</td>
-                  <td style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>{daysSince(lead.updated_at)}d</td>
+                  <td style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>{lead.source.replace(/_/g, ' ')}</td>
+                  <td style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>{daysSince(lead.updated_at)}d</td>
                 </tr>
               ))}
             </tbody>

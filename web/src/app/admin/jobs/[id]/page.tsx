@@ -20,7 +20,7 @@ export default function JobDetailPage() {
   const job = jobData?.data?.data || jobData?.data;
   const profit = profitData?.data?.data || profitData?.data;
 
-  if (!job) return <div style={{ padding: 40, color: 'rgba(255,255,255,0.4)' }}>Loading...</div>;
+  if (!job) return <div style={{ padding: 40, color: 'rgba(0,0,0,0.4)' }}>Loading...</div>;
 
   const margin = profit?.margin ?? 0;
   const marginColor = margin >= 35 ? '#34C759' : margin >= 25 ? '#FF9500' : '#FF3B30';
@@ -32,8 +32,8 @@ export default function JobDetailPage() {
       </button>
 
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{job.name}</h1>
-        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14 }}>{job.address}, {job.municipality} · {job.customer?.name}</p>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{job.name}</h1>
+        <p style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>{job.address}, {job.municipality} · {job.customer?.name}</p>
       </div>
 
       {/* Profitability cards */}
@@ -47,20 +47,20 @@ export default function JobDetailPage() {
           ].map(({ label, value, color }) => (
             <div key={label} className="glass" style={{ flex: 1, padding: 20, textAlign: 'center' }}>
               <div style={{ fontSize: 22, fontWeight: 700, color, fontFamily: 'Menlo,monospace', marginBottom: 4 }}>{value}</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
+              <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
             </div>
           ))}
         </div>
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 0 }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid rgba(0,0,0,0.08)', paddingBottom: 0 }}>
         {TABS.map((t) => (
           <button key={t} onClick={() => setTab(t)}
             style={{
               padding: '10px 18px', fontSize: 14, fontWeight: tab === t ? 600 : 400, cursor: 'pointer',
               background: 'transparent', border: 'none',
-              color: tab === t ? '#007AFF' : 'rgba(255,255,255,0.5)',
+              color: tab === t ? '#007AFF' : 'rgba(0,0,0,0.5)',
               borderBottom: `2px solid ${tab === t ? '#007AFF' : 'transparent'}`,
               marginBottom: -1,
             }}>{t}</button>
@@ -79,26 +79,26 @@ export default function JobDetailPage() {
                 { label: 'End Date', value: job.end_date ? new Date(job.end_date).toLocaleDateString() : '—' },
               ].map(({ label, value }) => (
                 <div key={label}>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontSize: 15, color: '#fff' }}>{value}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.35)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontSize: 15, color: 'var(--text-primary)' }}>{value}</div>
                 </div>
               ))}
             </div>
-            {job.notes && <div style={{ marginTop: 20, padding: 16, background: 'rgba(255,255,255,0.04)', borderRadius: 10 }}>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Notes</div>
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, lineHeight: 1.6 }}>{job.notes}</p>
+            {job.notes && <div style={{ marginTop: 20, padding: 16, background: 'rgba(0,0,0,0.04)', borderRadius: 10 }}>
+              <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.35)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Notes</div>
+              <p style={{ color: 'rgba(0,0,0,0.7)', fontSize: 14, lineHeight: 1.6 }}>{job.notes}</p>
             </div>}
           </div>
         )}
         {tab === 'Estimates' && (
           <div>
             {(job.estimates || []).length === 0
-              ? <p style={{ color: 'rgba(255,255,255,0.4)' }}>No estimates yet.</p>
+              ? <p style={{ color: 'rgba(0,0,0,0.4)' }}>No estimates yet.</p>
               : <table className="data-table"><thead><tr><th>Number</th><th>Status</th><th>Created</th></tr></thead>
                   <tbody>{(job.estimates as { id: string; estimate_number: string; status: string; created_at: string }[]).map((e) => (
-                    <tr key={e.id}><td style={{ color: '#fff' }}>{e.estimate_number}</td>
+                    <tr key={e.id}><td style={{ color: 'var(--text-primary)' }}>{e.estimate_number}</td>
                       <td><span className="pill pill-blue">{e.status}</span></td>
-                      <td style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>{new Date(e.created_at).toLocaleDateString()}</td>
+                      <td style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>{new Date(e.created_at).toLocaleDateString()}</td>
                     </tr>))}
                   </tbody></table>}
           </div>
@@ -106,13 +106,13 @@ export default function JobDetailPage() {
         {tab === 'Labor' && (
           <div>
             {(job.labor || []).length === 0
-              ? <p style={{ color: 'rgba(255,255,255,0.4)' }}>No labor entries.</p>
+              ? <p style={{ color: 'rgba(0,0,0,0.4)' }}>No labor entries.</p>
               : <table className="data-table"><thead><tr><th>Description</th><th>Hours</th><th>Rate</th><th>Total</th></tr></thead>
                   <tbody>{(job.labor as { id: string; description: string; hours: number; rate: number; work_date: string }[]).map((l) => (
-                    <tr key={l.id}><td style={{ color: '#fff' }}>{l.description}</td>
-                      <td style={{ color: 'rgba(255,255,255,0.7)' }}>{l.hours}h</td>
-                      <td style={{ color: 'rgba(255,255,255,0.7)' }}>{fmt(l.rate)}/hr</td>
-                      <td style={{ fontFamily: 'Menlo,monospace', color: '#fff' }}>{fmt(l.hours * l.rate)}</td>
+                    <tr key={l.id}><td style={{ color: 'var(--text-primary)' }}>{l.description}</td>
+                      <td style={{ color: 'rgba(0,0,0,0.7)' }}>{l.hours}h</td>
+                      <td style={{ color: 'rgba(0,0,0,0.7)' }}>{fmt(l.rate)}/hr</td>
+                      <td style={{ fontFamily: 'Menlo,monospace', color: 'var(--text-primary)' }}>{fmt(l.hours * l.rate)}</td>
                     </tr>))}
                   </tbody></table>}
           </div>
@@ -120,12 +120,12 @@ export default function JobDetailPage() {
         {tab === 'Expenses' && (
           <div>
             {(job.expenses || []).length === 0
-              ? <p style={{ color: 'rgba(255,255,255,0.4)' }}>No expenses yet.</p>
+              ? <p style={{ color: 'rgba(0,0,0,0.4)' }}>No expenses yet.</p>
               : <table className="data-table"><thead><tr><th>Vendor</th><th>Description</th><th>Category</th><th>Amount</th></tr></thead>
                   <tbody>{(job.expenses as { id: string; vendor: string; description: string; category: string; amount: number }[]).map((e) => (
-                    <tr key={e.id}><td style={{ color: '#fff' }}>{e.vendor}</td>
-                      <td style={{ color: 'rgba(255,255,255,0.6)' }}>{e.description}</td>
-                      <td style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{e.category}</td>
+                    <tr key={e.id}><td style={{ color: 'var(--text-primary)' }}>{e.vendor}</td>
+                      <td style={{ color: 'rgba(0,0,0,0.6)' }}>{e.description}</td>
+                      <td style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>{e.category}</td>
                       <td style={{ fontFamily: 'Menlo,monospace', color: '#FF9500' }}>{fmt(e.amount)}</td>
                     </tr>))}
                   </tbody></table>}
@@ -134,13 +134,13 @@ export default function JobDetailPage() {
         {tab === 'Invoices' && (
           <div>
             {(job.invoices || []).length === 0
-              ? <p style={{ color: 'rgba(255,255,255,0.4)' }}>No invoices yet.</p>
+              ? <p style={{ color: 'rgba(0,0,0,0.4)' }}>No invoices yet.</p>
               : <table className="data-table"><thead><tr><th>Number</th><th>Type</th><th>Status</th><th>Due</th></tr></thead>
                   <tbody>{(job.invoices as { id: string; invoice_number: string; type: string; status: string; due_date: string }[]).map((inv) => (
-                    <tr key={inv.id}><td style={{ color: '#fff' }}>{inv.invoice_number}</td>
-                      <td style={{ color: 'rgba(255,255,255,0.6)' }}>{inv.type}</td>
+                    <tr key={inv.id}><td style={{ color: 'var(--text-primary)' }}>{inv.invoice_number}</td>
+                      <td style={{ color: 'rgba(0,0,0,0.6)' }}>{inv.type}</td>
                       <td><span className="pill pill-blue">{inv.status}</span></td>
-                      <td style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>{new Date(inv.due_date).toLocaleDateString()}</td>
+                      <td style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>{new Date(inv.due_date).toLocaleDateString()}</td>
                     </tr>))}
                   </tbody></table>}
           </div>

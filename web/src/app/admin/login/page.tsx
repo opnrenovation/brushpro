@@ -10,9 +10,9 @@ const inputStyle: React.CSSProperties = {
   padding: '12px 16px',
   fontSize: 15,
   borderRadius: 10,
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.12)',
-  color: '#fff',
+  background: 'rgba(0,0,0,0.06)',
+  border: '1px solid rgba(0,0,0,0.12)',
+  color: 'var(--text-primary)',
   outline: 'none',
   fontFamily: 'system-ui, sans-serif',
   transition: 'border-color 0.2s',
@@ -92,7 +92,7 @@ export default function AdminLoginPage() {
     <div
       style={{
         minHeight: '100vh',
-        background: '#0A0A0F',
+        background: '#F5F5F7',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -106,7 +106,7 @@ export default function AdminLoginPage() {
           position: 'absolute',
           inset: 0,
           background:
-            'radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,122,255,0.08) 0%, transparent 70%), #0A0A0F',
+            'radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,122,255,0.08) 0%, transparent 70%), #F5F5F7',
           zIndex: 0,
         }}
       />
@@ -129,16 +129,16 @@ export default function AdminLoginPage() {
           >
             <Lock size={24} strokeWidth={1.5} style={{ color: '#007AFF' }} />
           </div>
-          <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em', marginBottom: 4 }}>
+          <h1 style={{ color: 'var(--text-primary)', fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em', marginBottom: 4 }}>
             OPN Renovation
           </h1>
-          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Admin Portal</p>
+          <p style={{ color: 'rgba(0,0,0,0.4)', fontSize: 14 }}>Admin Portal</p>
         </div>
 
         <div className="glass" style={{ padding: '36px' }}>
           {!mustChange ? (
             <>
-              <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 600, marginBottom: 24 }}>Sign In</h2>
+              <h2 style={{ color: 'var(--text-primary)', fontSize: 20, fontWeight: 600, marginBottom: 24 }}>Sign In</h2>
 
               {error && (
                 <div
@@ -162,7 +162,7 @@ export default function AdminLoginPage() {
 
               <form onSubmit={handleLogin}>
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', color: 'rgba(255,255,255,0.55)', fontSize: 13, marginBottom: 6 }}>
+                  <label style={{ display: 'block', color: 'rgba(0,0,0,0.55)', fontSize: 13, marginBottom: 6 }}>
                     Email
                   </label>
                   <div style={{ position: 'relative' }}>
@@ -174,7 +174,7 @@ export default function AdminLoginPage() {
                         left: 14,
                         top: '50%',
                         transform: 'translateY(-50%)',
-                        color: 'rgba(255,255,255,0.3)',
+                        color: 'rgba(0,0,0,0.3)',
                       }}
                     />
                     <input
@@ -190,7 +190,7 @@ export default function AdminLoginPage() {
                 </div>
 
                 <div style={{ marginBottom: 28 }}>
-                  <label style={{ display: 'block', color: 'rgba(255,255,255,0.55)', fontSize: 13, marginBottom: 6 }}>
+                  <label style={{ display: 'block', color: 'rgba(0,0,0,0.55)', fontSize: 13, marginBottom: 6 }}>
                     Password
                   </label>
                   <div style={{ position: 'relative' }}>
@@ -202,7 +202,7 @@ export default function AdminLoginPage() {
                         left: 14,
                         top: '50%',
                         transform: 'translateY(-50%)',
-                        color: 'rgba(255,255,255,0.3)',
+                        color: 'rgba(0,0,0,0.3)',
                       }}
                     />
                     <input
@@ -225,7 +225,7 @@ export default function AdminLoginPage() {
                         background: 'none',
                         border: 'none',
                         cursor: 'pointer',
-                        color: 'rgba(255,255,255,0.35)',
+                        color: 'rgba(0,0,0,0.35)',
                         display: 'flex',
                         alignItems: 'center',
                         padding: 0,
@@ -270,7 +270,7 @@ export default function AdminLoginPage() {
                 For security, you must set a new password before continuing.
               </div>
 
-              <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 600, marginBottom: 24 }}>Set New Password</h2>
+              <h2 style={{ color: 'var(--text-primary)', fontSize: 20, fontWeight: 600, marginBottom: 24 }}>Set New Password</h2>
 
               {changeError && (
                 <div
@@ -294,7 +294,7 @@ export default function AdminLoginPage() {
 
               <form onSubmit={handleChangePassword}>
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', color: 'rgba(255,255,255,0.55)', fontSize: 13, marginBottom: 6 }}>
+                  <label style={{ display: 'block', color: 'rgba(0,0,0,0.55)', fontSize: 13, marginBottom: 6 }}>
                     New Password
                   </label>
                   <input
@@ -309,7 +309,7 @@ export default function AdminLoginPage() {
                   />
                 </div>
                 <div style={{ marginBottom: 28 }}>
-                  <label style={{ display: 'block', color: 'rgba(255,255,255,0.55)', fontSize: 13, marginBottom: 6 }}>
+                  <label style={{ display: 'block', color: 'rgba(0,0,0,0.55)', fontSize: 13, marginBottom: 6 }}>
                     Confirm New Password
                   </label>
                   <input

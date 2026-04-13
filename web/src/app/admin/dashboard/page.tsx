@@ -8,13 +8,13 @@ function StatCard({ label, value, sub, trend }: { label: string; value: string; 
   const color = trend === 'up' ? '#34C759' : trend === 'down' ? '#FF3B30' : '#007AFF';
   return (
     <div className="glass" style={{ padding: '24px', flex: 1 }}>
-      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>{label}</div>
+      <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
         <span style={{ fontSize: 28, fontWeight: 700, fontFamily: 'Menlo, monospace', color }}>{value}</span>
         {trend === 'up' && <TrendingUp size={18} color={color} strokeWidth={1.5} style={{ marginBottom: 4 }} />}
         {trend === 'down' && <TrendingDown size={18} color={color} strokeWidth={1.5} style={{ marginBottom: 4 }} />}
       </div>
-      {sub && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)', marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
@@ -42,8 +42,8 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff', marginBottom: 6 }}>Dashboard</h1>
-      <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, marginBottom: 28 }}>OPN Renovation — Overview</p>
+      <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Dashboard</h1>
+      <p style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14, marginBottom: 28 }}>OPN Renovation — Overview</p>
 
       {/* Stats */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 28 }}>
@@ -58,19 +58,19 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Briefcase size={18} color="#007AFF" strokeWidth={1.5} />
-              <span style={{ fontWeight: 600, fontSize: 15, color: '#fff' }}>Active Jobs</span>
+              <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-primary)' }}>Active Jobs</span>
             </div>
             <Link href="/admin/jobs" style={{ fontSize: 13, color: '#007AFF', textDecoration: 'none' }}>View all</Link>
           </div>
           {jobs.length === 0 ? (
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>No active jobs</p>
+            <p style={{ color: 'rgba(0,0,0,0.4)', fontSize: 14 }}>No active jobs</p>
           ) : (
             <table className="data-table">
               <thead><tr><th>Job</th><th>Status</th></tr></thead>
               <tbody>
                 {(jobs as { id: string; name: string; status: string }[]).slice(0, 5).map((j) => (
                   <tr key={j.id}>
-                    <td><Link href={`/admin/jobs/${j.id}`} style={{ color: '#fff', textDecoration: 'none' }}>{j.name}</Link></td>
+                    <td><Link href={`/admin/jobs/${j.id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none' }}>{j.name}</Link></td>
                     <td><span className="pill pill-green">{j.status}</span></td>
                   </tr>
                 ))}
@@ -84,7 +84,7 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Target size={18} color="#007AFF" strokeWidth={1.5} />
-              <span style={{ fontWeight: 600, fontSize: 15, color: '#fff' }}>Lead Pipeline</span>
+              <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-primary)' }}>Lead Pipeline</span>
             </div>
             <Link href="/admin/leads" style={{ fontSize: 13, color: '#007AFF', textDecoration: 'none' }}>View all</Link>
           </div>
@@ -93,9 +93,9 @@ export default function DashboardPage() {
               { label: 'New', value: newLeads, color: newLeads > 0 ? '#FF9500' : '#34C759' },
               { label: 'Won', value: leads.filter((l: unknown) => (l as { stage?: string }).stage === 'WON').length, color: '#34C759' },
             ].map(({ label, value, color }) => (
-              <div key={label} style={{ flex: 1, minWidth: 80, padding: '14px 16px', background: 'rgba(255,255,255,0.05)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div key={label} style={{ flex: 1, minWidth: 80, padding: '14px 16px', background: 'rgba(0,0,0,0.05)', borderRadius: 12, border: '1px solid rgba(0,0,0,0.08)' }}>
                 <div style={{ fontSize: 22, fontWeight: 700, color, fontFamily: 'Menlo,monospace' }}>{value}</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>{label}</div>
+                <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)', marginTop: 2 }}>{label}</div>
               </div>
             ))}
           </div>
