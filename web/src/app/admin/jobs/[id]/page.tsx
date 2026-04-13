@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, X, Trash2, Send, Eye, Pencil, Clock, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, Plus, X, Trash2, Send, Eye, Pencil, Clock, MoreHorizontal, AlertTriangle } from 'lucide-react';
 import { jobsApi, estimatesApi, settingsApi } from '@/lib/api';
 
 const TABS = ['Overview', 'Estimates', 'Labor', 'Expenses', 'Invoices'];
@@ -51,6 +51,14 @@ export default function JobDetailPage() {
   const [editLineItems, setEditLineItems] = useState<LineItem[]>([{ ...emptyItem }]);
   const [editNotes, setEditNotes] = useState('');
   const [editError, setEditError] = useState('');
+
+  // Edit job modal state
+  const [showEditJob, setShowEditJob] = useState(false);
+  const [editJobForm, setEditJobForm] = useState({ name: '', address: '', municipality: '', status: '', tax_exempt: false, notes: '' });
+  const [editJobError, setEditJobError] = useState('');
+
+  // Delete job confirm
+  const [showDeleteJob, setShowDeleteJob] = useState(false);
 
   // Preview modal state
   const [previewEst, setPreviewEst] = useState<EstimateRow | null>(null);
@@ -117,6 +125,22 @@ export default function JobDetailPage() {
     mutationFn: (estId: string) => estimatesApi.update(estId, { status: 'EXPIRED' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs', id] }),
     onError: () => alert('Failed to expire estimate.'),
+  });
+
+  const updateJob = useMutation({
+    mutationFn: (payload: unknown) => jobsApi.update(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jobs', id] });
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+      setShowEditJob(false);
+    },
+    onError: () => setEditJobError('Failed to update job.'),
+  });
+
+  const deleteJob = useMutation({
+    mutationFn: () => jobsApi.delete(id),
+    onSuccess: () => router.push('/admin/jobs'),
+    onError: () => alert('Failed to delete job.'),
   });
 
   function closeEstModal() {
@@ -206,6 +230,25 @@ export default function JobDetailPage() {
     }
   }
 
+  function openEditJob() {
+    setEditJobForm({
+      name: job.name || '',
+      address: job.address || '',
+      municipality: job.municipality || '',
+      status: job.status || 'ESTIMATING',
+      tax_exempt: job.tax_exempt || false,
+      notes: job.notes || '',
+    });
+    setEditJobError('');
+    setShowEditJob(true);
+  }
+
+  function handleSaveJob() {
+    if (!editJobForm.name.trim()) { setEditJobError('Job name is required.'); return; }
+    if (!editJobForm.address.trim()) { setEditJobError('Address is required.'); return; }
+    updateJob.mutate(editJobForm);
+  }
+
   function addLineItem() { setLineItems(l => [...l, { ...emptyItem }]); }
   function removeLineItem(i: number) { setLineItems(l => l.filter((_, idx) => idx !== i)); }
   function updateLineItem(i: number, patch: Partial<LineItem>) {
@@ -281,9 +324,19 @@ export default function JobDetailPage() {
         <ArrowLeft size={15} strokeWidth={1.5} /> Jobs
       </button>
 
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{job.name}</h1>
-        <p style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>{job.address}, {job.municipality} · {job.customer?.name}</p>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{job.name}</h1>
+          <p style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>{job.address}, {job.municipality} · {job.customer?.name}</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <button onClick={openEditJob} className="btn btn-ghost" style={{ padding: '7px 14px', fontSize: 13 }}>
+            <Pencil size={14} strokeWidth={1.5} /> Edit
+          </button>
+          <button onClick={() => setShowDeleteJob(true)} className="btn btn-ghost" style={{ padding: '7px 14px', fontSize: 13, color: '#FF3B30' }}>
+            <Trash2 size={14} strokeWidth={1.5} /> Delete
+          </button>
+        </div>
       </div>
 
       {/* Profitability cards */}
@@ -769,6 +822,87 @@ export default function JobDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Job Modal */}
+      {showEditJob && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 480, padding: 32, background: '#fff', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>Edit Job</h2>
+              <button onClick={() => setShowEditJob(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}><X size={20} strokeWidth={1.5} /></button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Job Name</label>
+                <input className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14 }}
+                  value={editJobForm.name} onChange={e => setEditJobForm(f => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Address</label>
+                <input className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14 }}
+                  value={editJobForm.address} onChange={e => setEditJobForm(f => ({ ...f, address: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Municipality</label>
+                <input className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14 }}
+                  value={editJobForm.municipality} onChange={e => setEditJobForm(f => ({ ...f, municipality: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Status</label>
+                <select className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14 }}
+                  value={editJobForm.status} onChange={e => setEditJobForm(f => ({ ...f, status: e.target.value }))}>
+                  {['ESTIMATING', 'ACTIVE', 'INVOICED', 'COMPLETE', 'CANCELLED'].map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input type="checkbox" id="edit-tax-exempt" checked={editJobForm.tax_exempt}
+                  onChange={e => setEditJobForm(f => ({ ...f, tax_exempt: e.target.checked }))}
+                  style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                <label htmlFor="edit-tax-exempt" style={{ fontSize: 14, color: 'var(--text-primary)', cursor: 'pointer' }}>Tax Exempt</label>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Notes</label>
+                <textarea className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14, minHeight: 80, resize: 'vertical' }}
+                  value={editJobForm.notes} onChange={e => setEditJobForm(f => ({ ...f, notes: e.target.value }))} />
+              </div>
+            </div>
+
+            {editJobError && <p style={{ color: '#FF3B30', fontSize: 13, marginTop: 12 }}>{editJobError}</p>}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 24 }}>
+              <button onClick={() => setShowEditJob(false)} className="btn btn-ghost">Cancel</button>
+              <button onClick={handleSaveJob} className="btn btn-primary" disabled={updateJob.isPending}>
+                {updateJob.isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Job Confirmation */}
+      {showDeleteJob && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 400, padding: 32, background: '#fff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <AlertTriangle size={22} strokeWidth={1.5} style={{ color: '#FF3B30', flexShrink: 0 }} />
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>Delete Job</h2>
+            </div>
+            <p style={{ fontSize: 14, color: 'rgba(0,0,0,0.6)', lineHeight: 1.6, marginBottom: 24 }}>
+              Delete <strong>{job.name}</strong>? This will remove the job and cannot be undone. Estimates, invoices, and contracts linked to this job will also be hidden.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowDeleteJob(false)} className="btn btn-ghost">Cancel</button>
+              <button onClick={() => deleteJob.mutate()} className="btn" disabled={deleteJob.isPending}
+                style={{ background: '#FF3B30', color: '#fff', padding: '8px 20px', fontSize: 14, fontWeight: 600, borderRadius: 10, border: 'none', cursor: 'pointer' }}>
+                {deleteJob.isPending ? 'Deleting...' : 'Delete Job'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

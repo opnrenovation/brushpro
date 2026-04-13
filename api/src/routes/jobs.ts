@@ -76,6 +76,20 @@ jobsRouter.patch('/:id', async (req, res) => {
   }
 });
 
+jobsRouter.delete('/:id', async (req, res) => {
+  try {
+    const job = await prisma.job.findUnique({ where: { id: req.params.id } });
+    if (!job || job.deleted_at) {
+      res.status(404).json({ error: 'Job not found' });
+      return;
+    }
+    await prisma.job.update({ where: { id: req.params.id }, data: { deleted_at: new Date() } });
+    res.json({ data: { id: req.params.id } });
+  } catch {
+    res.status(500).json({ error: 'Failed to delete job' });
+  }
+});
+
 jobsRouter.get('/:id/profitability', async (req, res) => {
   try {
     const job = await prisma.job.findUnique({

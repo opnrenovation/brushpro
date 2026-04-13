@@ -86,6 +86,7 @@ export const jobsApi = {
   get: (id: string) => api.get(`/jobs/${id}`),
   create: (data: unknown) => api.post('/jobs', data),
   update: (id: string, data: unknown) => api.patch(`/jobs/${id}`, data),
+  delete: (id: string) => api.delete(`/jobs/${id}`),
   profitability: (id: string) => api.get(`/jobs/${id}/profitability`),
 };
 
