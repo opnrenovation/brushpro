@@ -172,11 +172,13 @@ function JobsPageInner() {
         notes: f.notes || undefined,
       });
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
+      const job = (res.data?.data || res.data);
       qc.invalidateQueries({ queryKey: ['jobs'] });
       setShowModal(false);
       setForm(emptyForm);
       setFormError('');
+      if (job?.id) router.push(`/admin/jobs/${job.id}`);
     },
     onError: (e: unknown) => {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
