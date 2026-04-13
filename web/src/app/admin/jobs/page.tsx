@@ -1,9 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Briefcase, Search, Plus, X } from 'lucide-react';
-import { jobsApi, customersApi, contactsApi } from '@/lib/api';
+import { Briefcase, Search, Plus, X, Building2, User } from 'lucide-react';
+import { jobsApi, customersApi, contactsApi, companiesApi } from '@/lib/api';
 
 const STATUSES = ['ALL', 'ESTIMATING', 'ACTIVE', 'INVOICED', 'COMPLETE', 'CANCELLED'];
 const STATUS_PILL: Record<string, string> = {
@@ -12,16 +12,13 @@ const STATUS_PILL: Record<string, string> = {
 };
 
 interface Job { id: string; name: string; address: string; status: string; municipality: string; customer?: { name: string }; created_at: string; }
-interface Contact { id: string; first_name: string; last_name: string; email?: string; phone?: string; address?: string; }
+interface Contact { id: string; first_name: string; last_name: string; email?: string; phone?: string; address?: string; city?: string; state?: string; zip?: string; company?: string; }
+interface Company { id: string; name: string; phone?: string; email?: string; address?: string; city?: string; state?: string; zip?: string; }
 interface CustomerRecord { id: string; contact_id?: string; name: string; }
 
-const FALLBACK: Job[] = [
-  { id: '1', name: 'Henderson Exterior', address: '142 Maple Ave', status: 'ACTIVE', municipality: 'Des Moines', customer: { name: 'Mark Henderson' }, created_at: new Date().toISOString() },
-  { id: '2', name: 'Downtown Office Suite', address: '800 Commerce Blvd', status: 'ESTIMATING', municipality: 'Des Moines', customer: { name: 'Apex Realty' }, created_at: new Date().toISOString() },
-  { id: '3', name: 'Garcia Residence Interior', address: '55 Birchwood Ct', status: 'COMPLETE', municipality: 'Ankeny', customer: { name: 'Elena Garcia' }, created_at: new Date().toISOString() },
-];
+type SearchResult = { kind: 'contact'; data: Contact } | { kind: 'company'; data: Company };
 
-const emptyForm = { contact_id: '', name: '', address: '', municipality: '', labor_rate: '', start_date: '', notes: '' };
+const emptyForm = { contact_id: '', company_id: '', selected_label: '', name: '', address: '', municipality: '', labor_rate: '', start_date: '', notes: '' };
 
 export default function JobsPage() {
   const [status, setStatus] = useState('ALL');
@@ -29,33 +26,115 @@ export default function JobsPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState('');
+
+  // Customer search state
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
 
   const { data } = useQuery({ queryKey: ['jobs'], queryFn: () => jobsApi.list() });
   const { data: contactsData } = useQuery({ queryKey: ['contacts', 'all'], queryFn: () => contactsApi.list({ limit: '500' }) });
+  const { data: companiesData } = useQuery({ queryKey: ['companies', 'all'], queryFn: () => companiesApi.list({ limit: '500' }) });
   const { data: customersData } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list({ limit: '500' }) });
-  const jobs: Job[] = data?.data?.data || data?.data || FALLBACK;
+
+  const jobs: Job[] = data?.data?.data || data?.data || [];
   const contacts: Contact[] = contactsData?.data?.data || contactsData?.data || [];
+  const companies: Company[] = companiesData?.data?.data || companiesData?.data || [];
   const existingCustomers: CustomerRecord[] = customersData?.data?.data || customersData?.data || [];
-  // Map contact_id → customer id for contacts that are already customers
   const contactToCustomerId = new Map(existingCustomers.filter(c => c.contact_id).map(c => [c.contact_id!, c.id]));
+
+  // Filter contacts + companies by search query
+  const searchResults: SearchResult[] = customerQuery.trim().length < 1 ? [] : [
+    ...contacts
+      .filter(c => `${c.first_name} ${c.last_name} ${c.company || ''}`.toLowerCase().includes(customerQuery.toLowerCase()))
+      .slice(0, 6)
+      .map(c => ({ kind: 'contact' as const, data: c })),
+    ...companies
+      .filter(c => c.name.toLowerCase().includes(customerQuery.toLowerCase()))
+      .slice(0, 6)
+      .map(c => ({ kind: 'company' as const, data: c })),
+  ];
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowDropdown(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  function selectResult(result: SearchResult) {
+    if (result.kind === 'contact') {
+      const c = result.data;
+      setForm(f => ({
+        ...f,
+        contact_id: c.id,
+        company_id: '',
+        selected_label: `${c.first_name} ${c.last_name}`.trim(),
+        address: c.address || f.address,
+        municipality: c.city || f.municipality,
+      }));
+    } else {
+      const c = result.data;
+      setForm(f => ({
+        ...f,
+        contact_id: '',
+        company_id: c.id,
+        selected_label: c.name,
+        address: c.address || f.address,
+        municipality: c.city || f.municipality,
+      }));
+    }
+    setCustomerQuery('');
+    setShowDropdown(false);
+  }
+
+  function clearSelection() {
+    setForm(f => ({ ...f, contact_id: '', company_id: '', selected_label: '', address: '', municipality: '' }));
+    setCustomerQuery('');
+  }
 
   const createMutation = useMutation({
     mutationFn: async (f: typeof emptyForm) => {
-      // Resolve contact → customer (create customer record if needed)
-      let customerId = contactToCustomerId.get(f.contact_id);
-      if (!customerId) {
-        const contact = contacts.find(c => c.id === f.contact_id);
-        if (!contact) throw new Error('Contact not found');
-        const res = await customersApi.create({
-          contact_id: contact.id,
-          name: `${contact.first_name} ${contact.last_name}`.trim(),
-          email: contact.email,
-          phone: contact.phone,
-          address: contact.address || '',
-        });
-        customerId = (res.data?.data || res.data)?.id;
+      let customerId: string | undefined;
+
+      if (f.contact_id) {
+        // Resolve contact → customer
+        customerId = contactToCustomerId.get(f.contact_id);
+        if (!customerId) {
+          const contact = contacts.find(c => c.id === f.contact_id);
+          if (!contact) throw new Error('Contact not found');
+          const res = await customersApi.create({
+            contact_id: contact.id,
+            name: `${contact.first_name} ${contact.last_name}`.trim(),
+            email: contact.email,
+            phone: contact.phone,
+            address: contact.address || '',
+          });
+          customerId = (res.data?.data || res.data)?.id;
+        }
+      } else if (f.company_id) {
+        // Resolve company → customer (find or create via company contact)
+        const company = companies.find(c => c.id === f.company_id);
+        if (!company) throw new Error('Company not found');
+        // Check if there's already a customer for this company name
+        const existingCust = existingCustomers.find(c => c.name === company.name);
+        if (existingCust) {
+          customerId = existingCust.id;
+        } else {
+          const res = await customersApi.create({
+            name: company.name,
+            phone: company.phone,
+            address: company.address || '',
+          });
+          customerId = (res.data?.data || res.data)?.id;
+        }
       }
+
+      if (!customerId) throw new Error('Could not resolve customer');
+
       return jobsApi.create({
         customer_id: customerId,
         name: f.name,
@@ -79,8 +158,12 @@ export default function JobsPage() {
   });
 
   function handleSubmit() {
-    if (!form.contact_id || !form.name || !form.address || !form.municipality || !form.labor_rate) {
-      setFormError('Customer, job name, address, municipality, and labor rate are required.');
+    if (!form.contact_id && !form.company_id) {
+      setFormError('Please select a contact or company.');
+      return;
+    }
+    if (!form.name || !form.address || !form.municipality || !form.labor_rate) {
+      setFormError('Job name, address, municipality, and labor rate are required.');
       return;
     }
     if (isNaN(parseFloat(form.labor_rate)) || parseFloat(form.labor_rate) <= 0) {
@@ -105,30 +188,82 @@ export default function JobsPage() {
           <Briefcase size={20} color="#007AFF" strokeWidth={1.5} />
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' }}>Jobs</h1>
         </div>
-        <button className="btn btn-primary" onClick={() => { setShowModal(true); setFormError(''); }}><Plus size={16} strokeWidth={2} /> New Job</button>
+        <button className="btn btn-primary" onClick={() => { setShowModal(true); setFormError(''); setForm(emptyForm); setCustomerQuery(''); }}><Plus size={16} strokeWidth={2} /> New Job</button>
       </div>
 
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
-          <div className="glass" style={{ width: '100%', maxWidth: 520, padding: 32, maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div style={{ width: '100%', maxWidth: 520, padding: 32, background: '#fff', borderRadius: 16, boxShadow: '0 8px 40px rgba(0,0,0,0.15)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
               <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>New Job</h2>
-              <button onClick={() => { setShowModal(false); setForm(emptyForm); setFormError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}>
+              <button onClick={() => { setShowModal(false); setForm(emptyForm); setFormError(''); setCustomerQuery(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}>
                 <X size={20} strokeWidth={1.5} />
               </button>
             </div>
 
+            {/* Customer search */}
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Customer *</label>
-              <select className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.contact_id} onChange={(e) => setForm((f) => ({ ...f, contact_id: e.target.value }))}>
-                <option value="">Select contact...</option>
-                {contacts.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {`${c.first_name} ${c.last_name}`.trim()}
-                  </option>
-                ))}
-              </select>
+
+              {form.selected_label ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: 'rgba(0,122,255,0.06)', border: '1px solid rgba(0,122,255,0.25)', borderRadius: 8 }}>
+                  {form.company_id
+                    ? <Building2 size={15} color="#007AFF" strokeWidth={1.5} />
+                    : <User size={15} color="#007AFF" strokeWidth={1.5} />}
+                  <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{form.selected_label}</span>
+                  <button onClick={clearSelection} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.35)', padding: 0 }}>
+                    <X size={14} strokeWidth={2} />
+                  </button>
+                </div>
+              ) : (
+                <div ref={searchRef} style={{ position: 'relative' }}>
+                  <Search size={14} strokeWidth={1.5} color="rgba(0,0,0,0.3)"
+                    style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  <input
+                    className="glass-input"
+                    style={{ width: '100%', padding: '9px 12px 9px 34px', fontSize: 14 }}
+                    placeholder="Search contacts or companies..."
+                    value={customerQuery}
+                    onChange={(e) => { setCustomerQuery(e.target.value); setShowDropdown(true); }}
+                    onFocus={() => setShowDropdown(true)}
+                  />
+                  {showDropdown && searchResults.length > 0 && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', zIndex: 200, marginTop: 4, overflow: 'hidden' }}>
+                      {searchResults.map((r, i) => (
+                        <button
+                          key={i}
+                          onMouseDown={() => selectResult(r)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: i < searchResults.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,122,255,0.04)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                        >
+                          {r.kind === 'company'
+                            ? <Building2 size={14} color="#007AFF" strokeWidth={1.5} />
+                            : <User size={14} color="rgba(0,0,0,0.4)" strokeWidth={1.5} />}
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>
+                              {r.kind === 'contact' ? `${r.data.first_name} ${r.data.last_name}` : r.data.name}
+                            </div>
+                            {r.kind === 'contact' && r.data.company && (
+                              <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)' }}>{r.data.company}</div>
+                            )}
+                          </div>
+                          <span style={{ marginLeft: 'auto', fontSize: 10, color: 'rgba(0,0,0,0.3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            {r.kind}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {showDropdown && customerQuery.length > 0 && searchResults.length === 0 && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', zIndex: 200, marginTop: 4, padding: '12px 14px', fontSize: 13, color: 'rgba(0,0,0,0.4)' }}>
+                      No results for &ldquo;{customerQuery}&rdquo;
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Job Name *</label>
               <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Henderson Exterior" />
@@ -158,7 +293,7 @@ export default function JobsPage() {
 
             {formError && <p style={{ color: '#FF3B30', fontSize: 13, marginBottom: 16 }}>{formError}</p>}
             <div style={{ display: 'flex', gap: 10 }}>
-              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowModal(false); setForm(emptyForm); setFormError(''); }}>Cancel</button>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowModal(false); setForm(emptyForm); setFormError(''); setCustomerQuery(''); }}>Cancel</button>
               <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSubmit} disabled={createMutation.isPending}>
                 {createMutation.isPending ? 'Creating...' : 'Create Job'}
               </button>
@@ -191,6 +326,9 @@ export default function JobsPage() {
         <table className="data-table">
           <thead><tr><th>Job</th><th>Customer</th><th>Address</th><th>Status</th></tr></thead>
           <tbody>
+            {filtered.length === 0 && (
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'rgba(0,0,0,0.35)', padding: 40 }}>No jobs found.</td></tr>
+            )}
             {filtered.map((j) => (
               <tr key={j.id}>
                 <td><Link href={`/admin/jobs/${j.id}`} style={{ color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>{j.name}</Link></td>

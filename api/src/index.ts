@@ -27,6 +27,7 @@ import contractTemplatesRouter from './routes/contractTemplates';
 import usersRouter from './routes/users';
 import publicRouter from './routes/public';
 import { vendorsRouter } from './routes/vendors';
+import { companiesRouter } from './routes/companies';
 import { authenticate } from './middleware/auth';
 import { errorHandler } from './middleware/error';
 
@@ -72,6 +73,7 @@ app.use('/api/v1/scheduler', schedulerRouter);
 app.use('/api/v1/contract-templates', contractTemplatesRouter);
 app.use('/api/v1/users', usersRouter);
 app.use('/api/v1/vendors', vendorsRouter);
+app.use('/api/v1/companies', companiesRouter);
 
 app.use(errorHandler);
 

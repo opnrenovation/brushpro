@@ -13,6 +13,7 @@ interface Contact {
   first_name: string;
   last_name: string;
   company: string | null;
+  company_rel?: { id: string; name: string } | null;
   email: string;
   phone: string | null;
   type: string;
@@ -240,7 +241,7 @@ export default function ContactsPage() {
                     <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
                       {c.first_name} {c.last_name}
                     </td>
-                    <td style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>{c.company || '—'}</td>
+                    <td style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>{c.company_rel?.name || c.company || '—'}</td>
                     <td style={{ color: 'rgba(0,0,0,0.6)', fontSize: 13 }}>{c.email}</td>
                     <td style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>{c.phone || '—'}</td>
                     <td>

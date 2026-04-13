@@ -30,6 +30,7 @@ contactsRouter.get('/', async (req: AuthRequest, res) => {
         skip,
         take: parseInt(limit),
         orderBy: { created_at: 'desc' },
+        include: { company_rel: { select: { id: true, name: true } } },
       }),
       prisma.contact.count({ where }),
     ]);
@@ -71,7 +72,7 @@ contactsRouter.post('/', async (req: AuthRequest, res) => {
 
 contactsRouter.get('/:id', async (req, res) => {
   try {
-    const contact = await prisma.contact.findUnique({ where: { id: req.params.id } });
+    const contact = await prisma.contact.findUnique({ where: { id: req.params.id }, include: { company_rel: { select: { id: true, name: true } } } });
     if (!contact || contact.deleted_at) {
       res.status(404).json({ error: 'Contact not found' });
       return;

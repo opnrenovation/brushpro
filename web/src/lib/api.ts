@@ -62,6 +62,15 @@ export const contactsApi = {
   convert: (id: string) => api.post(`/contacts/${id}/convert`),
 };
 
+// Companies
+export const companiesApi = {
+  list: (params?: Record<string, string>) => api.get('/companies', { params }),
+  get: (id: string) => api.get(`/companies/${id}`),
+  create: (data: unknown) => api.post('/companies', data),
+  update: (id: string, data: unknown) => api.patch(`/companies/${id}`, data),
+  delete: (id: string) => api.delete(`/companies/${id}`),
+};
+
 // Customers
 export const customersApi = {
   list: (params?: Record<string, string>) => api.get('/customers', { params }),

@@ -187,12 +187,32 @@ model CompanySettings {
 
 // ─── CRM ───────────────────────────────────────────────────────────────────
 
+model Company {
+  id         String    @id @default(cuid())
+  name       String
+  phone      String?
+  email      String?
+  address    String?
+  city       String?
+  state      String?
+  zip        String?
+  notes      String?
+  deleted_at DateTime?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  contacts Contact[]
+
+  @@map("companies")
+}
+
 model Contact {
   id                String      @id @default(cuid())
   type              ContactType @default(PROSPECT)
   first_name        String
   last_name         String
   company           String?
+  company_id        String?
   email             String      @unique
   phone             String?
   address           String?
@@ -208,6 +228,7 @@ model Contact {
   created_at        DateTime    @default(now())
   updated_at        DateTime    @updatedAt
 
+  company_rel  Company?            @relation(fields: [company_id], references: [id])
   customer     Customer?           @relation("ContactToCustomer")
   list_members ContactListMember[]
   leads        Lead[]
