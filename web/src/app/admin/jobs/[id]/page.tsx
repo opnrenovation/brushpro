@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Plus, X, Trash2, Send, Eye, Pencil, Clock, MoreHorizontal, AlertTriangle, Link } from 'lucide-react';
-import { jobsApi, estimatesApi, settingsApi } from '@/lib/api';
+import { jobsApi, estimatesApi, invoicesApi, settingsApi, taxProfilesApi } from '@/lib/api';
 
 const TABS = ['Overview', 'Estimates', 'Labor', 'Expenses', 'Invoices'];
 
@@ -63,6 +63,17 @@ export default function JobDetailPage() {
   const [expenseForm, setExpenseForm] = useState({ vendor: '', description: '', amount: '', expense_date: new Date().toISOString().slice(0, 10), category: 'MATERIALS', notes: '' });
   const [expenseError, setExpenseError] = useState('');
 
+  // Invoice modal state
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceForm, setInvoiceForm] = useState({ type: 'FINAL', due_days: '7', notes: '', tax_profile_id: '' });
+  const [invoiceLineItems, setInvoiceLineItems] = useState<LineItem[]>([{ ...emptyItem }]);
+  const [invoiceError, setInvoiceError] = useState('');
+
+  // Record payment modal state
+  const [paymentInvoice, setPaymentInvoice] = useState<{ id: string; invoice_number: string; balance: number } | null>(null);
+  const [paymentForm, setPaymentForm] = useState({ amount: '', method: 'CHECK', notes: '' });
+  const [paymentError, setPaymentError] = useState('');
+
   // Edit job modal state
   const [showEditJob, setShowEditJob] = useState(false);
   const [editJobForm, setEditJobForm] = useState({ name: '', address: '', municipality: '', status: '', tax_exempt: false, notes: '' });
@@ -77,10 +88,12 @@ export default function JobDetailPage() {
   const { data: jobData } = useQuery({ queryKey: ['jobs', id], queryFn: () => jobsApi.get(id) });
   const { data: profitData } = useQuery({ queryKey: ['jobs', id, 'profitability'], queryFn: () => jobsApi.profitability(id) });
   const { data: settingsData } = useQuery({ queryKey: ['settings'], queryFn: () => settingsApi.get() });
+  const { data: taxProfilesData } = useQuery({ queryKey: ['tax-profiles'], queryFn: () => taxProfilesApi.list() });
 
   const job = jobData?.data?.data || jobData?.data;
   const profit = profitData?.data?.data || profitData?.data;
   const settings = settingsData?.data?.data || settingsData?.data;
+  const taxProfiles: { id: string; name: string }[] = taxProfilesData?.data?.data || taxProfilesData?.data || [];
 
   // Close action menu on outside click
   useEffect(() => {
@@ -208,6 +221,76 @@ export default function JobDetailPage() {
     },
     onError: () => alert('Failed to delete expense.'),
   });
+
+  const createInvoice = useMutation({
+    mutationFn: (payload: unknown) => invoicesApi.create(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jobs', id] });
+      setShowInvoiceModal(false);
+      setInvoiceLineItems([{ ...emptyItem }]);
+      setInvoiceForm({ type: 'FINAL', due_days: '7', notes: '', tax_profile_id: '' });
+      setInvoiceError('');
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setInvoiceError(msg || 'Failed to create invoice.');
+    },
+  });
+
+  const sendInvoice = useMutation({
+    mutationFn: (invId: string) => invoicesApi.send(invId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs', id] }),
+    onError: () => alert('Failed to send invoice.'),
+  });
+
+  const recordPayment = useMutation({
+    mutationFn: ({ invId, payload }: { invId: string; payload: unknown }) => invoicesApi.addPayment(invId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jobs', id] });
+      qc.invalidateQueries({ queryKey: ['jobs', id, 'profitability'] });
+      setPaymentInvoice(null);
+      setPaymentForm({ amount: '', method: 'CHECK', notes: '' });
+      setPaymentError('');
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setPaymentError(msg || 'Failed to record payment.');
+    },
+  });
+
+  function handleCreateInvoice() {
+    const valid = invoiceLineItems.filter(li => li.description.trim() && li.unit_price > 0);
+    if (valid.length === 0) { setInvoiceError('Add at least one line item.'); return; }
+    if (!invoiceForm.tax_profile_id) { setInvoiceError('Select a tax profile.'); return; }
+    const dueDays = parseInt(invoiceForm.due_days) || 7;
+    const due_date = new Date();
+    due_date.setDate(due_date.getDate() + dueDays);
+    const taxable = !job.tax_exempt;
+    const items = valid.map(li => ({ description: li.description, qty: li.qty || 1, unit_price: li.unit_price, taxable }));
+    createInvoice.mutate({
+      job_id: id,
+      type: invoiceForm.type,
+      line_items: items,
+      tax_profile_id: invoiceForm.tax_profile_id,
+      due_date: due_date.toISOString(),
+      notes: invoiceForm.notes || undefined,
+    });
+  }
+
+  function handleRecordPayment() {
+    const amount = parseFloat(paymentForm.amount);
+    if (isNaN(amount) || amount <= 0) { setPaymentError('Enter a valid amount.'); return; }
+    if (!paymentInvoice) return;
+    recordPayment.mutate({ invId: paymentInvoice.id, payload: { amount, method: paymentForm.method, notes: paymentForm.notes || undefined, paid_at: new Date().toISOString() } });
+  }
+
+  function openPaymentModal(inv: { id: string; invoice_number: string; line_items: { qty: number; unit_price: number }[]; payments: { amount: number }[] }) {
+    const total = inv.line_items.reduce((s, li) => s + li.qty * li.unit_price, 0);
+    const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
+    setPaymentInvoice({ id: inv.id, invoice_number: inv.invoice_number, balance: total - paid });
+    setPaymentForm({ amount: String((total - paid).toFixed(2)), method: 'CHECK', notes: '' });
+    setPaymentError('');
+  }
 
   function handleAddLabor() {
     const hours = parseFloat(laborForm.hours);
@@ -941,19 +1024,158 @@ export default function JobDetailPage() {
 
         {tab === 'Invoices' && (
           <div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+              <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => {
+                setInvoiceError('');
+                // Pre-populate line items from approved estimate if available
+                const approved = (job.estimates || []).find((e: { status: string }) => e.status === 'APPROVED');
+                if (approved?.line_items?.length) {
+                  setInvoiceLineItems(approved.line_items.map((li: { description: string; qty: number; unit_price: number }) => ({ description: li.description, qty: li.qty, unit_price: li.unit_price })));
+                } else {
+                  setInvoiceLineItems([{ ...emptyItem }]);
+                }
+                // Pre-select first tax profile
+                if (taxProfiles.length > 0) setInvoiceForm(f => ({ ...f, tax_profile_id: taxProfiles[0].id }));
+                setShowInvoiceModal(true);
+              }}>
+                <Plus size={16} strokeWidth={1.5} /> Create Invoice
+              </button>
+            </div>
             {(job.invoices || []).length === 0
               ? <p style={{ color: 'rgba(0,0,0,0.4)' }}>No invoices yet.</p>
-              : <table className="data-table"><thead><tr><th>Number</th><th>Type</th><th>Status</th><th>Due</th></tr></thead>
-                  <tbody>{(job.invoices as { id: string; invoice_number: string; type: string; status: string; due_date: string }[]).map((inv) => (
-                    <tr key={inv.id}><td style={{ color: 'var(--text-primary)' }}>{inv.invoice_number}</td>
-                      <td style={{ color: 'rgba(0,0,0,0.6)' }}>{inv.type}</td>
-                      <td><span className="pill pill-blue">{inv.status}</span></td>
-                      <td style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>{new Date(inv.due_date).toLocaleDateString()}</td>
-                    </tr>))}
-                  </tbody></table>}
+              : <table className="data-table">
+                  <thead><tr><th>Number</th><th>Type</th><th>Status</th><th>Due</th><th>Total</th><th>Actions</th></tr></thead>
+                  <tbody>{(job.invoices as { id: string; invoice_number: string; type: string; status: string; due_date: string; line_items: { qty: number; unit_price: number }[]; payments: { amount: number }[] }[]).map((inv) => {
+                    const total = (inv.line_items || []).reduce((s, li) => s + li.qty * li.unit_price, 0);
+                    const paid = (inv.payments || []).reduce((s, p) => s + Number(p.amount), 0);
+                    const statusColor: Record<string, string> = { DRAFT: 'rgba(0,0,0,0.3)', SENT: '#007AFF', PARTIAL: '#FF9500', PAID: '#34C759', OVERDUE: '#FF3B30', VOID: 'rgba(0,0,0,0.3)' };
+                    return (
+                      <tr key={inv.id}>
+                        <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{inv.invoice_number}</td>
+                        <td style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>{inv.type}</td>
+                        <td><span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 20, background: `${statusColor[inv.status] || '#007AFF'}20`, color: statusColor[inv.status] || '#007AFF' }}>{inv.status}</span></td>
+                        <td style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>{new Date(inv.due_date).toLocaleDateString()}</td>
+                        <td style={{ fontFamily: 'Menlo,monospace' }}>{fmt(total)}{paid > 0 && paid < total ? <span style={{ color: '#34C759', fontSize: 12, marginLeft: 6 }}>+{fmt(paid)} paid</span> : null}</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            {(inv.status === 'DRAFT' || inv.status === 'SENT' || inv.status === 'OVERDUE') && (
+                              <button onClick={() => { if (confirm(`Send invoice ${inv.invoice_number} to customer?`)) sendInvoice.mutate(inv.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#007AFF', padding: 4 }} title="Send"><Send size={14} strokeWidth={1.5} /></button>
+                            )}
+                            {inv.status !== 'PAID' && inv.status !== 'VOID' && (
+                              <button onClick={() => openPaymentModal(inv)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#34C759', padding: 4 }} title="Record payment"><Clock size={14} strokeWidth={1.5} /></button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}</tbody>
+                </table>}
           </div>
         )}
       </div>
+
+      {/* Create Invoice Modal */}
+      {showInvoiceModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 520, padding: 32, background: '#fff', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>Create Invoice</h2>
+              <button onClick={() => setShowInvoiceModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}><X size={20} strokeWidth={1.5} /></button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Invoice Type</label>
+                  <select className="input" value={invoiceForm.type} onChange={e => setInvoiceForm(f => ({ ...f, type: e.target.value }))}>
+                    <option value="DEPOSIT">Deposit</option>
+                    <option value="PROGRESS">Progress</option>
+                    <option value="FINAL">Final</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Due (days from today)</label>
+                  <input className="input" type="number" min="1" value={invoiceForm.due_days} onChange={e => setInvoiceForm(f => ({ ...f, due_days: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Tax Profile</label>
+                <select className="input" value={invoiceForm.tax_profile_id} onChange={e => setInvoiceForm(f => ({ ...f, tax_profile_id: e.target.value }))}>
+                  <option value="">Select tax profile...</option>
+                  {taxProfiles.map(tp => <option key={tp.id} value={tp.id}>{tp.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 8 }}>Line Items</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 32px', gap: 8, marginBottom: 6 }}>
+                  {['Description', 'Qty', 'Price', ''].map(h => <div key={h} style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</div>)}
+                </div>
+                {invoiceLineItems.map((li, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 32px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                    <input className="input" value={li.description} onChange={e => setInvoiceLineItems(items => items.map((x, idx) => idx === i ? { ...x, description: e.target.value } : x))} placeholder="Description" />
+                    <input className="input" type="number" min="1" value={li.qty} onChange={e => setInvoiceLineItems(items => items.map((x, idx) => idx === i ? { ...x, qty: parseInt(e.target.value) || 1 } : x))} />
+                    <input className="input" type="number" min="0" step="0.01" value={li.unit_price || ''} onChange={e => setInvoiceLineItems(items => items.map((x, idx) => idx === i ? { ...x, unit_price: parseFloat(e.target.value) || 0 } : x))} placeholder="0.00" />
+                    <button onClick={() => setInvoiceLineItems(items => items.filter((_, idx) => idx !== i))} disabled={invoiceLineItems.length === 1} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.3)', padding: 4 }}><Trash2 size={14} strokeWidth={1.5} /></button>
+                  </div>
+                ))}
+                <button onClick={() => setInvoiceLineItems(items => [...items, { ...emptyItem }])} style={{ background: 'none', border: '1px dashed rgba(0,0,0,0.2)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: 'rgba(0,0,0,0.4)', width: '100%', marginTop: 4 }}>+ Add line item</button>
+                <div style={{ textAlign: 'right', marginTop: 8, fontFamily: 'Menlo,monospace', fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>
+                  Total: {fmt(invoiceLineItems.reduce((s, li) => s + (li.qty || 1) * (li.unit_price || 0), 0))}
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Notes (optional)</label>
+                <input className="input" value={invoiceForm.notes} onChange={e => setInvoiceForm(f => ({ ...f, notes: e.target.value }))} placeholder="Payment instructions, etc." />
+              </div>
+              {invoiceError && <p style={{ color: '#FF3B30', fontSize: 13 }}>{invoiceError}</p>}
+              <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowInvoiceModal(false)}>Cancel</button>
+                <button className="btn-primary" style={{ flex: 1 }} onClick={handleCreateInvoice} disabled={createInvoice.isPending}>
+                  {createInvoice.isPending ? 'Creating...' : 'Create Invoice'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Record Payment Modal */}
+      {paymentInvoice && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 400, padding: 32, background: '#fff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>Record Payment</h2>
+              <button onClick={() => setPaymentInvoice(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}><X size={20} strokeWidth={1.5} /></button>
+            </div>
+            <p style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13, marginBottom: 20 }}>Invoice {paymentInvoice.invoice_number} — Balance due: <strong style={{ color: 'var(--text-primary)' }}>{fmt(paymentInvoice.balance)}</strong></p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Amount ($)</label>
+                <input className="input" type="number" min="0.01" step="0.01" value={paymentForm.amount} onChange={e => setPaymentForm(f => ({ ...f, amount: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Method</label>
+                <select className="input" value={paymentForm.method} onChange={e => setPaymentForm(f => ({ ...f, method: e.target.value }))}>
+                  <option value="CHECK">Check</option>
+                  <option value="CASH">Cash</option>
+                  <option value="CARD">Card</option>
+                  <option value="TRANSFER">Transfer</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Notes (optional)</label>
+                <input className="input" value={paymentForm.notes} onChange={e => setPaymentForm(f => ({ ...f, notes: e.target.value }))} placeholder="Check #, reference, etc." />
+              </div>
+              {paymentError && <p style={{ color: '#FF3B30', fontSize: 13 }}>{paymentError}</p>}
+              <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setPaymentInvoice(null)}>Cancel</button>
+                <button className="btn-primary" style={{ flex: 1 }} onClick={handleRecordPayment} disabled={recordPayment.isPending}>
+                  {recordPayment.isPending ? 'Saving...' : 'Record Payment'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Labor Modal */}
       {showLaborModal && (
