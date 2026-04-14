@@ -83,7 +83,7 @@ reportsRouter.get('/tax/export', async (req, res) => {
         deleted_at: null,
         ...(dateFilter ? { created_at: dateFilter } : {}),
       },
-      include: { tax_profile: true, exemptions: true, job: { include: { customer: true } } },
+      include: { tax_profile: true, exemptions: true, job: { include: { customer: true } }, customer: true },
     });
 
     const rows = invoices.map((inv) => {
@@ -91,7 +91,8 @@ reportsRouter.get('/tax/export', async (req, res) => {
       const taxable = lineItems.filter((li) => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0);
       const stateTax = taxable * Number(inv.tax_profile.state_rate);
       const localTax = taxable * Number(inv.tax_profile.local_rate);
-      return `"${inv.invoice_number}","${inv.job.customer.name}","${inv.tax_profile.state_code}","${inv.tax_profile.municipality}",${taxable.toFixed(2)},${stateTax.toFixed(2)},${localTax.toFixed(2)},"${inv.exemptions.length ? inv.exemptions[0].exemption_type : ''}"`;
+      const customerName = inv.job?.customer?.name ?? inv.customer?.name ?? '';
+      return `"${inv.invoice_number}","${customerName}","${inv.tax_profile.state_code}","${inv.tax_profile.municipality}",${taxable.toFixed(2)},${stateTax.toFixed(2)},${localTax.toFixed(2)},"${inv.exemptions.length ? inv.exemptions[0].exemption_type : ''}"`;
     });
 
     const csv = ['invoice_number,customer,state,municipality,taxable_amount,state_tax,local_tax,exemption', ...rows].join('\n');
@@ -114,7 +115,7 @@ reportsRouter.get('/tax/outstanding', async (req, res) => {
         deleted_at: null,
         ...(dateFilter ? { due_date: dateFilter } : {}),
       },
-      include: { tax_profile: true, exemptions: true, job: { include: { customer: true } } },
+      include: { tax_profile: true, exemptions: true, job: { include: { customer: true } }, customer: true },
       orderBy: { due_date: 'asc' },
     });
 

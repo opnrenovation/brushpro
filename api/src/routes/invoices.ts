@@ -32,7 +32,7 @@ invoicesRouter.get('/', async (req, res) => {
         skip,
         take: parseInt(limit),
         orderBy: { created_at: 'desc' },
-        include: { payments: true, tax_profile: true },
+        include: { payments: true, tax_profile: true, job: { include: { customer: true } }, customer: true },
       }),
       prisma.invoice.count({ where }),
     ]);
@@ -75,6 +75,7 @@ invoicesRouter.post('/:id/send', async (req, res) => {
       where: { id: req.params.id },
       include: {
         job: { include: { customer: true } },
+        customer: true,
         tax_profile: true,
         payments: true,
       },
@@ -84,6 +85,8 @@ invoicesRouter.post('/:id/send', async (req, res) => {
       return;
     }
 
+    // Resolve recipient — job customer takes priority, then direct customer
+    const recipient = invoice.job?.customer ?? invoice.customer;
     const settings = await prisma.companySettings.findFirst();
     const lineItems = invoice.line_items as Array<{
       description: string;
@@ -100,18 +103,18 @@ invoicesRouter.post('/:id/send', async (req, res) => {
     const localTax = taxableAmount * Number(invoice.tax_profile.local_rate);
     const total = subtotal + stateTax + localTax;
 
-    const customerEmail = invoice.job.customer.email;
-    if (customerEmail) {
+    if (recipient?.email) {
       const lineItemRows = lineItems
         .map((li) => `<tr><td>${li.description}</td><td>${li.qty}</td><td>$${li.unit_price.toFixed(2)}</td><td>$${(li.qty * li.unit_price).toFixed(2)}</td></tr>`)
         .join('');
+      const forLine = invoice.job?.address ? `for ${invoice.job.address}` : '';
 
       await sendEmail({
-        to: customerEmail,
+        to: recipient.email,
         subject: `Invoice ${invoice.invoice_number} — ${settings?.company_name || 'BrushPro'}`,
         html: `
-          <p>Dear ${invoice.job.customer.name},</p>
-          <p>Invoice <strong>${invoice.invoice_number}</strong> for ${invoice.job.address}.</p>
+          <p>Dear ${recipient.name},</p>
+          <p>Invoice <strong>${invoice.invoice_number}</strong> ${forLine}.</p>
           <table border="1" cellpadding="8" style="border-collapse:collapse;width:100%">
             <tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>
             ${lineItemRows}

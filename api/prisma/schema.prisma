@@ -460,8 +460,9 @@ model Customer {
   deleted_at DateTime?
   created_at DateTime  @default(now())
 
-  contact Contact? @relation("ContactToCustomer", fields: [contact_id], references: [id])
-  jobs    Job[]
+  contact  Contact? @relation("ContactToCustomer", fields: [contact_id], references: [id])
+  jobs     Job[]
+  invoices Invoice[]
 
   @@map("customers")
 }
@@ -513,7 +514,8 @@ model MaterialItem {
 
 model Invoice {
   id             String        @id @default(cuid())
-  job_id         String
+  job_id         String?
+  customer_id    String?
   estimate_id    String?
   invoice_number String        @unique
   type           InvoiceType
@@ -529,7 +531,8 @@ model Invoice {
   updated_at     DateTime      @updatedAt
   created_at     DateTime      @default(now())
 
-  job         Job          @relation(fields: [job_id], references: [id])
+  job         Job?         @relation(fields: [job_id], references: [id])
+  customer    Customer?    @relation(fields: [customer_id], references: [id])
   estimate    Estimate?    @relation(fields: [estimate_id], references: [id])
   tax_profile TaxProfile   @relation(fields: [tax_profile_id], references: [id])
   payments    Payment[]
