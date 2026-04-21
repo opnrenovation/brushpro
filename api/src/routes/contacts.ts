@@ -41,9 +41,21 @@ contactsRouter.get('/', async (req: AuthRequest, res) => {
   }
 });
 
+async function resolveCompanyId(companyName: string | undefined): Promise<string | undefined> {
+  if (!companyName?.trim()) return undefined;
+  const existing = await prisma.company.findFirst({ where: { name: companyName.trim(), deleted_at: null } });
+  if (existing) return existing.id;
+  const created = await prisma.company.create({ data: { name: companyName.trim() } });
+  return created.id;
+}
+
 contactsRouter.post('/', async (req: AuthRequest, res) => {
   try {
-    const contact = await prisma.contact.create({ data: req.body });
+    const data = { ...req.body };
+    if (data.company && !data.company_id) {
+      data.company_id = await resolveCompanyId(data.company);
+    }
+    const contact = await prisma.contact.create({ data });
 
     if (contact.subscribed) {
       try {
@@ -88,6 +100,10 @@ contactsRouter.patch('/:id', async (req, res) => {
     const data = { ...req.body };
     delete data.id;
     delete data.created_at;
+
+    if (data.company && !data.company_id) {
+      data.company_id = await resolveCompanyId(data.company);
+    }
 
     const contact = await prisma.contact.update({
       where: { id: req.params.id },
