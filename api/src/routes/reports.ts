@@ -111,9 +111,9 @@ reportsRouter.get('/tax/outstanding', async (req, res) => {
 
     const invoices = await prisma.invoice.findMany({
       where: {
-        status: 'SENT',
+        status: { notIn: ['PAID'] },
         deleted_at: null,
-        ...(dateFilter ? { due_date: dateFilter } : {}),
+        ...(dateFilter ? { created_at: dateFilter } : {}),
       },
       include: { tax_profile: true, exemptions: true, job: { include: { customer: true } }, customer: true },
       orderBy: { due_date: 'asc' },
