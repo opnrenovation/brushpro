@@ -287,7 +287,7 @@ router.post('/invoices/:id/stripe-link', async (req: Request, res: Response) => 
       res.status(503).json({ error: 'Online payments are not configured.' });
       return;
     }
-    console.log('stripe key length:', stripeKey.length, 'prefix:', stripeKey.slice(0, 8));
+    const keyDiag = { len: stripeKey.length, prefix: stripeKey.slice(0, 12), suffix: stripeKey.slice(-4) };
     const stripe = new Stripe(stripeKey, { apiVersion: '2025-02-24.acacia' });
 
     const invoice = await prisma.invoice.findUnique({
@@ -333,7 +333,7 @@ router.post('/invoices/:id/stripe-link', async (req: Request, res: Response) => 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('stripe-link error:', msg);
-    res.status(500).json({ error: 'Failed to create payment link', detail: msg });
+    res.status(500).json({ error: 'Failed to create payment link', detail: msg, keyDiag });
   }
 });
 
