@@ -2,10 +2,12 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Phone, Mail, Calendar, FileText, Clock, ChevronRight, X } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Calendar, FileText, Clock, ChevronRight, X, Pencil, Trash2, AlertTriangle } from 'lucide-react';
 import { leadsApi } from '@/lib/api';
 
 const STAGES = ['NEW', 'CONTACTED', 'APPOINTMENT', 'ESTIMATE_SENT', 'NEGOTIATING', 'WON', 'LOST'];
+const SERVICES = ['Residential Painting', 'Commercial Painting', 'Interior Painting', 'Exterior Painting', 'Cabinet Painting', 'Deck Staining', 'Accent Walls', 'Color Consultation'];
+const SOURCES = ['MANUAL', 'WEBSITE_FORM', 'REFERRAL', 'GOOGLE', 'FACEBOOK', 'INSTAGRAM', 'YELP', 'OTHER'];
 const STAGE_COLORS: Record<string, string> = {
   NEW: '#007AFF', CONTACTED: '#FF9500', APPOINTMENT: '#5856D6',
   ESTIMATE_SENT: '#007AFF', NEGOTIATING: '#FF9500', WON: '#34C759', LOST: '#FF3B30',
@@ -20,6 +22,10 @@ export default function LeadDetailPage() {
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [convertForm, setConvertForm] = useState({ job_name: '', address: '', municipality: '' });
   const [convertError, setConvertError] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ service_needed: '', source: '', project_address: '', notes: '' });
+  const [editError, setEditError] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['leads', id],
@@ -45,6 +51,29 @@ export default function LeadDetailPage() {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
       setConvertError(msg || 'Failed to convert lead. Please try again.');
     },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: (body: { service_needed: string; source: string; project_address: string; notes: string }) =>
+      leadsApi.update(id, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leads', id] });
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      setShowEditModal(false);
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setEditError(msg || 'Failed to update lead.');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => leadsApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      router.push('/admin/leads');
+    },
+    onError: () => alert('Failed to delete lead.'),
   });
 
   if (isLoading) return <div style={{ padding: 40, color: 'rgba(0,0,0,0.4)' }}>Loading...</div>;
@@ -79,9 +108,29 @@ export default function LeadDetailPage() {
                 </h1>
                 <p style={{ color: 'rgba(0,0,0,0.5)', fontSize: 14 }}>{lead.service_needed || 'General Inquiry'}</p>
               </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: STAGE_COLORS[lead.stage], background: STAGE_COLORS[lead.stage] + '20', padding: '5px 12px', borderRadius: 20, border: `1px solid ${STAGE_COLORS[lead.stage]}40` }}>
-                {lead.stage.replace(/_/g, ' ')}
-              </span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: STAGE_COLORS[lead.stage], background: STAGE_COLORS[lead.stage] + '20', padding: '5px 12px', borderRadius: 20, border: `1px solid ${STAGE_COLORS[lead.stage]}40` }}>
+                  {lead.stage.replace(/_/g, ' ')}
+                </span>
+                <button
+                  className="btn btn-ghost"
+                  style={{ padding: '7px 12px', fontSize: 13 }}
+                  onClick={() => {
+                    setEditForm({ service_needed: lead.service_needed || '', source: lead.source || 'MANUAL', project_address: lead.project_address || '', notes: lead.notes || '' });
+                    setEditError('');
+                    setShowEditModal(true);
+                  }}
+                >
+                  <Pencil size={14} strokeWidth={1.5} /> Edit
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  style={{ padding: '7px 12px', fontSize: 13, color: '#FF3B30' }}
+                  onClick={() => setShowDeleteModal(true)}
+                >
+                  <Trash2 size={14} strokeWidth={1.5} /> Delete
+                </button>
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
@@ -260,6 +309,75 @@ export default function LeadDetailPage() {
                 onClick={() => convertMutation.mutate(convertForm)}
               >
                 {convertMutation.isPending ? 'Converting...' : 'Create Job'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Lead modal */}
+      {showEditModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 480, padding: 32, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>Edit Lead</h2>
+              <button onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}><X size={20} strokeWidth={1.5} /></button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Service</label>
+                <select className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14 }}
+                  value={editForm.service_needed} onChange={e => setEditForm(f => ({ ...f, service_needed: e.target.value }))}>
+                  <option value="">Select service...</option>
+                  {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Source</label>
+                <select className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14 }}
+                  value={editForm.source} onChange={e => setEditForm(f => ({ ...f, source: e.target.value }))}>
+                  {SOURCES.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Project Address</label>
+                <input className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14 }}
+                  value={editForm.project_address} onChange={e => setEditForm(f => ({ ...f, project_address: e.target.value }))}
+                  placeholder="123 Main St, Des Moines, IA" />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Notes</label>
+                <textarea className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14, minHeight: 80, resize: 'vertical' }}
+                  value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+              </div>
+            </div>
+            {editError && <p style={{ color: '#FF3B30', fontSize: 13, marginTop: 12 }}>{editError}</p>}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 24 }}>
+              <button onClick={() => setShowEditModal(false)} className="btn btn-ghost">Cancel</button>
+              <button onClick={() => editMutation.mutate(editForm)} className="btn btn-primary" disabled={editMutation.isPending}>
+                {editMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Lead confirmation */}
+      {showDeleteModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 400, padding: 32 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <AlertTriangle size={22} strokeWidth={1.5} style={{ color: '#FF3B30', flexShrink: 0 }} />
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>Delete Lead</h2>
+            </div>
+            <p style={{ fontSize: 14, color: 'rgba(0,0,0,0.6)', lineHeight: 1.6, marginBottom: 24 }}>
+              Delete lead for <strong>{lead.contact.first_name} {lead.contact.last_name}</strong>? This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowDeleteModal(false)} className="btn btn-ghost">Cancel</button>
+              <button onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}
+                style={{ background: '#FF3B30', color: '#fff', padding: '8px 20px', fontSize: 14, fontWeight: 600, borderRadius: 10, border: 'none', cursor: 'pointer' }}>
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete Lead'}
               </button>
             </div>
           </div>

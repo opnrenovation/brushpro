@@ -109,7 +109,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const { stage, lost_reason, notes, assigned_to, appointment_id, estimate_id } = req.body;
+    const { stage, lost_reason, notes, assigned_to, appointment_id, estimate_id, service_needed, source, project_address } = req.body;
 
     // Stage change requires lost_reason if moving to LOST
     if (stage === 'LOST' && !lost_reason) {
@@ -127,6 +127,9 @@ router.patch('/:id', async (req: Request, res: Response) => {
         ...(appointment_id !== undefined && { appointment_id }),
         ...(estimate_id !== undefined && { estimate_id }),
         ...(stage === 'WON' && { converted_at: new Date() }),
+        ...(service_needed !== undefined && { service_needed }),
+        ...(source !== undefined && { source }),
+        ...(project_address !== undefined && { project_address }),
       },
       include: { contact: true },
     });
@@ -147,6 +150,21 @@ router.patch('/:id', async (req: Request, res: Response) => {
     res.json({ data: updated });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update lead' });
+  }
+});
+
+// DELETE /leads/:id
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    const existing = await prisma.lead.findFirst({ where: { id: req.params.id, deleted_at: null } });
+    if (!existing) {
+      res.status(404).json({ error: 'Lead not found' });
+      return;
+    }
+    await prisma.lead.update({ where: { id: req.params.id }, data: { deleted_at: new Date() } });
+    res.json({ data: { id: req.params.id } });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete lead' });
   }
 });
 

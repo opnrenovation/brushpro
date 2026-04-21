@@ -49,6 +49,7 @@ export const leadsApi = {
   get: (id: string) => api.get(`/leads/${id}`),
   create: (data: unknown) => api.post('/leads', data),
   update: (id: string, data: unknown) => api.patch(`/leads/${id}`, data),
+  delete: (id: string) => api.delete(`/leads/${id}`),
   addActivity: (id: string, data: unknown) => api.post(`/leads/${id}/activities`, data),
   convert: (id: string, data: unknown) => api.post(`/leads/${id}/convert`, data),
 };
