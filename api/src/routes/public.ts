@@ -255,4 +255,83 @@ ${notes ? `<p><strong>Your notes:</strong> ${notes}</p>` : ''}
   }
 });
 
+// GET /api/public/invoices/:id — view invoice without auth
+router.get('/invoices/:id', async (req: Request, res: Response) => {
+  try {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: req.params.id },
+      include: {
+        job: { include: { customer: true } },
+        customer: true,
+        tax_profile: true,
+        payments: true,
+      },
+    });
+    if (!invoice || invoice.deleted_at) {
+      res.status(404).json({ error: 'Invoice not found' });
+      return;
+    }
+    const settings = await prisma.companySettings.findFirst();
+    res.json({ data: invoice, settings: { company_name: settings?.company_name, email: settings?.email, phone: settings?.phone, website: settings?.website } });
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch invoice' });
+  }
+});
+
+// POST /api/public/invoices/:id/stripe-link — create Stripe checkout (no auth)
+router.post('/invoices/:id/stripe-link', async (req: Request, res: Response) => {
+  try {
+    const Stripe = (await import('stripe')).default;
+    if (!process.env.STRIPE_SECRET_KEY) {
+      res.status(503).json({ error: 'Online payments are not configured.' });
+      return;
+    }
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' });
+
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: req.params.id },
+      include: { job: { include: { customer: true } }, tax_profile: true, payments: true },
+    });
+    if (!invoice || invoice.deleted_at) {
+      res.status(404).json({ error: 'Invoice not found' });
+      return;
+    }
+
+    const lineItems = invoice.line_items as Array<{ description: string; qty: number; unit_price: number; taxable: boolean }>;
+    const subtotal = lineItems.reduce((s, li) => s + li.qty * li.unit_price, 0);
+    const taxable = lineItems.filter(li => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0);
+    const tax = taxable * (Number(invoice.tax_profile.state_rate) + Number(invoice.tax_profile.local_rate));
+    const total = subtotal + tax;
+    const alreadyPaid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
+    const amountDue = Math.round((total - alreadyPaid) * 100);
+
+    if (amountDue <= 0) {
+      res.status(400).json({ error: 'Invoice is already paid.' });
+      return;
+    }
+
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          unit_amount: amountDue,
+          product_data: { name: `Invoice ${invoice.invoice_number}` },
+        },
+        quantity: 1,
+      }],
+      metadata: { invoice_id: invoice.id },
+      success_url: `${appUrl}/invoices/${invoice.id}?paid=true`,
+      cancel_url: `${appUrl}/invoices/${invoice.id}`,
+    });
+
+    res.json({ data: { url: session.url } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create payment link' });
+  }
+});
+
 export default router;
