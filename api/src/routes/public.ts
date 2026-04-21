@@ -280,10 +280,9 @@ router.get('/invoices/:id', async (req: Request, res: Response) => {
 
 // POST /api/public/invoices/:id/stripe-link — create Stripe checkout (no auth)
 router.post('/invoices/:id/stripe-link', async (req: Request, res: Response) => {
-  const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
-  const keyDiag = stripeKey ? { len: stripeKey.length, prefix: stripeKey.slice(0, 12), suffix: stripeKey.slice(-4) } : null;
   try {
     const Stripe = (await import('stripe')).default;
+    const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
     if (!stripeKey) {
       res.status(503).json({ error: 'Online payments are not configured.' });
       return;
@@ -315,7 +314,7 @@ router.post('/invoices/:id/stripe-link', async (req: Request, res: Response) => 
     const appUrl = process.env.APP_URL || 'http://localhost:3000';
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      payment_method_types: ['card'],
+      payment_method_types: ['card', 'us_bank_account'],
       line_items: [{
         price_data: {
           currency: 'usd',
@@ -331,9 +330,8 @@ router.post('/invoices/:id/stripe-link', async (req: Request, res: Response) => 
 
     res.json({ data: { url: session.url } });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('stripe-link error:', msg);
-    res.status(500).json({ error: 'Failed to create payment link', detail: msg, keyDiag });
+    console.error('stripe-link error:', err);
+    res.status(500).json({ error: 'Failed to create payment link' });
   }
 });
 
