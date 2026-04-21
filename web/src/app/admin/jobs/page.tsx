@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Briefcase, Search, Plus, X, Building2, User } from 'lucide-react';
 import { jobsApi, customersApi, contactsApi, companiesApi } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth';
 
 const STATUSES = ['ALL', 'ESTIMATING', 'ACTIVE', 'INVOICED', 'COMPLETE', 'CANCELLED'];
 
@@ -45,11 +46,12 @@ function JobsPageInner() {
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
+  const token = useAuthStore((s) => s.token);
 
-  const { data } = useQuery({ queryKey: ['jobs'], queryFn: () => jobsApi.list() });
-  const { data: contactsData } = useQuery({ queryKey: ['contacts', 'all'], queryFn: () => contactsApi.list({ limit: '500' }) });
-  const { data: companiesData } = useQuery({ queryKey: ['companies', 'all'], queryFn: () => companiesApi.list({ limit: '500' }) });
-  const { data: customersData } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list({ limit: '500' }) });
+  const { data } = useQuery({ queryKey: ['jobs'], queryFn: () => jobsApi.list(), enabled: !!token });
+  const { data: contactsData } = useQuery({ queryKey: ['contacts', 'all'], queryFn: () => contactsApi.list({ limit: '500' }), enabled: !!token });
+  const { data: companiesData } = useQuery({ queryKey: ['companies', 'all'], queryFn: () => companiesApi.list({ limit: '500' }), enabled: !!token });
+  const { data: customersData } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list({ limit: '500' }), enabled: !!token });
 
   const jobs: Job[] = data?.data?.data || data?.data || [];
   const contacts: Contact[] = contactsData?.data?.data || contactsData?.data || [];

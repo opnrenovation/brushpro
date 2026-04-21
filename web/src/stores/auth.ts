@@ -12,8 +12,10 @@ interface AuthState {
   token: string | null;
   user: User | null;
   must_change_password: boolean;
+  _hydrated: boolean;
   setAuth: (token: string, user: User, must_change_password?: boolean) => void;
   logout: () => void;
+  _setHydrated: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -22,6 +24,8 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       user: null,
       must_change_password: false,
+      _hydrated: false,
+      _setHydrated: () => set({ _hydrated: true }),
       setAuth: (token, user, must_change_password = false) => {
         // Also set cookie for middleware
         if (typeof document !== 'undefined') {
@@ -36,6 +40,11 @@ export const useAuthStore = create<AuthState>()(
         set({ token: null, user: null, must_change_password: false });
       },
     }),
-    { name: 'brushpro-auth' }
+    {
+      name: 'brushpro-auth',
+      onRehydrateStorage: () => (state) => {
+        state?._setHydrated();
+      },
+    }
   )
 );

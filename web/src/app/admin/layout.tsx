@@ -24,7 +24,7 @@ const NAV = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, logout, _hydrated } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = () => {
@@ -33,6 +33,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   const close = () => setSidebarOpen(false);
+
+  if (!_hydrated) return null;
 
   return (
     <div className="admin-layout">
