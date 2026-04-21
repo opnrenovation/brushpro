@@ -527,6 +527,8 @@ function TaxSection() {
   const qc = useQueryClient();
 
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState({ name: '', municipality: '', state_rate: '', local_rate: '' });
   const [newProfile, setNewProfile] = useState({ name: '', municipality: '', state_rate: '', local_rate: '', is_default: false });
 
   const createMutation = useMutation({
@@ -542,10 +544,33 @@ function TaxSection() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: (id: string) => taxProfilesApi.update(id, {
+      name: editValues.name,
+      municipality: editValues.municipality,
+      state_rate: parseFloat(editValues.state_rate) / 100 || 0,
+      local_rate: parseFloat(editValues.local_rate) / 100 || 0,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tax-profiles'] });
+      setEditingId(null);
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => taxProfilesApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tax-profiles'] }),
   });
+
+  function startEdit(p: { id: string; name: string; municipality: string; state_rate: number; local_rate: number }) {
+    setEditingId(p.id);
+    setEditValues({
+      name: p.name,
+      municipality: p.municipality,
+      state_rate: (Number(p.state_rate) * 100).toString(),
+      local_rate: (Number(p.local_rate) * 100).toString(),
+    });
+  }
 
   return (
     <div>
@@ -560,18 +585,37 @@ function TaxSection() {
             <thead><tr><th>Name</th><th>Municipality</th><th>State Rate</th><th>Local Rate</th><th>Default</th><th></th></tr></thead>
             <tbody>
               {(profiles as { id: string; name: string; municipality: string; state_rate: number; local_rate: number; is_default: boolean }[]).map((p) => (
-                <tr key={p.id}>
-                  <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{p.name}</td>
-                  <td style={{ color: 'rgba(0,0,0,0.6)' }}>{p.municipality}</td>
-                  <td style={{ color: 'rgba(0,0,0,0.6)' }}>{(Number(p.state_rate) * 100).toFixed(3)}%</td>
-                  <td style={{ color: 'rgba(0,0,0,0.6)' }}>{(Number(p.local_rate) * 100).toFixed(3)}%</td>
-                  <td>{p.is_default && <span className="pill pill-green">Default</span>}</td>
-                  <td>
-                    <button className="btn btn-danger" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => deleteMutation.mutate(p.id)}>
-                      <Trash2 size={12} strokeWidth={1.5} />
-                    </button>
-                  </td>
-                </tr>
+                editingId === p.id ? (
+                  <tr key={p.id}>
+                    <td><input value={editValues.name} onChange={(e) => setEditValues((v) => ({ ...v, name: e.target.value }))} className="glass-input" style={{ padding: '6px 10px', fontSize: 13, width: '100%' }} /></td>
+                    <td><input value={editValues.municipality} onChange={(e) => setEditValues((v) => ({ ...v, municipality: e.target.value }))} className="glass-input" style={{ padding: '6px 10px', fontSize: 13, width: '120px' }} /></td>
+                    <td><input type="number" value={editValues.state_rate} onChange={(e) => setEditValues((v) => ({ ...v, state_rate: e.target.value }))} placeholder="6.0" className="glass-input" style={{ padding: '6px 10px', fontSize: 13, width: '70px' }} /></td>
+                    <td><input type="number" value={editValues.local_rate} onChange={(e) => setEditValues((v) => ({ ...v, local_rate: e.target.value }))} placeholder="1.0" className="glass-input" style={{ padding: '6px 10px', fontSize: 13, width: '70px' }} /></td>
+                    <td>{p.is_default && <span className="pill pill-green">Default</span>}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn btn-primary" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => updateMutation.mutate(p.id)} disabled={updateMutation.isPending}>Save</button>
+                        <button className="btn btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => setEditingId(null)}>Cancel</button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={p.id}>
+                    <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{p.name}</td>
+                    <td style={{ color: 'rgba(0,0,0,0.6)' }}>{p.municipality}</td>
+                    <td style={{ color: 'rgba(0,0,0,0.6)' }}>{(Number(p.state_rate) * 100).toFixed(3)}%</td>
+                    <td style={{ color: 'rgba(0,0,0,0.6)' }}>{(Number(p.local_rate) * 100).toFixed(3)}%</td>
+                    <td>{p.is_default && <span className="pill pill-green">Default</span>}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => startEdit(p)}>Edit</button>
+                        <button className="btn btn-danger" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => deleteMutation.mutate(p.id)}>
+                          <Trash2 size={12} strokeWidth={1.5} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
               ))}
               {adding && (
                 <tr>
