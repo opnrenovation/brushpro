@@ -282,11 +282,13 @@ router.get('/invoices/:id', async (req: Request, res: Response) => {
 router.post('/invoices/:id/stripe-link', async (req: Request, res: Response) => {
   try {
     const Stripe = (await import('stripe')).default;
-    if (!process.env.STRIPE_SECRET_KEY) {
+    const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
+    if (!stripeKey) {
       res.status(503).json({ error: 'Online payments are not configured.' });
       return;
     }
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' });
+    console.log('stripe key length:', stripeKey.length, 'prefix:', stripeKey.slice(0, 8));
+    const stripe = new Stripe(stripeKey, { apiVersion: '2025-02-24.acacia' });
 
     const invoice = await prisma.invoice.findUnique({
       where: { id: req.params.id },
