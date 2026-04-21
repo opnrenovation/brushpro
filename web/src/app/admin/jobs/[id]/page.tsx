@@ -19,6 +19,16 @@ interface EstimateRow {
 
 const emptyItem: LineItem = { description: '', qty: 1, unit_price: 0 };
 
+const IOWA_MUNICIPALITIES = [
+  'Des Moines','Ankeny','West Des Moines','Urbandale','Johnston','Waukee','Clive',
+  'Windsor Heights','Pleasant Hill','Altoona','Bondurant','Grimes','Polk City','Mitchellville',
+  'Norwalk','Indianola','Carlisle','Adel','Perry','Woodward','Winterset',
+  'Cedar Rapids','Iowa City','Coralville','North Liberty','Marion',
+  'Davenport','Bettendorf','Sioux City','Waterloo','Cedar Falls','Ames',
+  'Dubuque','Council Bluffs','Mason City','Burlington','Clinton',
+  'Ottumwa','Fort Dodge','Marshalltown','Muscatine','Keokuk',
+];
+
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: 'rgba(0,0,0,0.3)',
   SENT: '#007AFF',
@@ -76,7 +86,7 @@ export default function JobDetailPage() {
 
   // Edit job modal state
   const [showEditJob, setShowEditJob] = useState(false);
-  const [editJobForm, setEditJobForm] = useState({ name: '', address: '', municipality: '', status: '', tax_exempt: false, notes: '' });
+  const [editJobForm, setEditJobForm] = useState({ name: '', address: '', municipality: '', status: '', tax_exempt: false, start_date: '', end_date: '', notes: '' });
   const [editJobError, setEditJobError] = useState('');
 
   // Delete job confirm
@@ -405,6 +415,8 @@ export default function JobDetailPage() {
       municipality: job.municipality || '',
       status: job.status || 'ESTIMATING',
       tax_exempt: job.tax_exempt || false,
+      start_date: job.start_date ? new Date(job.start_date).toISOString().slice(0, 10) : '',
+      end_date: job.end_date ? new Date(job.end_date).toISOString().slice(0, 10) : '',
       notes: job.notes || '',
     });
     setEditJobError('');
@@ -414,7 +426,13 @@ export default function JobDetailPage() {
   function handleSaveJob() {
     if (!editJobForm.name.trim()) { setEditJobError('Job name is required.'); return; }
     if (!editJobForm.address.trim()) { setEditJobError('Address is required.'); return; }
-    updateJob.mutate(editJobForm);
+    if (!editJobForm.municipality) { setEditJobError('Municipality is required.'); return; }
+    updateJob.mutate({
+      ...editJobForm,
+      start_date: editJobForm.start_date || null,
+      end_date: editJobForm.end_date || null,
+      notes: editJobForm.notes || null,
+    });
   }
 
   function addLineItem() { setLineItems(l => [...l, { ...emptyItem }]); }
@@ -1280,19 +1298,22 @@ export default function JobDetailPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Job Name</label>
+                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Job Name *</label>
                 <input className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14 }}
                   value={editJobForm.name} onChange={e => setEditJobForm(f => ({ ...f, name: e.target.value }))} />
               </div>
               <div>
-                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Address</label>
+                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Address *</label>
                 <input className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14 }}
                   value={editJobForm.address} onChange={e => setEditJobForm(f => ({ ...f, address: e.target.value }))} />
               </div>
               <div>
-                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Municipality</label>
-                <input className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14 }}
-                  value={editJobForm.municipality} onChange={e => setEditJobForm(f => ({ ...f, municipality: e.target.value }))} />
+                <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Municipality *</label>
+                <select className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14 }}
+                  value={editJobForm.municipality} onChange={e => setEditJobForm(f => ({ ...f, municipality: e.target.value }))}>
+                  <option value="">Select municipality...</option>
+                  {IOWA_MUNICIPALITIES.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
               </div>
               <div>
                 <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Status</label>
@@ -1302,6 +1323,18 @@ export default function JobDetailPage() {
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Start Date</label>
+                  <input type="date" className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14 }}
+                    value={editJobForm.start_date} onChange={e => setEditJobForm(f => ({ ...f, start_date: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>End Date</label>
+                  <input type="date" className="glass-input" style={{ width: '100%', padding: '10px 12px', fontSize: 14 }}
+                    value={editJobForm.end_date} onChange={e => setEditJobForm(f => ({ ...f, end_date: e.target.value }))} />
+                </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <input type="checkbox" id="edit-tax-exempt" checked={editJobForm.tax_exempt}
