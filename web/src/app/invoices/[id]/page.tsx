@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
-import { CheckCircle, CreditCard, FileText } from 'lucide-react';
+import { CheckCircle, CreditCard, FileText, Landmark } from 'lucide-react';
 
 function fmt(n: number) {
   return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -39,7 +39,7 @@ function InvoicePageInner() {
   const [settings, setSettings] = useState<Settings>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [paying, setPaying] = useState(false);
+  const [paying, setPaying] = useState<'card' | 'ach' | null>(null);
   const [payError, setPayError] = useState('');
 
   useEffect(() => {
@@ -54,18 +54,18 @@ function InvoicePageInner() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  async function handlePay() {
-    setPaying(true);
+  async function handlePay(method: 'card' | 'ach') {
+    setPaying(method);
     setPayError('');
     try {
-      const res = await fetch(`/api/public/invoices/${id}/stripe-link`, { method: 'POST' });
+      const res = await fetch(`/api/public/invoices/${id}/stripe-link?method=${method}`, { method: 'POST' });
       const json = await res.json();
       if (json.error) { setPayError(json.error); return; }
       window.location.href = json.data.url;
     } catch {
       setPayError('Failed to start payment. Please try again.');
     } finally {
-      setPaying(false);
+      setPaying(null);
     }
   }
 
@@ -241,26 +241,49 @@ function InvoicePageInner() {
           </div>
         </div>
 
-        {/* Pay button */}
+        {/* Pay section */}
         {!isPaid && balance > 0 && (
           <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', padding: '24px 28px' }}>
             <p style={{ fontSize: 15, fontWeight: 600, color: '#111', margin: '0 0 4px' }}>Pay online</p>
-            <p style={{ fontSize: 13, color: '#888', margin: '0 0 20px' }}>Secure payment powered by Stripe. Credit and debit cards accepted.</p>
+            <p style={{ fontSize: 13, color: '#888', margin: '0 0 20px' }}>Secure payment powered by Stripe.</p>
             {payError && <p style={{ color: '#FF3B30', fontSize: 13, marginBottom: 12 }}>{payError}</p>}
+
+            {/* Card button */}
             <button
-              onClick={handlePay}
-              disabled={paying}
+              onClick={() => handlePay('card')}
+              disabled={paying !== null}
               style={{
-                width: '100%', padding: '14px', background: paying ? '#aaa' : '#007AFF', color: '#fff',
-                border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: paying ? 'default' : 'pointer',
+                width: '100%', padding: '14px', background: paying === 'card' ? '#aaa' : '#007AFF', color: '#fff',
+                border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 600,
+                cursor: paying !== null ? 'default' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                marginBottom: 10,
               }}
             >
               <CreditCard size={18} strokeWidth={1.5} />
-              {paying ? 'Redirecting...' : `Pay ${fmt(balance)} Now`}
+              {paying === 'card' ? 'Redirecting...' : `Pay by Card — ${fmt(balance * 1.03)}`}
             </button>
-            <p style={{ fontSize: 12, color: '#bbb', textAlign: 'center', marginTop: 12 }}>
-              You will be redirected to Stripe to complete your payment securely.
+            <p style={{ fontSize: 12, color: '#aaa', textAlign: 'center', marginBottom: 16 }}>
+              Includes a 3% credit card processing fee
+            </p>
+
+            {/* ACH button */}
+            <button
+              onClick={() => handlePay('ach')}
+              disabled={paying !== null}
+              style={{
+                width: '100%', padding: '14px', background: '#fff', color: '#007AFF',
+                border: '2px solid #007AFF', borderRadius: 12, fontSize: 16, fontWeight: 600,
+                cursor: paying !== null ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                opacity: paying !== null && paying !== 'ach' ? 0.5 : 1,
+              }}
+            >
+              <Landmark size={18} strokeWidth={1.5} />
+              {paying === 'ach' ? 'Redirecting...' : `Pay by Bank Transfer (ACH) — ${fmt(balance)}`}
+            </button>
+            <p style={{ fontSize: 12, color: '#34C759', textAlign: 'center', marginTop: 8 }}>
+              No processing fee — free to pay by ACH
             </p>
           </div>
         )}

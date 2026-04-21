@@ -279,6 +279,7 @@ router.get('/invoices/:id', async (req: Request, res: Response) => {
 });
 
 // POST /api/public/invoices/:id/stripe-link — create Stripe checkout (no auth)
+// POST /api/public/invoices/:id/stripe-link?method=card|ach
 router.post('/invoices/:id/stripe-link', async (req: Request, res: Response) => {
   try {
     const Stripe = (await import('stripe')).default;
@@ -298,9 +299,9 @@ router.post('/invoices/:id/stripe-link', async (req: Request, res: Response) => 
       return;
     }
 
-    const lineItems = invoice.line_items as Array<{ description: string; qty: number; unit_price: number; taxable: boolean }>;
-    const subtotal = lineItems.reduce((s, li) => s + li.qty * li.unit_price, 0);
-    const taxable = lineItems.filter(li => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0);
+    const invoiceLineItems = invoice.line_items as Array<{ description: string; qty: number; unit_price: number; taxable: boolean }>;
+    const subtotal = invoiceLineItems.reduce((s, li) => s + li.qty * li.unit_price, 0);
+    const taxable = invoiceLineItems.filter(li => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0);
     const tax = taxable * (Number(invoice.tax_profile.state_rate) + Number(invoice.tax_profile.local_rate));
     const total = subtotal + tax;
     const alreadyPaid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
@@ -311,19 +312,48 @@ router.post('/invoices/:id/stripe-link', async (req: Request, res: Response) => 
       return;
     }
 
+    const method = (req.query.method as string) || 'card';
     const appUrl = process.env.APP_URL || 'http://localhost:3000';
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card', 'us_bank_account'],
-      line_items: [{
+
+    // Card: add 3% surcharge as a separate line item
+    // ACH: no surcharge
+    const isCard = method !== 'ach';
+    const surchargeAmount = isCard ? Math.round(amountDue * 0.03) : 0;
+
+    const sessionLineItems: Array<{ price_data: { currency: string; unit_amount: number; product_data: { name: string } }; quantity: number }> = [
+      {
         price_data: {
           currency: 'usd',
           unit_amount: amountDue,
           product_data: { name: `Invoice ${invoice.invoice_number}` },
         },
         quantity: 1,
-      }],
-      metadata: { invoice_id: invoice.id },
+      },
+    ];
+
+    if (surchargeAmount > 0) {
+      sessionLineItems.push({
+        price_data: {
+          currency: 'usd',
+          unit_amount: surchargeAmount,
+          product_data: { name: 'Credit Card Processing Fee (3%)' },
+        },
+        quantity: 1,
+      });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: isCard ? ['card'] : ['us_bank_account'],
+      line_items: sessionLineItems,
+      custom_text: {
+        submit: {
+          message: isCard
+            ? 'A 3% credit card processing fee has been added. Pay by ACH bank transfer for free — use the other payment option on your invoice.'
+            : 'ACH bank transfer — no processing fees.',
+        },
+      },
+      metadata: { invoice_id: invoice.id, payment_method: method },
       success_url: `${appUrl}/invoices/${invoice.id}?paid=true`,
       cancel_url: `${appUrl}/invoices/${invoice.id}`,
     });
