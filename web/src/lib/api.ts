@@ -114,6 +114,8 @@ export const invoicesApi = {
   update: (id: string, data: unknown) => api.patch(`/invoices/${id}`, data),
   send: (id: string) => api.post(`/invoices/${id}/send`),
   addPayment: (id: string, data: unknown) => api.post(`/invoices/${id}/payments`, data),
+  deletePayment: (invId: string, payId: string) => api.delete(`/invoices/${invId}/payments/${payId}`),
+  void: (id: string) => api.patch(`/invoices/${id}`, { status: 'VOID', deleted_at: new Date().toISOString() }),
   stripeLink: (id: string) => api.post(`/invoices/${id}/stripe-link`),
 };
 

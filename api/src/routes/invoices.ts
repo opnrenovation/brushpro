@@ -199,6 +199,36 @@ invoicesRouter.post('/:id/payments', async (req, res) => {
   }
 });
 
+invoicesRouter.delete('/:id/payments/:paymentId', async (req, res) => {
+  try {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: req.params.id },
+      include: { payments: true },
+    });
+    if (!invoice) {
+      res.status(404).json({ error: 'Invoice not found' });
+      return;
+    }
+
+    await prisma.payment.delete({ where: { id: req.params.paymentId } });
+
+    const lineItems = invoice.line_items as Array<{ qty: number; unit_price: number }>;
+    const total = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
+    const remaining = invoice.payments.filter(p => p.id !== req.params.paymentId);
+    const totalPaid = remaining.reduce((s, p) => s + Number(p.amount), 0);
+
+    let status: string;
+    if (totalPaid >= total) status = 'PAID';
+    else if (totalPaid > 0) status = 'PARTIAL';
+    else status = 'SENT';
+
+    await prisma.invoice.update({ where: { id: invoice.id }, data: { status: status as 'PAID' | 'PARTIAL' | 'SENT' } });
+    res.json({ data: { deleted: true } });
+  } catch {
+    res.status(500).json({ error: 'Failed to delete payment' });
+  }
+});
+
 invoicesRouter.post('/:id/stripe-link', async (req, res) => {
   try {
     const invoice = await prisma.invoice.findUnique({

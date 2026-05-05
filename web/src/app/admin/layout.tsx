@@ -36,6 +36,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!_hydrated) return null;
 
+  if (pathname === '/admin/login') return <>{children}</>;
+
   return (
     <div className="admin-layout">
 

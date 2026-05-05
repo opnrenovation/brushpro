@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Plus, X, Send, Clock, Search } from 'lucide-react';
+import { FileText, Plus, X, Send, Clock, Search, Trash2, List, Eye, Pencil } from 'lucide-react';
 import { invoicesApi, customersApi, taxProfilesApi } from '@/lib/api';
 
 function fmt(n: number) {
@@ -22,7 +22,7 @@ const ALL_STATUSES = ['ALL', 'DRAFT', 'SENT', 'PARTIAL', 'PAID', 'OVERDUE', 'VOI
 interface LineItem { description: string; qty: number; unit_price: number; }
 interface Customer { id: string; name: string; email?: string; }
 interface TaxProfile { id: string; name: string; }
-interface Payment { amount: number; }
+interface Payment { id: string; amount: number; method: string; notes?: string; paid_at: string; }
 interface Invoice {
   id: string;
   invoice_number: string;
@@ -35,6 +35,7 @@ interface Invoice {
   job?: { id: string; name: string; address: string; customer?: Customer } | null;
   customer?: Customer | null;
   notes?: string;
+  tax_profile_id?: string;
 }
 
 const emptyItem: LineItem = { description: '', qty: 1, unit_price: 0 };
@@ -54,6 +55,15 @@ export default function InvoicesPage() {
   const [paymentInv, setPaymentInv] = useState<{ id: string; invoice_number: string; balance: number } | null>(null);
   const [paymentForm, setPaymentForm] = useState({ amount: '', method: 'CHECK', notes: '' });
   const [paymentError, setPaymentError] = useState('');
+
+  // Payments list modal state
+  const [paymentsListInv, setPaymentsListInv] = useState<Invoice | null>(null);
+
+  // Edit modal state
+  const [editInv, setEditInv] = useState<Invoice | null>(null);
+  const [editForm, setEditForm] = useState({ type: 'FINAL', due_date: '', notes: '', tax_profile_id: '' });
+  const [editLineItems, setEditLineItems] = useState<LineItem[]>([{ ...emptyItem }]);
+  const [editError, setEditError] = useState('');
 
   const { data: invoicesData } = useQuery({
     queryKey: ['invoices'],
@@ -106,8 +116,9 @@ export default function InvoicesPage() {
 
   const recordPayment = useMutation({
     mutationFn: ({ invId, payload }: { invId: string; payload: unknown }) => invoicesApi.addPayment(invId, payload),
-    onSuccess: () => {
+    onSuccess: (_, { invId }) => {
       qc.invalidateQueries({ queryKey: ['invoices'] });
+      window.open(`/invoices/${invId}`, '_blank');
       setPaymentInv(null);
       setPaymentForm({ amount: '', method: 'CHECK', notes: '' });
       setPaymentError('');
@@ -115,6 +126,38 @@ export default function InvoicesPage() {
     onError: (e: unknown) => {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
       setPaymentError(msg || 'Failed to record payment.');
+    },
+  });
+
+  const deletePayment = useMutation({
+    mutationFn: ({ invId, payId }: { invId: string; payId: string }) => invoicesApi.deletePayment(invId, payId),
+    onSuccess: (_, { invId }) => {
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      // Refresh the payments list modal
+      setPaymentsListInv(prev => {
+        if (!prev || prev.id !== invId) return prev;
+        return null;
+      });
+    },
+    onError: () => alert('Failed to delete payment.'),
+  });
+
+  const voidInvoice = useMutation({
+    mutationFn: (id: string) => invoicesApi.void(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['invoices'] }),
+    onError: () => alert('Failed to delete invoice.'),
+  });
+
+  const updateInvoice = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: unknown }) => invoicesApi.update(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      setEditInv(null);
+      setEditError('');
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setEditError(msg || 'Failed to update invoice.');
     },
   });
 
@@ -131,6 +174,37 @@ export default function InvoicesPage() {
       tax_profile_id: form.tax_profile_id,
       due_date: due_date.toISOString(),
       notes: form.notes || undefined,
+    });
+  }
+
+  function openEdit(inv: Invoice) {
+    const d = new Date(inv.due_date);
+    const due_date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    setEditInv(inv);
+    setEditForm({
+      type: inv.type,
+      due_date,
+      notes: inv.notes || '',
+      tax_profile_id: inv.tax_profile_id || taxProfiles[0]?.id || '',
+    });
+    setEditLineItems(inv.line_items.length > 0 ? [...inv.line_items] : [{ ...emptyItem }]);
+    setEditError('');
+  }
+
+  function handleEdit() {
+    if (!editInv) return;
+    const valid = editLineItems.filter(li => li.description.trim() && li.unit_price > 0);
+    if (valid.length === 0) { setEditError('Add at least one line item.'); return; }
+    if (!editForm.tax_profile_id) { setEditError('Select a tax profile.'); return; }
+    updateInvoice.mutate({
+      id: editInv.id,
+      payload: {
+        type: editForm.type,
+        due_date: new Date(editForm.due_date + 'T12:00:00').toISOString(),
+        notes: editForm.notes || undefined,
+        tax_profile_id: editForm.tax_profile_id,
+        line_items: valid.map(li => ({ description: li.description, qty: li.qty || 1, unit_price: li.unit_price, taxable: true })),
+      },
     });
   }
 
@@ -171,8 +245,7 @@ export default function InvoicesPage() {
           </div>
         </div>
         <button
-          className="btn-primary"
-          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          className="btn btn-primary"
           onClick={() => {
             setFormError('');
             if (taxProfiles.length > 0) setForm(f => ({ ...f, tax_profile_id: taxProfiles[0].id }));
@@ -271,11 +344,27 @@ export default function InvoicesPage() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        onClick={() => window.open(`/invoices/${inv.id}`, '_blank')}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)', padding: 6 }}
+                        title="View invoice"
+                      >
+                        <Eye size={14} strokeWidth={1.5} />
+                      </button>
+                      {inv.status !== 'VOID' && (
+                        <button
+                          onClick={() => openEdit(inv)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#007AFF', padding: 6 }}
+                          title="Edit invoice"
+                        >
+                          <Pencil size={14} strokeWidth={1.5} />
+                        </button>
+                      )}
                       {(inv.status === 'DRAFT' || inv.status === 'SENT' || inv.status === 'OVERDUE') && (
                         <button
                           onClick={() => { if (confirm(`Send invoice ${inv.invoice_number}?`)) sendInvoice.mutate(inv.id); }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#007AFF', padding: 6 }}
-                          title="Send"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#34C759', padding: 6 }}
+                          title="Send invoice"
                         >
                           <Send size={14} strokeWidth={1.5} />
                         </button>
@@ -283,10 +372,28 @@ export default function InvoicesPage() {
                       {inv.status !== 'PAID' && inv.status !== 'VOID' && (
                         <button
                           onClick={() => openPayment(inv)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#34C759', padding: 6 }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF9500', padding: 6 }}
                           title="Record payment"
                         >
                           <Clock size={14} strokeWidth={1.5} />
+                        </button>
+                      )}
+                      {inv.payments.length > 0 && (
+                        <button
+                          onClick={() => setPaymentsListInv(inv)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)', padding: 6 }}
+                          title="View payments"
+                        >
+                          <List size={14} strokeWidth={1.5} />
+                        </button>
+                      )}
+                      {inv.status !== 'VOID' && (
+                        <button
+                          onClick={() => { if (confirm(`Delete invoice ${inv.invoice_number}? This cannot be undone.`)) voidInvoice.mutate(inv.id); }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF3B30', padding: 6 }}
+                          title="Delete invoice"
+                        >
+                          <Trash2 size={14} strokeWidth={1.5} />
                         </button>
                       )}
                     </div>
@@ -368,9 +475,121 @@ export default function InvoicesPage() {
               </div>
               {formError && <p style={{ color: '#FF3B30', fontSize: 13, margin: 0 }}>{formError}</p>}
               <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
-                <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowModal(false)}>Cancel</button>
-                <button className="btn-primary" style={{ flex: 1 }} onClick={handleCreate} disabled={createInvoice.isPending}>
+                <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowModal(false)}>Cancel</button>
+                <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleCreate} disabled={createInvoice.isPending}>
                   {createInvoice.isPending ? 'Creating...' : 'Create Invoice'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payments List Modal */}
+      {paymentsListInv && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 480, padding: 32, background: '#fff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>Payments — {paymentsListInv.invoice_number}</h2>
+              <button onClick={() => setPaymentsListInv(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}><X size={20} strokeWidth={1.5} /></button>
+            </div>
+            {paymentsListInv.payments.length === 0 ? (
+              <p style={{ color: 'rgba(0,0,0,0.4)', fontSize: 14 }}>No payments recorded.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {paymentsListInv.payments.map(p => (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, background: 'rgba(0,0,0,0.04)' }}>
+                    <div>
+                      <div style={{ fontFamily: 'Menlo,monospace', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{fmt(Number(p.amount))}</div>
+                      <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)', marginTop: 2 }}>
+                        {p.method}{p.notes ? ` — ${p.notes}` : ''} · {new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { if (confirm('Delete this payment? The invoice status will be updated.')) deletePayment.mutate({ invId: paymentsListInv.id, payId: p.id }); }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF3B30', padding: 6 }}
+                      title="Delete payment"
+                      disabled={deletePayment.isPending}
+                    >
+                      <Trash2 size={14} strokeWidth={1.5} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn-secondary" onClick={() => setPaymentsListInv(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Invoice Modal */}
+      {editInv && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div className="glass" style={{ width: '100%', maxWidth: 540, padding: 32, background: '#fff', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>Edit Invoice — {editInv.invoice_number}</h2>
+              <button onClick={() => setEditInv(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}><X size={20} strokeWidth={1.5} /></button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Type</label>
+                  <select className="input" value={editForm.type} onChange={e => setEditForm(f => ({ ...f, type: e.target.value }))}>
+                    <option value="DEPOSIT">Deposit</option>
+                    <option value="PROGRESS">Progress</option>
+                    <option value="FINAL">Final</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Due Date</label>
+                  <input className="input" type="date" value={editForm.due_date} onChange={e => setEditForm(f => ({ ...f, due_date: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Tax Profile</label>
+                <select className="input" value={editForm.tax_profile_id} onChange={e => setEditForm(f => ({ ...f, tax_profile_id: e.target.value }))}>
+                  <option value="">Select...</option>
+                  {taxProfiles.map(tp => <option key={tp.id} value={tp.id}>{tp.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 8 }}>Line Items</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 32px', gap: 8, marginBottom: 6 }}>
+                  {['Description', 'Qty', 'Price', ''].map(h => (
+                    <div key={h} style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</div>
+                  ))}
+                </div>
+                {editLineItems.map((li, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 32px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                    <input className="input" value={li.description} onChange={e => setEditLineItems(items => items.map((x, idx) => idx === i ? { ...x, description: e.target.value } : x))} placeholder="Description" />
+                    <input className="input" type="number" min="1" value={li.qty} onChange={e => setEditLineItems(items => items.map((x, idx) => idx === i ? { ...x, qty: parseInt(e.target.value) || 1 } : x))} />
+                    <input className="input" type="number" min="0" step="0.01" value={li.unit_price || ''} onChange={e => setEditLineItems(items => items.map((x, idx) => idx === i ? { ...x, unit_price: parseFloat(e.target.value) || 0 } : x))} placeholder="0.00" />
+                    <button onClick={() => setEditLineItems(items => items.filter((_, idx) => idx !== i))} disabled={editLineItems.length === 1} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.3)', padding: 4 }}>
+                      <X size={14} strokeWidth={1.5} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => setEditLineItems(items => [...items, { ...emptyItem }])}
+                  style={{ background: 'none', border: '1px dashed rgba(0,0,0,0.2)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: 'rgba(0,0,0,0.4)', width: '100%', marginTop: 4 }}
+                >
+                  + Add line item
+                </button>
+                <div style={{ textAlign: 'right', marginTop: 8, fontFamily: 'Menlo,monospace', fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>
+                  Total: {fmt(editLineItems.reduce((s, li) => s + (li.qty || 1) * (li.unit_price || 0), 0))}
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Notes (optional)</label>
+                <input className="input" value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} placeholder="Payment instructions, etc." />
+              </div>
+              {editError && <p style={{ color: '#FF3B30', fontSize: 13, margin: 0 }}>{editError}</p>}
+              <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setEditInv(null)}>Cancel</button>
+                <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleEdit} disabled={updateInvoice.isPending}>
+                  {updateInvoice.isPending ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>
@@ -409,8 +628,8 @@ export default function InvoicesPage() {
               </div>
               {paymentError && <p style={{ color: '#FF3B30', fontSize: 13, margin: 0 }}>{paymentError}</p>}
               <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
-                <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setPaymentInv(null)}>Cancel</button>
-                <button className="btn-primary" style={{ flex: 1 }} onClick={handlePayment} disabled={recordPayment.isPending}>
+                <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setPaymentInv(null)}>Cancel</button>
+                <button className="btn btn-primary" style={{ flex: 1 }} onClick={handlePayment} disabled={recordPayment.isPending}>
                   {recordPayment.isPending ? 'Saving...' : 'Record Payment'}
                 </button>
               </div>

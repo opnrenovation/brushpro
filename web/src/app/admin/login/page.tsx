@@ -49,7 +49,7 @@ export default function AdminLoginPage() {
       if (must_change_password) {
         setMustChange(true);
       } else {
-        router.replace('/admin/dashboard');
+        window.location.href = '/admin/dashboard';
       }
     } catch (err: unknown) {
       const msg =
@@ -77,7 +77,7 @@ export default function AdminLoginPage() {
 
     try {
       await authApi.changePassword(password, newPassword);
-      router.replace('/admin/dashboard');
+      window.location.href = '/admin/dashboard';
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
