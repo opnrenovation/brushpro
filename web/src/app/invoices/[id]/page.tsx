@@ -106,9 +106,7 @@ function InvoicePageInner() {
 
         {/* Company header */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 14, background: '#007AFF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-            <FileText size={24} color="#fff" strokeWidth={1.5} />
-          </div>
+          <img src="/opn-logo.png" alt="OPN Renovation" style={{ width: 80, height: 80, objectFit: 'contain', display: 'block', margin: '0 auto 12px' }} />
           <p style={{ fontSize: 18, fontWeight: 700, color: '#111', margin: '0 0 2px' }}>{companyName}</p>
           {settings.phone && <p style={{ fontSize: 13, color: '#888', margin: 0 }}>{settings.phone}</p>}
         </div>

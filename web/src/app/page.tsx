@@ -110,7 +110,7 @@ function Hero() {
         <div style={{ position: 'relative' }}>
           <div style={{ borderRadius: 20, overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.15)' }}>
             <Image
-              src="/opn-images/House-exterior-1920w.jpg"
+              src="/hero-bg.jpg"
               alt="Exterior painting by OPN Renovation"
               width={700}
               height={520}
