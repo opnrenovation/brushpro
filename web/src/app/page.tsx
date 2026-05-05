@@ -26,10 +26,23 @@ function Hero() {
   return (
     <section
       className="site-section"
-      style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', paddingTop: 64, background: '#f8fafc' }}
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        paddingTop: 64,
+        position: 'relative',
+        backgroundImage: 'url(/hero-bg.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
     >
+      {/* dark overlay so text stays readable */}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.62)', zIndex: 0 }} />
       <div
         style={{
+          position: 'relative',
+          zIndex: 1,
           maxWidth: 1200,
           margin: '0 auto',
           padding: '80px 24px',
@@ -45,7 +58,7 @@ function Hero() {
         <div>
           <div
             className="pill pill-blue"
-            style={{ marginBottom: 24, display: 'inline-flex' }}
+            style={{ marginBottom: 24, display: 'inline-flex', background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.3)', color: '#fff' }}
           >
             <MapPin size={12} strokeWidth={1.5} style={{ marginRight: 4 }} />
             Des Moines, Iowa
@@ -53,7 +66,7 @@ function Hero() {
 
           <h1
             className="site-headline"
-            style={{ fontSize: 'clamp(40px, 5vw, 72px)', color: '#0f172a', marginBottom: 24 }}
+            style={{ fontSize: 'clamp(40px, 5vw, 72px)', color: '#ffffff', marginBottom: 24 }}
           >
             Des Moines&apos; Premier
             <br />
@@ -62,7 +75,7 @@ function Hero() {
 
           <p
             className="site-body"
-            style={{ fontSize: 18, marginBottom: 40, maxWidth: 480 }}
+            style={{ fontSize: 18, marginBottom: 40, maxWidth: 480, color: 'rgba(255,255,255,0.82)' }}
           >
             Residential. Commercial. Interior. Exterior.
             Done right the first time.
@@ -94,7 +107,7 @@ function Hero() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6,
-                  color: '#475569',
+                  color: 'rgba(255,255,255,0.85)',
                   fontSize: 13,
                   fontWeight: 500,
                 }}
@@ -110,7 +123,7 @@ function Hero() {
         <div style={{ position: 'relative' }}>
           <div style={{ borderRadius: 20, overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.15)' }}>
             <Image
-              src="/hero-bg.jpg"
+              src="/opn-images/House-exterior-1920w.jpg"
               alt="Exterior painting by OPN Renovation"
               width={700}
               height={520}
@@ -524,7 +537,7 @@ function Footer() {
                 style={{ fontSize: 13, padding: '8px 14px', width: 'fit-content' }}
               >
                 <Phone size={14} strokeWidth={1.5} />
-                (515) 555-1234
+                515-333-0892
               </a>
               <a
                 href="mailto:info@opnrenovation.com"

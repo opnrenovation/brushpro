@@ -215,7 +215,7 @@ export default function BookPage() {
   useEffect(() => {
     fetch('/api/public/appointment-types')
       .then((r) => r.json())
-      .then((data) => setTypes(data.appointment_types ?? data ?? []))
+      .then((data) => setTypes(data.data ?? data.appointment_types ?? []))
       .catch(() => setTypes([]))
       .finally(() => setLoadingTypes(false));
   }, []);
