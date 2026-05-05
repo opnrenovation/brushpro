@@ -10,6 +10,7 @@ export async function sendEmail(params: {
   replyTo?: string;
   text?: string;
   tags?: Array<{ name: string; value: string }>;
+  attachments?: Array<{ filename: string; content: Buffer }>;
 }) {
   const { data, error } = await resend.emails.send({
     from: params.from || `${process.env.EMAIL_FROM_NAME} <${process.env.EMAIL_FROM}>`,
@@ -19,6 +20,7 @@ export async function sendEmail(params: {
     text: params.text,
     replyTo: params.replyTo,
     tags: params.tags,
+    attachments: params.attachments?.map(a => ({ filename: a.filename, content: a.content })),
   });
   if (error) throw new Error(`Email send failed: ${error.message}`);
   return data;

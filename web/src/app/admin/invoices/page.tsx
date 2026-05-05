@@ -21,7 +21,7 @@ const ALL_STATUSES = ['ALL', 'DRAFT', 'SENT', 'PARTIAL', 'PAID', 'OVERDUE', 'VOI
 
 interface LineItem { description: string; qty: number; unit_price: number; }
 interface Customer { id: string; name: string; email?: string; }
-interface TaxProfile { id: string; name: string; }
+interface TaxProfile { id: string; name: string; state_rate: number; local_rate: number; is_default: boolean; }
 interface Payment { id: string; amount: number; method: string; notes?: string; paid_at: string; }
 interface Invoice {
   id: string;
@@ -47,7 +47,7 @@ export default function InvoicesPage() {
 
   // Create modal state
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ customer_id: '', type: 'FINAL', due_days: '7', notes: '', tax_profile_id: '' });
+  const [form, setForm] = useState({ customer_id: '', type: 'FINAL', due_days: '7', notes: '', tax_profile_id: '', discount_type: 'NONE', discount_value: '' });
   const [lineItems, setLineItems] = useState<LineItem[]>([{ ...emptyItem }]);
   const [formError, setFormError] = useState('');
 
@@ -61,7 +61,7 @@ export default function InvoicesPage() {
 
   // Edit modal state
   const [editInv, setEditInv] = useState<Invoice | null>(null);
-  const [editForm, setEditForm] = useState({ type: 'FINAL', due_date: '', notes: '', tax_profile_id: '' });
+  const [editForm, setEditForm] = useState({ type: 'FINAL', due_date: '', notes: '', tax_profile_id: '', discount_type: 'NONE', discount_value: '' });
   const [editLineItems, setEditLineItems] = useState<LineItem[]>([{ ...emptyItem }]);
   const [editError, setEditError] = useState('');
 
@@ -99,7 +99,7 @@ export default function InvoicesPage() {
       qc.invalidateQueries({ queryKey: ['invoices'] });
       setShowModal(false);
       setLineItems([{ ...emptyItem }]);
-      setForm({ customer_id: '', type: 'FINAL', due_days: '7', notes: '', tax_profile_id: '' });
+      setForm({ customer_id: '', type: 'FINAL', due_days: '7', notes: '', tax_profile_id: taxProfiles.find(tp => tp.is_default)?.id || taxProfiles[0]?.id || '', discount_type: 'NONE', discount_value: '' });
       setFormError('');
     },
     onError: (e: unknown) => {
@@ -172,6 +172,8 @@ export default function InvoicesPage() {
       type: form.type,
       line_items: valid.map(li => ({ description: li.description, qty: li.qty || 1, unit_price: li.unit_price, taxable: true })),
       tax_profile_id: form.tax_profile_id,
+      discount_type: form.discount_type,
+      discount_value: form.discount_type !== 'NONE' && form.discount_value ? parseFloat(form.discount_value) : 0,
       due_date: due_date.toISOString(),
       notes: form.notes || undefined,
     });
@@ -186,6 +188,8 @@ export default function InvoicesPage() {
       due_date,
       notes: inv.notes || '',
       tax_profile_id: inv.tax_profile_id || taxProfiles[0]?.id || '',
+      discount_type: (inv as Invoice & { discount_type?: string }).discount_type || 'NONE',
+      discount_value: String((inv as Invoice & { discount_value?: number }).discount_value || ''),
     });
     setEditLineItems(inv.line_items.length > 0 ? [...inv.line_items] : [{ ...emptyItem }]);
     setEditError('');
@@ -203,6 +207,8 @@ export default function InvoicesPage() {
         due_date: new Date(editForm.due_date + 'T12:00:00').toISOString(),
         notes: editForm.notes || undefined,
         tax_profile_id: editForm.tax_profile_id,
+        discount_type: editForm.discount_type,
+        discount_value: editForm.discount_type !== 'NONE' && editForm.discount_value ? parseFloat(editForm.discount_value) : 0,
         line_items: valid.map(li => ({ description: li.description, qty: li.qty || 1, unit_price: li.unit_price, taxable: true })),
       },
     });
@@ -247,8 +253,9 @@ export default function InvoicesPage() {
         <button
           className="btn btn-primary"
           onClick={() => {
+            const def = taxProfiles.find(tp => tp.is_default) || taxProfiles[0];
+            setForm({ customer_id: '', type: 'FINAL', due_days: '7', notes: '', tax_profile_id: def?.id || '', discount_type: 'NONE', discount_value: '' });
             setFormError('');
-            if (taxProfiles.length > 0) setForm(f => ({ ...f, tax_profile_id: taxProfiles[0].id }));
             setShowModal(true);
           }}
         >
@@ -439,8 +446,24 @@ export default function InvoicesPage() {
                 <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Tax Profile</label>
                 <select className="input" value={form.tax_profile_id} onChange={e => setForm(f => ({ ...f, tax_profile_id: e.target.value }))}>
                   <option value="">Select...</option>
-                  {taxProfiles.map(tp => <option key={tp.id} value={tp.id}>{tp.name}</option>)}
+                  {taxProfiles.map(tp => {
+                    const rate = ((Number(tp.state_rate) + Number(tp.local_rate)) * 100).toFixed(2);
+                    return <option key={tp.id} value={tp.id}>{tp.name} ({rate}%){tp.is_default ? ' — Default' : ''}</option>;
+                  })}
                 </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Discount (optional)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <select className="input" value={form.discount_type} onChange={e => setForm(f => ({ ...f, discount_type: e.target.value, discount_value: '' }))}>
+                    <option value="NONE">No discount</option>
+                    <option value="PERCENT">Percentage (%)</option>
+                    <option value="FIXED">Fixed amount ($)</option>
+                  </select>
+                  {form.discount_type !== 'NONE' && (
+                    <input className="input" type="number" min="0" step={form.discount_type === 'PERCENT' ? '0.1' : '0.01'} max={form.discount_type === 'PERCENT' ? '100' : undefined} placeholder={form.discount_type === 'PERCENT' ? 'e.g. 10' : 'e.g. 50.00'} value={form.discount_value} onChange={e => setForm(f => ({ ...f, discount_value: e.target.value }))} />
+                  )}
+                </div>
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 8 }}>Line Items</label>
@@ -551,8 +574,24 @@ export default function InvoicesPage() {
                 <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Tax Profile</label>
                 <select className="input" value={editForm.tax_profile_id} onChange={e => setEditForm(f => ({ ...f, tax_profile_id: e.target.value }))}>
                   <option value="">Select...</option>
-                  {taxProfiles.map(tp => <option key={tp.id} value={tp.id}>{tp.name}</option>)}
+                  {taxProfiles.map(tp => {
+                    const rate = ((Number(tp.state_rate) + Number(tp.local_rate)) * 100).toFixed(2);
+                    return <option key={tp.id} value={tp.id}>{tp.name} ({rate}%){tp.is_default ? ' — Default' : ''}</option>;
+                  })}
                 </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Discount (optional)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <select className="input" value={editForm.discount_type} onChange={e => setEditForm(f => ({ ...f, discount_type: e.target.value, discount_value: '' }))}>
+                    <option value="NONE">No discount</option>
+                    <option value="PERCENT">Percentage (%)</option>
+                    <option value="FIXED">Fixed amount ($)</option>
+                  </select>
+                  {editForm.discount_type !== 'NONE' && (
+                    <input className="input" type="number" min="0" step={editForm.discount_type === 'PERCENT' ? '0.1' : '0.01'} max={editForm.discount_type === 'PERCENT' ? '100' : undefined} placeholder={editForm.discount_type === 'PERCENT' ? 'e.g. 10' : 'e.g. 50.00'} value={editForm.discount_value} onChange={e => setEditForm(f => ({ ...f, discount_value: e.target.value }))} />
+                  )}
+                </div>
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 8 }}>Line Items</label>

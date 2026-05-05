@@ -21,6 +21,8 @@ interface InvoiceData {
   payments: Payment[];
   notes?: string;
   tax_profile: TaxProfile;
+  discount_type?: string;
+  discount_value?: number;
   job?: { address?: string; name?: string; customer?: { name?: string; email?: string } } | null;
   customer?: { name?: string; email?: string } | null;
 }
@@ -90,10 +92,18 @@ function InvoicePageInner() {
 
   const lineItems = invoice.line_items || [];
   const subtotal = lineItems.reduce((s, li) => s + li.qty * li.unit_price, 0);
-  const taxable = lineItems.filter(li => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0);
-  const stateTax = taxable * Number(invoice.tax_profile.state_rate);
-  const localTax = taxable * Number(invoice.tax_profile.local_rate);
-  const total = subtotal + stateTax + localTax;
+  const discountAmt = (() => {
+    const t = invoice.discount_type; const v = Number(invoice.discount_value || 0);
+    if (t === 'PERCENT') return subtotal * (v / 100);
+    if (t === 'FIXED') return Math.min(v, subtotal);
+    return 0;
+  })();
+  const discountedSubtotal = subtotal - discountAmt;
+  const taxableRaw = lineItems.filter(li => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0);
+  const taxableFraction = subtotal > 0 ? taxableRaw / subtotal : 1;
+  const stateTax = discountedSubtotal * taxableFraction * Number(invoice.tax_profile.state_rate);
+  const localTax = discountedSubtotal * taxableFraction * Number(invoice.tax_profile.local_rate);
+  const total = discountedSubtotal + stateTax + localTax;
   const totalPaid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
   const balance = total - totalPaid;
   const isPaid = invoice.status === 'PAID' || balance <= 0;
@@ -191,13 +201,14 @@ function InvoicePageInner() {
             {/* Totals */}
             <div style={{ borderTop: '1px solid #eee', paddingTop: 16, marginBottom: 20 }}>
               {[
-                { label: 'Subtotal', value: subtotal },
-                { label: `State Tax (${(Number(invoice.tax_profile.state_rate) * 100).toFixed(1)}%)`, value: stateTax },
-                { label: `Local Tax (${(Number(invoice.tax_profile.local_rate) * 100).toFixed(1)}%)`, value: localTax },
-              ].map(({ label, value }) => (
+                { label: 'Subtotal', value: subtotal, color: undefined as string | undefined },
+                ...(discountAmt > 0 ? [{ label: 'Discount', value: -discountAmt, color: '#16a34a' }] : []),
+                { label: `State Tax (${(Number(invoice.tax_profile.state_rate) * 100).toFixed(1)}%)`, value: stateTax, color: undefined },
+                { label: `Local Tax (${(Number(invoice.tax_profile.local_rate) * 100).toFixed(1)}%)`, value: localTax, color: undefined },
+              ].map(({ label, value, color }) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 14, color: '#888' }}>{label}</span>
-                  <span style={{ fontSize: 14, color: '#555' }}>{fmt(value)}</span>
+                  <span style={{ fontSize: 14, color: color || '#888' }}>{label}</span>
+                  <span style={{ fontSize: 14, color: color || '#555' }}>{value < 0 ? `-${fmt(-value)}` : fmt(value)}</span>
                 </div>
               ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '2px solid #111' }}>

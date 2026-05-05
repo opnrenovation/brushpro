@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { sendEmail } from '../lib/resend';
+import { generateInvoicePdf } from '../lib/invoicePdf';
 import Stripe from 'stripe';
 
 let _stripe: Stripe | null = null;
@@ -12,6 +13,14 @@ function getStripe(): Stripe {
 }
 
 export const invoicesRouter = Router();
+
+function calcDiscount(subtotal: number, type: string | null, value: unknown): number {
+  if (!type || type === 'NONE' || !value) return 0;
+  const v = Number(value);
+  if (type === 'PERCENT') return subtotal * (v / 100);
+  if (type === 'FIXED') return Math.min(v, subtotal);
+  return 0;
+}
 
 invoicesRouter.get('/', async (req, res) => {
   try {
@@ -96,20 +105,48 @@ invoicesRouter.post('/:id/send', async (req, res) => {
     }>;
 
     const subtotal = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
-    const taxableAmount = lineItems
-      .filter((li) => li.taxable)
-      .reduce((sum, li) => sum + li.qty * li.unit_price, 0);
+    const discountAmt = calcDiscount(subtotal, invoice.discount_type, invoice.discount_value);
+    const discountedSubtotal = subtotal - discountAmt;
+    const taxableRaw = lineItems.filter((li) => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0);
+    const taxableFraction = subtotal > 0 ? taxableRaw / subtotal : 1;
+    const taxableAmount = discountedSubtotal * taxableFraction;
     const stateTax = taxableAmount * Number(invoice.tax_profile.state_rate);
     const localTax = taxableAmount * Number(invoice.tax_profile.local_rate);
-    const total = subtotal + stateTax + localTax;
+    const total = discountedSubtotal + stateTax + localTax;
+
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const payUrl = `${appUrl}/invoices/${invoice.id}`;
+
+    // Generate PDF attachment
+    let pdfBuffer: Buffer | undefined;
+    try {
+      pdfBuffer = await generateInvoicePdf(
+        {
+          invoice_number: invoice.invoice_number,
+          type: invoice.type,
+          status: invoice.status,
+          due_date: invoice.due_date.toISOString(),
+          notes: invoice.notes ?? undefined,
+          tax_profile: { state_rate: Number(invoice.tax_profile.state_rate), local_rate: Number(invoice.tax_profile.local_rate), name: invoice.tax_profile.name },
+          discount_type: invoice.discount_type,
+          discount_value: invoice.discount_value ? Number(invoice.discount_value) : null,
+          line_items: lineItems,
+          payments: invoice.payments.map(p => ({ amount: Number(p.amount), method: p.method, paid_at: p.paid_at.toISOString() })),
+          job: invoice.job ? { address: invoice.job.address ?? undefined, name: invoice.job.name ?? undefined, customer: invoice.job.customer ? { name: invoice.job.customer.name ?? undefined, email: invoice.job.customer.email ?? undefined } : undefined } : null,
+          customer: invoice.customer ? { name: invoice.customer.name ?? undefined, email: invoice.customer.email ?? undefined } : null,
+        },
+        { company_name: settings?.company_name, phone: settings?.phone ?? undefined, email: settings?.email ?? undefined },
+        payUrl,
+      );
+    } catch (pdfErr) {
+      console.error('PDF generation failed (non-fatal):', pdfErr);
+    }
 
     if (recipient?.email) {
       const lineItemRows = lineItems
         .map((li) => `<tr><td style="padding:8px;border-bottom:1px solid #eee">${li.description}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${li.qty}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">$${li.unit_price.toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">$${(li.qty * li.unit_price).toFixed(2)}</td></tr>`)
         .join('');
       const forLine = invoice.job?.address ? `for work at <strong>${invoice.job.address}</strong>` : '';
-      const appUrl = process.env.APP_URL || 'http://localhost:3000';
-      const payUrl = `${appUrl}/invoices/${invoice.id}`;
 
       await sendEmail({
         to: recipient.email,
@@ -138,6 +175,7 @@ invoicesRouter.post('/:id/send', async (req, res) => {
 
     <table style="margin-left:auto;margin-bottom:24px;min-width:220px">
       <tr><td style="padding:4px 0;color:#666;font-size:14px">Subtotal</td><td style="padding:4px 0 4px 24px;text-align:right;font-size:14px">$${subtotal.toFixed(2)}</td></tr>
+      ${discountAmt > 0 ? `<tr><td style="padding:4px 0;color:#16a34a;font-size:14px">Discount</td><td style="padding:4px 0 4px 24px;text-align:right;font-size:14px;color:#16a34a">-$${discountAmt.toFixed(2)}</td></tr>` : ''}
       <tr><td style="padding:4px 0;color:#666;font-size:14px">State Tax (${(Number(invoice.tax_profile.state_rate) * 100).toFixed(2)}%)</td><td style="padding:4px 0 4px 24px;text-align:right;font-size:14px">$${stateTax.toFixed(2)}</td></tr>
       <tr><td style="padding:4px 0;color:#666;font-size:14px">Local Tax (${(Number(invoice.tax_profile.local_rate) * 100).toFixed(2)}%)</td><td style="padding:4px 0 4px 24px;text-align:right;font-size:14px">$${localTax.toFixed(2)}</td></tr>
       <tr style="border-top:2px solid #111"><td style="padding:8px 0 0;font-weight:700;font-size:16px">Total Due</td><td style="padding:8px 0 0 24px;text-align:right;font-weight:700;font-size:16px">$${total.toFixed(2)}</td></tr>
@@ -153,6 +191,7 @@ invoicesRouter.post('/:id/send', async (req, res) => {
     <p style="color:#aaa;font-size:12px;margin-top:16px">${settings?.company_name || 'OPN Renovation'}${settings?.phone ? ` · ${settings.phone}` : ''}${settings?.email ? ` · ${settings.email}` : ''}</p>
   </div>
 </div>`,
+        attachments: pdfBuffer ? [{ filename: `Invoice-${invoice.invoice_number}.pdf`, content: pdfBuffer }] : undefined,
       });
     }
 
@@ -183,8 +222,10 @@ invoicesRouter.post('/:id/payments', async (req, res) => {
     });
 
     // Update invoice status
-    const lineItems = invoice.line_items as Array<{ qty: number; unit_price: number }>;
-    const total = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
+    const lineItems = invoice.line_items as Array<{ qty: number; unit_price: number; taxable: boolean }>;
+    const sub = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
+    const disc = calcDiscount(sub, invoice.discount_type, invoice.discount_value);
+    const total = sub - disc;
     const totalPaid = [...invoice.payments, payment].reduce((s, p) => s + Number(p.amount), 0);
 
     let status: string;
@@ -242,9 +283,12 @@ invoicesRouter.post('/:id/stripe-link', async (req, res) => {
 
     const lineItems = invoice.line_items as Array<{ description: string; qty: number; unit_price: number; taxable: boolean }>;
     const subtotal = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
-    const taxable = lineItems.filter((li) => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0);
-    const tax = taxable * (Number(invoice.tax_profile.state_rate) + Number(invoice.tax_profile.local_rate));
-    const total = subtotal + tax;
+    const discountAmt = calcDiscount(subtotal, invoice.discount_type, invoice.discount_value);
+    const discountedSubtotal = subtotal - discountAmt;
+    const taxableRaw = lineItems.filter((li) => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0);
+    const taxableFraction = subtotal > 0 ? taxableRaw / subtotal : 1;
+    const tax = discountedSubtotal * taxableFraction * (Number(invoice.tax_profile.state_rate) + Number(invoice.tax_profile.local_rate));
+    const total = discountedSubtotal + tax;
     const alreadyPaid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
     const amountDue = Math.round((total - alreadyPaid) * 100); // cents
 
