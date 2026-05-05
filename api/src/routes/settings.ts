@@ -47,26 +47,33 @@ settingsRouter.post('/logo', uploadLogo.single('logo'), async (req, res) => {
       res.status(400).json({ error: 'No file uploaded' });
       return;
     }
+
+    const bucket = process.env.STORAGE_BUCKET_BRANDING;
+    if (!bucket) {
+      res.status(500).json({ error: 'STORAGE_BUCKET_BRANDING environment variable is not set' });
+      return;
+    }
+
     const ext = req.file.originalname.split('.').pop();
     const path = `logo-${uuidv4()}.${ext}`;
-    const url = await uploadFile(
-      process.env.STORAGE_BUCKET_BRANDING!,
-      path,
-      req.file.buffer,
-      req.file.mimetype
-    );
+    const url = await uploadFile(bucket, path, req.file.buffer, req.file.mimetype);
 
-    // Update settings
-    const settings = await prisma.companySettings.findFirst();
+    let settings = await prisma.companySettings.findFirst();
     if (settings) {
       await prisma.companySettings.update({
         where: { id: settings.id },
         data: { logo_url: url },
       });
+    } else {
+      settings = await prisma.companySettings.create({
+        data: { company_name: 'OPN Renovation', logo_url: url },
+      });
     }
 
     res.json({ data: { logo_url: url } });
-  } catch {
-    res.status(500).json({ error: 'Failed to upload logo' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[logo upload]', message);
+    res.status(500).json({ error: message });
   }
 });

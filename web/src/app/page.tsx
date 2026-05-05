@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Phone,
   Mail,
@@ -25,22 +26,25 @@ function Hero() {
   return (
     <section
       className="site-section"
-      style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', paddingTop: 64 }}
+      style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', paddingTop: 64, background: '#f8fafc' }}
     >
-      <div className="gradient-mesh" />
       <div
         style={{
-          position: 'relative',
-          zIndex: 1,
           maxWidth: 1200,
           margin: '0 auto',
           padding: '80px 24px',
           width: '100%',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 64,
+          alignItems: 'center',
         }}
+        className="hero-grid"
       >
-        <div style={{ maxWidth: 760 }}>
+        {/* Left: text */}
+        <div>
           <div
-            className="pill pill-orange"
+            className="pill pill-blue"
             style={{ marginBottom: 24, display: 'inline-flex' }}
           >
             <MapPin size={12} strokeWidth={1.5} style={{ marginRight: 4 }} />
@@ -49,59 +53,88 @@ function Hero() {
 
           <h1
             className="site-headline"
-            style={{ fontSize: 'clamp(48px, 7vw, 88px)', color: '#1D1D1F', marginBottom: 24 }}
+            style={{ fontSize: 'clamp(40px, 5vw, 72px)', color: '#0f172a', marginBottom: 24 }}
           >
-            Des Moines' Premier
+            Des Moines&apos; Premier
             <br />
             <span style={{ color: '#E8A838' }}>Painting Company</span>
           </h1>
 
           <p
             className="site-body"
-            style={{ fontSize: 20, marginBottom: 40, maxWidth: 580 }}
+            style={{ fontSize: 18, marginBottom: 40, maxWidth: 480 }}
           >
             Residential. Commercial. Interior. Exterior.
-            <br />
             Done right the first time.
           </p>
 
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 64 }}>
-            <a href="tel:+15155551234" className="btn btn-accent" style={{ fontSize: 16, padding: '14px 28px' }}>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 48 }}>
+            <a href="tel:+15155551234" className="btn btn-accent" style={{ fontSize: 16, padding: '14px 28px', borderRadius: 100 }}>
               <Phone size={18} strokeWidth={1.5} />
               Call for a Free Quote
             </a>
-            <Link href="/services" className="btn btn-ghost" style={{ fontSize: 16, padding: '14px 28px' }}>
+            <Link href="/services" className="btn btn-ghost" style={{ fontSize: 16, padding: '14px 28px', borderRadius: 100 }}>
               View Our Work
               <ChevronRight size={16} strokeWidth={1.5} />
             </Link>
           </div>
 
           {/* Trust badges */}
-          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
             {[
               '4+ Years in Business',
               'Family Owned',
               'Fully Insured',
               'Free Estimates',
+              'Se Habla Español',
             ].map((badge) => (
               <div
                 key={badge}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 8,
-                  color: 'rgba(0,0,0,0.55)',
+                  gap: 6,
+                  color: '#475569',
                   fontSize: 13,
                   fontWeight: 500,
                 }}
               >
-                <CheckCircle size={16} strokeWidth={1.5} style={{ color: '#34C759', flexShrink: 0 }} />
+                <CheckCircle size={14} strokeWidth={2} style={{ color: '#16a34a', flexShrink: 0 }} />
                 {badge}
               </div>
             ))}
           </div>
         </div>
+
+        {/* Right: photo */}
+        <div style={{ position: 'relative' }}>
+          <div style={{ borderRadius: 20, overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.15)' }}>
+            <Image
+              src="/opn-images/House-exterior-1920w.jpg"
+              alt="Exterior painting by OPN Renovation"
+              width={700}
+              height={520}
+              style={{ width: '100%', height: 520, objectFit: 'cover', display: 'block' }}
+              priority
+            />
+          </div>
+          {/* Floating badge */}
+          <div style={{
+            position: 'absolute',
+            bottom: -20,
+            left: -20,
+            background: '#1e40af',
+            color: '#fff',
+            padding: '16px 24px',
+            borderRadius: 16,
+            boxShadow: '0 8px 24px rgba(30,64,175,0.35)',
+          }}>
+            <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1 }}>500+</div>
+            <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>Projects Completed</div>
+          </div>
+        </div>
       </div>
+
     </section>
   );
 }
@@ -152,12 +185,12 @@ const SERVICES = [
 
 function ServicesSection() {
   return (
-    <section className="site-section" style={{ padding: '100px 0', background: '#F5F5F7' }}>
+    <section className="site-section" style={{ padding: '100px 0', background: '#f1f5f9' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 64 }}>
           <h2
             className="site-headline"
-            style={{ fontSize: 'clamp(36px, 4vw, 56px)', color: '#1D1D1F', marginBottom: 16 }}
+            style={{ fontSize: 'clamp(36px, 4vw, 56px)', color: '#0f172a', marginBottom: 16 }}
           >
             Our Services
           </h2>
@@ -197,10 +230,10 @@ function ServicesSection() {
               </div>
               <h3
                 style={{
-                  fontFamily: "'Cormorant Garamond', Georgia, serif",
-                  fontSize: 20,
+                  fontFamily: "'Inter', system-ui, sans-serif",
+                  fontSize: 16,
                   fontWeight: 600,
-                  color: '#1D1D1F',
+                  color: '#0f172a',
                   marginBottom: 10,
                 }}
               >
@@ -244,52 +277,56 @@ function WhyOpnSection() {
   ];
 
   return (
-    <section className="site-section" style={{ padding: '100px 0' }}>
+    <section className="site-section" style={{ padding: '100px 0', background: '#fff' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
-        <div style={{ textAlign: 'center', marginBottom: 64 }}>
-          <h2
-            className="site-headline"
-            style={{ fontSize: 'clamp(36px, 4vw, 56px)', color: '#1D1D1F', marginBottom: 16 }}
-          >
-            Why Choose OPN Renovation?
-          </h2>
-        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center' }} className="why-grid">
+          {/* Left: photo */}
+          <div style={{ borderRadius: 20, overflow: 'hidden', boxShadow: '0 16px 48px rgba(0,0,0,0.12)' }}>
+            <Image
+              src="/opn-images/OPN-Renovation-Painter-1920w.jpg"
+              alt="OPN Renovation crew at work"
+              width={600}
+              height={520}
+              style={{ width: '100%', height: 520, objectFit: 'cover', display: 'block' }}
+            />
+          </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 32 }}>
-          {features.map((f) => (
-            <div key={f.title} style={{ textAlign: 'center', padding: '0 16px' }}>
-              <div
-                style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: '50%',
-                  background: 'rgba(0,122,255,0.12)',
-                  border: '1px solid rgba(0,122,255,0.25)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#007AFF',
-                  margin: '0 auto 24px',
-                }}
-              >
-                {f.icon}
-              </div>
-              <h3
-                style={{
-                  fontFamily: "'Cormorant Garamond', Georgia, serif",
-                  fontSize: 24,
-                  fontWeight: 600,
-                  color: '#1D1D1F',
-                  marginBottom: 12,
-                }}
-              >
-                {f.title}
-              </h3>
-              <p className="site-body" style={{ fontSize: 15, lineHeight: 1.7 }}>
-                {f.desc}
-              </p>
+          {/* Right: features */}
+          <div>
+            <h2
+              className="site-headline"
+              style={{ fontSize: 'clamp(32px, 4vw, 52px)', color: '#0f172a', marginBottom: 48 }}
+            >
+              Why Choose OPN Renovation?
+            </h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
+              {features.map((f) => (
+                <div key={f.title} style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+                  <div
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: 14,
+                      background: 'rgba(30,64,175,0.08)',
+                      border: '1px solid rgba(30,64,175,0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#1e40af',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {f.icon}
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>{f.title}</h3>
+                    <p className="site-body" style={{ fontSize: 14, lineHeight: 1.7 }}>{f.desc}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </section>
@@ -315,18 +352,18 @@ function ServiceAreasSection() {
   return (
     <section
       className="site-section"
-      style={{ padding: '100px 0', background: '#F5F5F7' }}
+      style={{ padding: '100px 0', background: '#f1f5f9' }}
     >
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
           <MapPin
             size={36}
             strokeWidth={1.5}
-            style={{ color: '#E8A838', marginBottom: 16 }}
+            style={{ color: '#1e40af', marginBottom: 16 }}
           />
           <h2
             className="site-headline"
-            style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#1D1D1F', marginBottom: 16 }}
+            style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#0f172a', marginBottom: 16 }}
           >
             Serving Des Moines and Surrounding Communities
           </h2>
@@ -351,7 +388,7 @@ function ServiceAreasSection() {
                 padding: '10px 20px',
                 borderRadius: 100,
                 fontSize: 14,
-                color: '#1D1D1F',
+                color: '#0f172a',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
@@ -374,7 +411,7 @@ function QuoteSection() {
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
           <h2
             className="site-headline"
-            style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#1D1D1F', marginBottom: 16 }}
+            style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#0f172a', marginBottom: 16 }}
           >
             Get a Free Quote
           </h2>
@@ -413,13 +450,13 @@ function TestimonialsSection() {
   return (
     <section
       className="site-section"
-      style={{ padding: '100px 0', background: '#F5F5F7' }}
+      style={{ padding: '100px 0', background: '#f1f5f9' }}
     >
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 64 }}>
           <h2
             className="site-headline"
-            style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#1D1D1F', marginBottom: 16 }}
+            style={{ fontSize: 'clamp(32px, 4vw, 48px)', color: '#0f172a', marginBottom: 16 }}
           >
             What Our Customers Say
           </h2>
@@ -450,7 +487,7 @@ function TestimonialsSection() {
                 &ldquo;{t.text}&rdquo;
               </p>
               <div>
-                <div style={{ color: '#1D1D1F', fontWeight: 600, fontSize: 14 }}>{t.name}</div>
+                <div style={{ color: '#0f172a', fontWeight: 600, fontSize: 14 }}>{t.name}</div>
                 <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 13 }}>{t.location}</div>
               </div>
             </div>
@@ -474,17 +511,9 @@ function Footer() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 48, marginBottom: 48 }}>
           {/* Company info */}
           <div>
-            <h3
-              style={{
-                fontFamily: "'Cormorant Garamond', Georgia, serif",
-                fontSize: 24,
-                fontWeight: 600,
-                color: '#fff',
-                marginBottom: 16,
-              }}
-            >
-              OPN Renovation
-            </h3>
+            <div style={{ marginBottom: 16 }}>
+              <Image src="/opn-logo-white.png" alt="OPN Renovation" width={64} height={64} style={{ objectFit: 'contain' }} />
+            </div>
             <p className="site-body" style={{ fontSize: 14, marginBottom: 20, lineHeight: 1.7 }}>
               Family-owned painting company serving Des Moines and surrounding communities since 2020.
             </p>

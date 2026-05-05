@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 
@@ -54,18 +55,8 @@ export default function Navbar() {
           }}
         >
           {/* Logo */}
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <span
-              style={{
-                fontFamily: "'Cormorant Garamond', Georgia, serif",
-                fontSize: 22,
-                fontWeight: 600,
-                color: '#1D1D1F',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              OPN Renovation
-            </span>
+          <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+            <Image src="/opn-logo.png" alt="OPN Renovation" width={52} height={52} style={{ objectFit: 'contain' }} priority />
           </Link>
 
           {/* Desktop links */}

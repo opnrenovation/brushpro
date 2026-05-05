@@ -92,7 +92,7 @@ export default function AdminLoginPage() {
     <div
       style={{
         minHeight: '100vh',
-        background: '#F5F5F7',
+        background: '#f8fafc',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -106,7 +106,7 @@ export default function AdminLoginPage() {
           position: 'absolute',
           inset: 0,
           background:
-            'radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,122,255,0.08) 0%, transparent 70%), #F5F5F7',
+            'radial-gradient(ellipse 50% 50% at 50% 50%, rgba(30,64,175,0.08) 0%, transparent 70%), #f8fafc',
           zIndex: 0,
         }}
       />
@@ -119,15 +119,15 @@ export default function AdminLoginPage() {
               width: 56,
               height: 56,
               borderRadius: 14,
-              background: 'rgba(0,122,255,0.15)',
-              border: '1px solid rgba(0,122,255,0.3)',
+              background: '#1e40af',
+              border: 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 16px',
             }}
           >
-            <Lock size={24} strokeWidth={1.5} style={{ color: '#007AFF' }} />
+            <Lock size={24} strokeWidth={1.5} style={{ color: '#ffffff' }} />
           </div>
           <h1 style={{ color: 'var(--text-primary)', fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em', marginBottom: 4 }}>
             OPN Renovation

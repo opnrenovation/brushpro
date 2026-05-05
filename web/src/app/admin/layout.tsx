@@ -1,10 +1,11 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Target, Briefcase, Users,
-  Mail, BarChart2, Settings, LogOut, PaintBucket, Menu, X, Truck, Building2, FileText,
+  Mail, BarChart2, Settings, LogOut, Menu, X, Truck, Building2, FileText,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 
@@ -47,14 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Menu size={22} strokeWidth={1.5} />
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: 8,
-            background: 'rgba(0,122,255,0.10)',
-            border: '1px solid rgba(0,122,255,0.25)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <PaintBucket size={14} color="#007AFF" strokeWidth={1.5} />
-          </div>
+          <Image src="/opn-logo.png" alt="OPN Renovation" width={28} height={28} style={{ objectFit: 'contain' }} />
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>BrushPro</span>
         </div>
         {/* spacer to visually center the logo */}
@@ -68,23 +62,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside className={`admin-sidebar${sidebarOpen ? ' sidebar-open' : ''}`}>
 
         {/* Logo row */}
-        <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 34, height: 34, borderRadius: 10,
-              background: 'rgba(0,122,255,0.10)',
-              border: '1px solid rgba(0,122,255,0.25)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <PaintBucket size={18} color="#007AFF" strokeWidth={1.5} />
-            </div>
+            <Image src="/opn-logo-white.png" alt="OPN Renovation" width={36} height={36} style={{ objectFit: 'contain' }} />
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>BrushPro</div>
-              <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>OPN Renovation</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff' }}>BrushPro</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>OPN Renovation</div>
             </div>
           </div>
           {/* X button — only visible on mobile via CSS */}
-          <button className="sidebar-close-btn" onClick={close} aria-label="Close menu">
+          <button className="sidebar-close-btn" onClick={close} aria-label="Close menu" style={{ color: 'rgba(255,255,255,0.7)' }}>
             <X size={18} strokeWidth={1.5} />
           </button>
         </div>
@@ -103,11 +90,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   alignItems: 'center',
                   gap: 10,
                   padding: '9px 12px',
-                  borderRadius: 10,
+                  borderRadius: 8,
                   fontSize: 14,
                   fontWeight: active ? 600 : 400,
-                  color: active ? '#007AFF' : 'var(--text-secondary)',
-                  background: active ? 'rgba(0,122,255,0.08)' : 'transparent',
+                  color: active ? '#ffffff' : 'rgba(255,255,255,0.65)',
+                  background: active ? '#2563eb' : 'transparent',
                   textDecoration: 'none',
                   marginBottom: 2,
                   transition: 'all 0.15s',
@@ -122,18 +109,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* User / sign-out */}
         {user && (
-          <div style={{ padding: '16px 16px', borderTop: '1px solid var(--border)' }}>
+          <div style={{ padding: '16px 16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
             <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{user.name}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{user.role}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#ffffff', marginBottom: 2 }}>{user.name}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{user.role}</div>
             </div>
             <button
               onClick={handleLogout}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 width: '100%', padding: '8px 10px',
-                background: 'transparent', border: '1px solid var(--border)',
-                borderRadius: 8, color: 'var(--text-secondary)', fontSize: 13,
+                background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: 8, color: 'rgba(255,255,255,0.65)', fontSize: 13,
                 cursor: 'pointer', transition: 'all 0.15s',
               }}
             >
