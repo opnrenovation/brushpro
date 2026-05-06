@@ -188,6 +188,44 @@ function DocumentsSection() {
           <GlassInput value={val('next_estimate_number')} onChange={set('next_estimate_number')} type="number" placeholder="1" />
         </Field>
       </div>
+
+      {/* Payment Terms */}
+      {(() => {
+        const PRESET_TERMS = ['Due on receipt', 'Net 7', 'Net 15', 'Net 30', 'Net 45', 'Net 60'];
+        const termsVal = val('payment_terms_label') || 'Due on receipt';
+        const isCustom = !PRESET_TERMS.includes(termsVal);
+        return (
+          <>
+            <Field label="Default Payment Terms">
+              <select
+                value={isCustom ? 'Custom' : termsVal}
+                onChange={(e) => {
+                  if (e.target.value !== 'Custom') {
+                    set('payment_terms_label')(e.target.value);
+                  } else {
+                    set('payment_terms_label')('');
+                  }
+                }}
+                className="glass-input"
+                style={{ width: '100%', padding: '10px 14px', fontSize: 14, appearance: 'none' }}
+              >
+                {PRESET_TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
+                <option value="Custom">Custom...</option>
+              </select>
+            </Field>
+            {isCustom && (
+              <Field label="Custom Terms">
+                <GlassInput
+                  value={termsVal}
+                  onChange={set('payment_terms_label')}
+                  placeholder="e.g. 50% deposit, balance on completion"
+                />
+              </Field>
+            )}
+          </>
+        );
+      })()}
+
       <Field label="Default Invoice Notes">
         <textarea
           value={val('invoice_notes')}

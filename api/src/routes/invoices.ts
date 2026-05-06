@@ -139,7 +139,9 @@ invoicesRouter.post('/:id/send', async (req, res) => {
           invoice_number: invoice.invoice_number,
           type: invoice.type,
           status: invoice.status,
+          invoice_date: invoice.created_at.toISOString(),
           due_date: invoice.due_date.toISOString(),
+          payment_terms_label: settings?.payment_terms_label ?? 'Due on receipt',
           notes: invoice.notes ?? undefined,
           tax_profile: { state_rate: Number(invoice.tax_profile.state_rate), local_rate: Number(invoice.tax_profile.local_rate), name: invoice.tax_profile.name },
           discount_type: invoice.discount_type,
@@ -149,7 +151,13 @@ invoicesRouter.post('/:id/send', async (req, res) => {
           job: invoice.job ? { address: invoice.job.address ?? undefined, name: invoice.job.name ?? undefined, customer: invoice.job.customer ? { name: invoice.job.customer.name ?? undefined, email: invoice.job.customer.email ?? undefined } : undefined } : null,
           customer: invoice.customer ? { name: invoice.customer.name ?? undefined, email: invoice.customer.email ?? undefined } : null,
         },
-        { company_name: settings?.company_name, phone: settings?.phone ?? undefined, email: settings?.email ?? undefined },
+        {
+          company_name: settings?.company_name,
+          phone: settings?.phone ?? undefined,
+          email: settings?.email ?? undefined,
+          address: settings?.address ?? undefined,
+          logo_url: settings?.logo_url ?? undefined,
+        },
         payUrl,
       );
     } catch (pdfErr) {
