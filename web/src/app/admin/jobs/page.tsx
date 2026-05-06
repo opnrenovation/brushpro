@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Briefcase, Search, Plus, X, Building2, User } from 'lucide-react';
+import { Briefcase, Search, Plus, X, Building2, User, Pencil, Trash2 } from 'lucide-react';
 import { jobsApi, customersApi, contactsApi, companiesApi } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth';
 
@@ -23,7 +23,7 @@ const STATUS_PILL: Record<string, string> = {
   COMPLETE: 'pill-muted', CANCELLED: 'pill-muted',
 };
 
-interface Job { id: string; name: string; address: string; status: string; municipality: string; customer?: { name: string }; created_at: string; }
+interface Job { id: string; name: string; address: string; status: string; municipality: string; tax_exempt: boolean; notes?: string; customer?: { name: string }; created_at: string; }
 interface Contact { id: string; first_name: string; last_name: string; email?: string; phone?: string; address?: string; city?: string; state?: string; zip?: string; company?: string; }
 interface Company { id: string; name: string; phone?: string; email?: string; address?: string; city?: string; state?: string; zip?: string; }
 interface CustomerRecord { id: string; contact_id?: string; name: string; }
@@ -40,6 +40,11 @@ function JobsPageInner() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState('');
+
+  // Edit / delete state
+  const [editJob, setEditJob] = useState<Job | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', address: '', municipality: '', status: '', tax_exempt: false, notes: '' });
+  const [editError, setEditError] = useState('');
 
   // Customer search state
   const [customerQuery, setCustomerQuery] = useState('');
@@ -187,6 +192,26 @@ function JobsPageInner() {
       setFormError(msg || 'Failed to create job. Please try again.');
     },
   });
+
+  const editMutation = useMutation({
+    mutationFn: (payload: typeof editForm) => jobsApi.update(editJob!.id, payload),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['jobs'] }); setEditJob(null); setEditError(''); },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setEditError(msg || 'Failed to update job.');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => jobsApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs'] }),
+  });
+
+  function openEdit(j: Job) {
+    setEditJob(j);
+    setEditForm({ name: j.name, address: j.address, municipality: j.municipality, status: j.status, tax_exempt: j.tax_exempt, notes: j.notes || '' });
+    setEditError('');
+  }
 
   function handleSubmit() {
     if (!form.contact_id && !form.company_id) {
@@ -338,6 +363,55 @@ function JobsPageInner() {
         </div>
       )}
 
+      {/* Edit Modal */}
+      {editJob && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
+          <div style={{ width: '100%', maxWidth: 480, padding: 32, background: '#fff', borderRadius: 16, boxShadow: '0 8px 40px rgba(0,0,0,0.15)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>Edit Job</h2>
+              <button onClick={() => setEditJob(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}><X size={20} strokeWidth={1.5} /></button>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Job Name *</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={editForm.name} onChange={(e) => setEditForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Address *</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={editForm.address} onChange={(e) => setEditForm(f => ({ ...f, address: e.target.value }))} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Municipality *</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={editForm.municipality} onChange={(e) => setEditForm(f => ({ ...f, municipality: e.target.value }))} list="iowa-municipalities-edit" />
+              <datalist id="iowa-municipalities-edit">{IOWA_MUNICIPALITIES.map(m => <option key={m} value={m} />)}</datalist>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Status</label>
+              <select className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={editForm.status} onChange={(e) => setEditForm(f => ({ ...f, status: e.target.value }))}>
+                {['ESTIMATING','ACTIVE','INVOICED','COMPLETE','CANCELLED'].map(s => <option key={s} value={s}>{s.charAt(0)+s.slice(1).toLowerCase()}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Sales Tax</label>
+              <select className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }} value={editForm.tax_exempt ? 'exempt' : 'taxable'} onChange={(e) => setEditForm(f => ({ ...f, tax_exempt: e.target.value === 'exempt' }))}>
+                <option value="taxable">Taxable</option>
+                <option value="exempt">Tax Exempt</option>
+              </select>
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Notes</label>
+              <textarea className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14, minHeight: 72, resize: 'vertical' }} value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+            </div>
+            {editError && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 16 }}>{editError}</p>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setEditJob(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => editMutation.mutate(editForm)} disabled={editMutation.isPending}>
+                {editMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Status tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
         {STATUSES.map((s) => (
@@ -360,10 +434,10 @@ function JobsPageInner() {
 
       <div className="glass" style={{ overflow: 'hidden' }}>
         <table className="data-table">
-          <thead><tr><th>Job</th><th>Customer</th><th>Address</th><th>Status</th></tr></thead>
+          <thead><tr><th>Job</th><th>Customer</th><th>Address</th><th>Status</th><th></th></tr></thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'rgba(0,0,0,0.35)', padding: 40 }}>No jobs found.</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'rgba(0,0,0,0.35)', padding: 40 }}>No jobs found.</td></tr>
             )}
             {filtered.map((j) => (
               <tr key={j.id}>
@@ -371,6 +445,31 @@ function JobsPageInner() {
                 <td style={{ color: 'rgba(0,0,0,0.6)' }}>{j.customer?.name || '—'}</td>
                 <td style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>{j.address}, {j.municipality}</td>
                 <td><span className={`pill ${STATUS_PILL[j.status] || 'pill-muted'}`}>{j.status}</span></td>
+                <td>
+                  <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                    <button
+                      title="Edit job"
+                      onClick={(e) => { e.preventDefault(); openEdit(j); }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.35)', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#007AFF')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'rgba(0,0,0,0.35)')}
+                    >
+                      <Pencil size={14} strokeWidth={1.5} />
+                    </button>
+                    <button
+                      title="Delete job"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (confirm(`Delete job "${j.name}"? This cannot be undone.`)) deleteMutation.mutate(j.id);
+                      }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.35)', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#dc2626')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'rgba(0,0,0,0.35)')}
+                    >
+                      <Trash2 size={14} strokeWidth={1.5} />
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
