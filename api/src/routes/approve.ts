@@ -232,6 +232,7 @@ approveRouter.post('/:token/sign', async (req, res) => {
     let invoiceId: string | null = null;
     let checkout_url: string | null = null;
     let deposit_amount = 0;
+    let invoice_number = '';
 
     try {
       // Resolve invoice number from counter
@@ -241,7 +242,7 @@ approveRouter.post('/:token/sign', async (req, res) => {
         const count = await prisma.invoice.count();
         nextNum = count + 1;
       }
-      const invoice_number = `${prefix}-${String(nextNum).padStart(4, '0')}`;
+      invoice_number = `${prefix}-${String(nextNum).padStart(4, '0')}`;
       if (settings) {
         await prisma.companySettings.update({
           where: { id: settings.id },
@@ -259,7 +260,7 @@ approveRouter.post('/:token/sign', async (req, res) => {
           estimate_id: estimate.id,
           invoice_number,
           type: 'FINAL',
-          line_items: estimate.line_items,
+          line_items: estimate.line_items ?? [],
           tax_profile_id: estimate.tax_profile_id,
           due_date,
           notes: settings?.invoice_notes ?? undefined,
