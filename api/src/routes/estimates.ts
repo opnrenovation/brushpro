@@ -29,11 +29,17 @@ estimatesRouter.post('/', async (req, res) => {
     const settings = await prisma.companySettings.findFirst();
     const prefix = settings?.estimate_prefix || 'EST';
 
-    let nextNum = settings?.next_estimate_number ?? null;
-    if (!nextNum || nextNum < 1) {
-      const count = await prisma.estimate.count();
-      nextNum = count + 1;
-    }
+    // Find the highest number currently in use so we never collide
+    const maxRow = await prisma.$queryRaw<{ max: number | null }[]>`
+      SELECT MAX(CAST(SPLIT_PART(estimate_number, '-', 2) AS INTEGER)) AS max
+      FROM "estimates"
+      WHERE estimate_number ~ '^[A-Z]+-[0-9]+$'
+    `;
+    const maxUsed = maxRow[0]?.max ?? 0;
+    let nextNum = Math.max(
+      settings?.next_estimate_number ?? 1,
+      maxUsed + 1,
+    );
     const estimate_number = `${prefix}-${String(nextNum).padStart(4, '0')}`;
 
     if (settings) {
@@ -227,11 +233,13 @@ estimatesRouter.post('/:id/convert', async (req, res) => {
     const settings = await prisma.companySettings.findFirst();
     const prefix = settings?.invoice_prefix || 'INV';
 
-    let nextNum = settings?.next_invoice_number ?? null;
-    if (!nextNum || nextNum < 1) {
-      const count = await prisma.invoice.count();
-      nextNum = count + 1;
-    }
+    const maxInvRow = await prisma.$queryRaw<{ max: number | null }[]>`
+      SELECT MAX(CAST(SPLIT_PART(invoice_number, '-', 2) AS INTEGER)) AS max
+      FROM "invoices"
+      WHERE invoice_number ~ '^[A-Z]+-[0-9]+$'
+    `;
+    const maxInvUsed = maxInvRow[0]?.max ?? 0;
+    const nextNum = Math.max(settings?.next_invoice_number ?? 1, maxInvUsed + 1);
     const invoice_number = `${prefix}-${String(nextNum).padStart(4, '0')}`;
 
     if (settings) {

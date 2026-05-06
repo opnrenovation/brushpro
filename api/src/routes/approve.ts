@@ -235,13 +235,15 @@ approveRouter.post('/:token/sign', async (req, res) => {
     let invoice_number = '';
 
     try {
-      // Resolve invoice number from counter
+      // Resolve invoice number — always use MAX+1 to avoid unique constraint collisions
       const prefix = settings?.invoice_prefix || 'INV';
-      let nextNum = settings?.next_invoice_number ?? null;
-      if (!nextNum || nextNum < 1) {
-        const count = await prisma.invoice.count();
-        nextNum = count + 1;
-      }
+      const maxRow = await prisma.$queryRaw<{ max: number | null }[]>`
+        SELECT MAX(CAST(SPLIT_PART(invoice_number, '-', 2) AS INTEGER)) AS max
+        FROM "invoices"
+        WHERE invoice_number ~ '^[A-Z]+-[0-9]+$'
+      `;
+      const maxUsed = maxRow[0]?.max ?? 0;
+      const nextNum = Math.max(settings?.next_invoice_number ?? 1, maxUsed + 1);
       invoice_number = `${prefix}-${String(nextNum).padStart(4, '0')}`;
       if (settings) {
         await prisma.companySettings.update({

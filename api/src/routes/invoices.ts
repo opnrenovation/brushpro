@@ -56,12 +56,17 @@ invoicesRouter.post('/', async (req, res) => {
     const settings = await prisma.companySettings.findFirst();
     const prefix = settings?.invoice_prefix || 'INV';
 
-    // Use the stored next number, falling back to count+1 if settings missing
-    let nextNum = settings?.next_invoice_number ?? null;
-    if (!nextNum || nextNum < 1) {
-      const count = await prisma.invoice.count();
-      nextNum = count + 1;
-    }
+    // Find the highest number currently in use so we never collide
+    const maxRow = await prisma.$queryRaw<{ max: number | null }[]>`
+      SELECT MAX(CAST(SPLIT_PART(invoice_number, '-', 2) AS INTEGER)) AS max
+      FROM "invoices"
+      WHERE invoice_number ~ '^[A-Z]+-[0-9]+$'
+    `;
+    const maxUsed = maxRow[0]?.max ?? 0;
+    const nextNum = Math.max(
+      settings?.next_invoice_number ?? 1,
+      maxUsed + 1,
+    );
     const invoice_number = `${prefix}-${String(nextNum).padStart(4, '0')}`;
 
     // Increment the counter before creating so concurrent requests get unique numbers
