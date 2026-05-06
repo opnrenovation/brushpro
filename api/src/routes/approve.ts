@@ -105,6 +105,9 @@ approveRouter.get('/:token', async (req, res) => {
       company_logo: settings?.logo_url ?? null,
       contract_body: contractBody,
       status: estimate.status,
+      deposit_required: settings?.deposit_required ?? false,
+      deposit_amount: deposit,
+      deposit_percentage: Number(settings?.deposit_percentage ?? 30),
     });
   } catch {
     res.status(500).json({ message: 'Failed to load estimate' });
@@ -225,6 +228,92 @@ approveRouter.post('/:token/sign', async (req, res) => {
       data: { status: 'ACTIVE' },
     });
 
+    // ── Auto-create FINAL invoice from approved estimate ──────────────────────
+    let invoiceId: string | null = null;
+    let checkout_url: string | null = null;
+    let deposit_amount = 0;
+
+    try {
+      // Resolve invoice number from counter
+      const prefix = settings?.invoice_prefix || 'INV';
+      let nextNum = settings?.next_invoice_number ?? null;
+      if (!nextNum || nextNum < 1) {
+        const count = await prisma.invoice.count();
+        nextNum = count + 1;
+      }
+      const invoice_number = `${prefix}-${String(nextNum).padStart(4, '0')}`;
+      if (settings) {
+        await prisma.companySettings.update({
+          where: { id: settings.id },
+          data: { next_invoice_number: nextNum + 1 },
+        });
+      }
+
+      const dueDays = settings?.payment_terms_days ?? 30;
+      const due_date = new Date();
+      due_date.setDate(due_date.getDate() + dueDays);
+
+      const invoice = await prisma.invoice.create({
+        data: {
+          job_id: estimate.job_id,
+          estimate_id: estimate.id,
+          invoice_number,
+          type: 'FINAL',
+          line_items: estimate.line_items,
+          tax_profile_id: estimate.tax_profile_id,
+          due_date,
+          notes: settings?.invoice_notes ?? undefined,
+        },
+      });
+      invoiceId = invoice.id;
+
+      // Create Stripe checkout for deposit amount if deposits are required
+      const depositAmt = settings?.deposit_required
+        ? Math.max(
+            (subtotal * Number(settings?.deposit_percentage ?? 30)) / 100,
+            Number(settings?.deposit_minimum_amount ?? 0),
+          )
+        : 0;
+
+      if (depositAmt > 0) {
+        try {
+          const StripeSDK = (await import('stripe')).default;
+          const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
+          if (stripeKey) {
+            const stripe = new StripeSDK(stripeKey, { apiVersion: '2025-02-24.acacia' });
+            const appUrl = process.env.APP_URL || 'http://localhost:3000';
+            const session = await stripe.checkout.sessions.create({
+              mode: 'payment',
+              payment_method_types: ['card', 'us_bank_account'],
+              line_items: [{
+                price_data: {
+                  currency: 'usd',
+                  unit_amount: Math.round(depositAmt * 100),
+                  product_data: {
+                    name: `Deposit — ${estimate.estimate_number}`,
+                    description: `${Number(settings?.deposit_percentage ?? 30)}% deposit on project total of $${total.toFixed(2)}`,
+                  },
+                },
+                quantity: 1,
+              }],
+              custom_text: {
+                submit: { message: 'This deposit secures your booking. The remaining balance is due upon project completion.' },
+              },
+              metadata: { invoice_id: invoice.id, payment_type: 'deposit' },
+              success_url: `${appUrl}/invoices/${invoice.id}?paid=true`,
+              cancel_url: `${appUrl}/invoices/${invoice.id}`,
+            });
+            checkout_url = session.url;
+            deposit_amount = depositAmt;
+          }
+        } catch (stripeErr) {
+          console.error('[approve/sign] Stripe deposit checkout failed (non-fatal):', stripeErr);
+        }
+      }
+    } catch (invoiceErr) {
+      console.error('[approve/sign] Invoice auto-creation failed (non-fatal):', invoiceErr);
+    }
+
     // Notify owner
     if (settings?.email) {
       const paintInfo =
@@ -241,11 +330,12 @@ approveRouter.post('/:token/sign', async (req, res) => {
           <p><strong>${customer_name}</strong> signed the service agreement for estimate <strong>${estimate.estimate_number}</strong> at ${estimate.job?.address}.</p>
           ${paintInfo}
           ${notesInfo}
+          ${invoiceId ? `<p>Invoice <strong>${invoice_number}</strong> auto-created and ready to send.</p>` : ''}
         `,
       });
     }
 
-    res.json({ data: { status: 'SIGNED', contract_id: contract.id } });
+    res.json({ data: { status: 'SIGNED', contract_id: contract.id, invoice_id: invoiceId, checkout_url, deposit_amount } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Failed to process signature' });

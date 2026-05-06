@@ -30,9 +30,12 @@ interface EstimateData {
   company_logo?: string | null;
   contract_body: string;
   status: string;
+  deposit_required: boolean;
+  deposit_amount: number;
+  deposit_percentage: number;
 }
 
-type Step = 'loading' | 'error' | 'view' | 'contract' | 'done' | 'declined';
+type Step = 'loading' | 'error' | 'view' | 'contract' | 'deposit' | 'done' | 'declined';
 
 const bg: React.CSSProperties = {
   minHeight: '100vh',
@@ -100,6 +103,10 @@ export default function ApprovePage() {
   const [hasDrawn, setHasDrawn] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
+
+  // Deposit step state
+  const [checkoutUrl, setCheckoutUrl] = useState('');
+  const [depositAmount, setDepositAmount] = useState(0);
 
   // Submit
   const [submitting, setSubmitting] = useState(false);
@@ -228,7 +235,13 @@ export default function ApprovePage() {
 
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.message || 'Signing failed. Please try again.');
-      setStep('done');
+      if (d.data?.checkout_url) {
+        setCheckoutUrl(d.data.checkout_url);
+        setDepositAmount(d.data.deposit_amount || 0);
+        setStep('deposit');
+      } else {
+        setStep('done');
+      }
     } catch (err: unknown) {
       setSubmitError(err instanceof Error ? err.message : 'Signing failed. Please try again.');
     } finally {
@@ -625,6 +638,60 @@ export default function ApprovePage() {
                 Back to estimate
               </button>
             </div>
+          </div>
+        )}
+
+        {/* ─── DEPOSIT ──────────────────────────────────────────────────────── */}
+        {step === 'deposit' && (
+          <div style={{ ...card, textAlign: 'center', padding: '56px 40px' }}>
+            <div style={{
+              width: 72, height: 72, borderRadius: '50%', margin: '0 auto 28px',
+              background: 'rgba(52,199,89,0.15)', border: '1px solid rgba(52,199,89,0.35)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <CheckCircle size={36} strokeWidth={1.5} style={{ color: '#34C759' }} />
+            </div>
+            <h2 style={{ fontFamily: serif, fontSize: 32, fontWeight: 600, color: '#fff', marginBottom: 12 }}>
+              Agreement Signed
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 15, lineHeight: 1.75, maxWidth: 440, margin: '0 auto 32px' }}>
+              Thank you, {estimate?.customer_name}. Your service agreement has been signed.
+              To confirm your booking, please pay the deposit below.
+            </p>
+
+            {/* Deposit amount box */}
+            <div style={{
+              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 16, padding: '24px 32px', maxWidth: 320, margin: '0 auto 32px',
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 8 }}>
+                Deposit Due
+              </div>
+              <div style={{ fontSize: 36, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+                ${depositAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
+                {estimate?.deposit_percentage ?? 30}% of project total
+              </div>
+            </div>
+
+            <button
+              onClick={() => { window.location.href = checkoutUrl; }}
+              style={{
+                background: '#007AFF', color: '#fff', padding: '16px 40px',
+                borderRadius: 12, fontSize: 16, fontWeight: 600, border: 'none',
+                cursor: 'pointer', width: '100%', maxWidth: 320, marginBottom: 16,
+              }}
+            >
+              Pay Deposit Now
+            </button>
+            <br />
+            <button
+              onClick={() => setStep('done')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', fontSize: 13, fontFamily: 'inherit', padding: 4 }}
+            >
+              I will pay later
+            </button>
           </div>
         )}
 

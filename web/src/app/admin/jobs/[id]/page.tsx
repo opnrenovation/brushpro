@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, X, Trash2, Send, Eye, Pencil, Clock, MoreHorizontal, AlertTriangle, Link } from 'lucide-react';
+import { ArrowLeft, Plus, X, Trash2, Send, Eye, Pencil, Clock, MoreHorizontal, AlertTriangle, Link, CheckCircle } from 'lucide-react';
 import { jobsApi, estimatesApi, invoicesApi, settingsApi, taxProfilesApi } from '@/lib/api';
 
 const TABS = ['Overview', 'Estimates', 'Labor', 'Expenses', 'Invoices'];
@@ -862,6 +862,21 @@ export default function JobDetailPage() {
               <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.35)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Notes</div>
               <p style={{ color: 'rgba(0,0,0,0.7)', fontSize: 14, lineHeight: 1.6 }}>{job.notes}</p>
             </div>}
+            {job.status === 'ACTIVE' && (
+              <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+                <button
+                  className="btn btn-primary"
+                  style={{ background: '#16a34a', borderColor: '#16a34a' }}
+                  onClick={() => {
+                    if (window.confirm('Mark this job as complete? This will finalize the job status.')) {
+                      updateJob.mutate({ status: 'COMPLETE' });
+                    }
+                  }}
+                >
+                  <CheckCircle size={15} strokeWidth={1.5} /> Mark Job Complete
+                </button>
+              </div>
+            )}
           </div>
         )}
 
