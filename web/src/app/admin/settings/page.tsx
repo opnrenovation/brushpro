@@ -181,6 +181,12 @@ function DocumentsSection() {
         <Field label="Estimate Number Prefix">
           <GlassInput value={val('estimate_prefix')} onChange={set('estimate_prefix')} placeholder="EST-" />
         </Field>
+        <Field label="Next Invoice Number">
+          <GlassInput value={val('next_invoice_number')} onChange={set('next_invoice_number')} type="number" placeholder="1" />
+        </Field>
+        <Field label="Next Estimate Number">
+          <GlassInput value={val('next_estimate_number')} onChange={set('next_estimate_number')} type="number" placeholder="1" />
+        </Field>
       </div>
       <Field label="Default Invoice Notes">
         <textarea

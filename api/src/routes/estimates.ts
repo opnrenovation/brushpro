@@ -28,8 +28,20 @@ estimatesRouter.post('/', async (req, res) => {
   try {
     const settings = await prisma.companySettings.findFirst();
     const prefix = settings?.estimate_prefix || 'EST';
-    const count = await prisma.estimate.count();
-    const estimate_number = `${prefix}-${String(count + 1).padStart(4, '0')}`;
+
+    let nextNum = settings?.next_estimate_number ?? null;
+    if (!nextNum || nextNum < 1) {
+      const count = await prisma.estimate.count();
+      nextNum = count + 1;
+    }
+    const estimate_number = `${prefix}-${String(nextNum).padStart(4, '0')}`;
+
+    if (settings) {
+      await prisma.companySettings.update({
+        where: { id: settings.id },
+        data: { next_estimate_number: nextNum + 1 },
+      });
+    }
 
     // Auto-resolve tax_profile_id if not provided
     let { tax_profile_id } = req.body;
@@ -189,8 +201,20 @@ estimatesRouter.post('/:id/convert', async (req, res) => {
 
     const settings = await prisma.companySettings.findFirst();
     const prefix = settings?.invoice_prefix || 'INV';
-    const count = await prisma.invoice.count();
-    const invoice_number = `${prefix}-${String(count + 1).padStart(4, '0')}`;
+
+    let nextNum = settings?.next_invoice_number ?? null;
+    if (!nextNum || nextNum < 1) {
+      const count = await prisma.invoice.count();
+      nextNum = count + 1;
+    }
+    const invoice_number = `${prefix}-${String(nextNum).padStart(4, '0')}`;
+
+    if (settings) {
+      await prisma.companySettings.update({
+        where: { id: settings.id },
+        data: { next_invoice_number: nextNum + 1 },
+      });
+    }
 
     const invoice = await prisma.invoice.create({
       data: {

@@ -55,8 +55,22 @@ invoicesRouter.post('/', async (req, res) => {
   try {
     const settings = await prisma.companySettings.findFirst();
     const prefix = settings?.invoice_prefix || 'INV';
-    const count = await prisma.invoice.count();
-    const invoice_number = `${prefix}-${String(count + 1).padStart(4, '0')}`;
+
+    // Use the stored next number, falling back to count+1 if settings missing
+    let nextNum = settings?.next_invoice_number ?? null;
+    if (!nextNum || nextNum < 1) {
+      const count = await prisma.invoice.count();
+      nextNum = count + 1;
+    }
+    const invoice_number = `${prefix}-${String(nextNum).padStart(4, '0')}`;
+
+    // Increment the counter before creating so concurrent requests get unique numbers
+    if (settings) {
+      await prisma.companySettings.update({
+        where: { id: settings.id },
+        data: { next_invoice_number: nextNum + 1 },
+      });
+    }
 
     const invoice = await prisma.invoice.create({
       data: { ...req.body, invoice_number },

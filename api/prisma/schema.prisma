@@ -171,6 +171,8 @@ model CompanySettings {
   default_tax_profile_id  String?
   invoice_prefix          String   @default("INV")
   estimate_prefix         String   @default("EST")
+  next_invoice_number     Int      @default(1)
+  next_estimate_number    Int      @default(1)
   invoice_notes           String?
   estimate_notes          String?
   // Deposit / billing settings
