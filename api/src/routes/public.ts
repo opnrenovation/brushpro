@@ -175,7 +175,8 @@ router.get('/availability', async (req: Request, res: Response) => {
     );
 
     // Also block times that overlap with Google Calendar events
-    const googleBusy = await getGoogleBusyTimes(date);
+    const gcalSettings = await prisma.schedulerSettings.findFirst();
+    const googleBusy = await getGoogleBusyTimes(date, gcalSettings?.google_calendar_id);
 
     const available = slots.filter((s) => {
       if (bookedSlots.has(s)) return false;
@@ -242,6 +243,7 @@ router.post('/appointments', async (req: Request, res: Response) => {
 
     // Create Google Calendar event (non-blocking — failure doesn't affect booking)
     try {
+      const gcalCfg = await prisma.schedulerSettings.findFirst();
       const googleEventId = await createCalendarEvent({
         id: appt.id,
         first_name,
@@ -252,7 +254,7 @@ router.post('/appointments', async (req: Request, res: Response) => {
         appointment_type_name: apptType.name,
         scheduled_at: scheduledAt,
         duration_minutes: apptType.duration_minutes,
-      });
+      }, gcalCfg?.google_calendar_id);
       if (googleEventId) {
         await prisma.appointment.update({
           where: { id: appt.id },

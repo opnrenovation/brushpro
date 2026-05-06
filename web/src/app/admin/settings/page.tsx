@@ -703,6 +703,30 @@ function SchedulerSection() {
         </button>
       </div>
 
+      {/* Google Calendar */}
+      <div style={{ background: 'rgba(0,0,0,0.04)', borderRadius: 12, padding: '20px 24px', marginBottom: 24 }}>
+        <h3 style={{ color: 'rgba(0,0,0,0.5)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
+          Google Calendar
+        </h3>
+        <p style={{ color: 'rgba(0,0,0,0.45)', fontSize: 12, marginBottom: 16 }}>
+          Enter the Gmail address of the calendar to sync appointments with. The service account must be granted access to this calendar.
+          OAuth per-user authorization can be added here for multi-tenant use.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, maxWidth: 420 }}>
+          <Field label="Calendar ID (Gmail address)">
+            <GlassInput
+              value={val('google_calendar_id')}
+              onChange={set('google_calendar_id')}
+              type="email"
+              placeholder="you@gmail.com"
+            />
+          </Field>
+        </div>
+        <button className="btn btn-primary" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} style={{ marginTop: 8 }}>
+          {updateMutation.isPending ? 'Saving...' : 'Save Calendar Settings'}
+        </button>
+      </div>
+
       {/* Appointment Types */}
       <div style={{ marginBottom: 24 }}>
         <h3 style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 15, marginBottom: 12 }}>Appointment Types</h3>

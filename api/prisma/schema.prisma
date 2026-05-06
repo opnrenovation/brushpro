@@ -338,6 +338,7 @@ model SchedulerSettings {
   buffer_minutes         Int     @default(30)
   min_notice_hours       Int     @default(24)
   booking_window_days    Int     @default(60)
+  google_calendar_id     String?
   google_refresh_token   String?
   confirmation_email_body String?
   reminder_hours_before  Int     @default(24)

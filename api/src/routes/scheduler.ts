@@ -28,7 +28,7 @@ router.get('/settings', async (_req: Request, res: Response) => {
 // PATCH /scheduler/settings
 router.patch('/settings', async (req: Request, res: Response) => {
   try {
-    const { buffer_minutes, min_notice_hours, booking_window_days, reminder_hours_before, confirmation_email_body } = req.body;
+    const { buffer_minutes, min_notice_hours, booking_window_days, reminder_hours_before, confirmation_email_body, google_calendar_id } = req.body;
     let settings = await prisma.schedulerSettings.findFirst();
     if (!settings) {
       settings = await prisma.schedulerSettings.create({ data: {} });
@@ -41,6 +41,7 @@ router.patch('/settings', async (req: Request, res: Response) => {
         ...(booking_window_days !== undefined && { booking_window_days }),
         ...(reminder_hours_before !== undefined && { reminder_hours_before }),
         ...(confirmation_email_body !== undefined && { confirmation_email_body }),
+        ...(google_calendar_id !== undefined && { google_calendar_id: google_calendar_id || null }),
       },
     });
     res.json({ data: updated });
@@ -213,6 +214,7 @@ router.post('/appointments', async (req: Request, res: Response) => {
 
     // Sync to Google Calendar (non-blocking)
     try {
+      const gcalSettings = await prisma.schedulerSettings.findFirst();
       const googleEventId = await createCalendarEvent({
         id: appt.id,
         first_name,
@@ -223,7 +225,7 @@ router.post('/appointments', async (req: Request, res: Response) => {
         appointment_type_name: appt.appointment_type.name,
         scheduled_at: new Date(scheduled_at),
         duration_minutes: appt.duration_minutes,
-      });
+      }, gcalSettings?.google_calendar_id);
       if (googleEventId) {
         await prisma.appointment.update({
           where: { id: appt.id },
@@ -264,8 +266,10 @@ router.patch('/appointments/:id', async (req: Request, res: Response) => {
 
     // Sync to Google Calendar (non-blocking)
     try {
+      const gcalSettings = await prisma.schedulerSettings.findFirst();
+      const calId = gcalSettings?.google_calendar_id;
       if (status === 'CANCELLED' && current?.google_event_id) {
-        await deleteCalendarEvent(current.google_event_id);
+        await deleteCalendarEvent(current.google_event_id, calId);
         await prisma.appointment.update({
           where: { id: req.params.id },
           data: { google_event_id: null },
@@ -282,7 +286,7 @@ router.patch('/appointments/:id', async (req: Request, res: Response) => {
           appointment_type_name: updated.appointment_type.name,
           scheduled_at: new Date(updated.scheduled_at),
           duration_minutes: updated.duration_minutes,
-        });
+        }, calId);
       } else if (status !== 'CANCELLED' && scheduled_at) {
         // No existing event — create one (e.g. if GCal was added after initial booking)
         const googleEventId = await createCalendarEvent({
@@ -295,7 +299,7 @@ router.patch('/appointments/:id', async (req: Request, res: Response) => {
           appointment_type_name: updated.appointment_type.name,
           scheduled_at: new Date(updated.scheduled_at),
           duration_minutes: updated.duration_minutes,
-        });
+        }, calId);
         if (googleEventId) {
           await prisma.appointment.update({
             where: { id: req.params.id },

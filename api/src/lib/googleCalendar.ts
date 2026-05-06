@@ -18,8 +18,8 @@ import { google, calendar_v3 } from 'googleapis';
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-function getCalendarId(): string | null {
-  return process.env.GOOGLE_CALENDAR_ID || null;
+function getCalendarId(override?: string | null): string | null {
+  return override || process.env.GOOGLE_CALENDAR_ID || null;
 }
 
 let _calendar: calendar_v3.Calendar | null = null;
@@ -67,9 +67,9 @@ export interface GCalAppointment {
  * Create a Google Calendar event and return its event ID.
  * Returns null if Google Calendar is not configured or if creation fails.
  */
-export async function createCalendarEvent(appt: GCalAppointment): Promise<string | null> {
+export async function createCalendarEvent(appt: GCalAppointment, calendarIdOverride?: string | null): Promise<string | null> {
   const cal = getCalendar();
-  const calendarId = getCalendarId();
+  const calendarId = getCalendarId(calendarIdOverride);
   if (!cal || !calendarId) return null;
 
   const start = new Date(appt.scheduled_at);
@@ -121,9 +121,10 @@ export async function createCalendarEvent(appt: GCalAppointment): Promise<string
 export async function updateCalendarEvent(
   googleEventId: string,
   appt: GCalAppointment,
+  calendarIdOverride?: string | null,
 ): Promise<void> {
   const cal = getCalendar();
-  const calendarId = getCalendarId();
+  const calendarId = getCalendarId(calendarIdOverride);
   if (!cal || !calendarId || !googleEventId) return;
 
   const start = new Date(appt.scheduled_at);
@@ -162,9 +163,9 @@ export async function updateCalendarEvent(
 /**
  * Delete a Google Calendar event (e.g. on cancellation).
  */
-export async function deleteCalendarEvent(googleEventId: string): Promise<void> {
+export async function deleteCalendarEvent(googleEventId: string, calendarIdOverride?: string | null): Promise<void> {
   const cal = getCalendar();
-  const calendarId = getCalendarId();
+  const calendarId = getCalendarId(calendarIdOverride);
   if (!cal || !calendarId || !googleEventId) return;
 
   try {
@@ -183,9 +184,10 @@ export async function deleteCalendarEvent(googleEventId: string): Promise<void> 
  */
 export async function getGoogleBusyTimes(
   date: string, // "YYYY-MM-DD"
+  calendarIdOverride?: string | null,
 ): Promise<Array<{ start: Date; end: Date }>> {
   const cal = getCalendar();
-  const calendarId = getCalendarId();
+  const calendarId = getCalendarId(calendarIdOverride);
   if (!cal || !calendarId) return [];
 
   const dayStart = new Date(`${date}T00:00:00-05:00`); // CT
