@@ -244,6 +244,15 @@ function DocumentsSection() {
           placeholder="This estimate is valid for 30 days."
         />
       </Field>
+      <Field label="Disclaimer (printed on all invoices and estimates)">
+        <textarea
+          value={val('disclaimer')}
+          onChange={(e) => set('disclaimer')(e.target.value)}
+          className="glass-input"
+          style={{ width: '100%', padding: '10px 14px', fontSize: 14, minHeight: 100, resize: 'vertical' }}
+          placeholder="Any changes to the scope of work or specifications..."
+        />
+      </Field>
       <button
         className="btn btn-primary"
         onClick={() => mutation.mutate()}

@@ -142,6 +142,7 @@ invoicesRouter.post('/:id/send', async (req, res) => {
           invoice_date: invoice.created_at.toISOString(),
           due_date: invoice.due_date.toISOString(),
           payment_terms_label: settings?.payment_terms_label ?? 'Due on receipt',
+          disclaimer: settings?.disclaimer ?? undefined,
           notes: invoice.notes ?? undefined,
           tax_profile: { state_rate: Number(invoice.tax_profile.state_rate), local_rate: Number(invoice.tax_profile.local_rate), name: invoice.tax_profile.name },
           discount_type: invoice.discount_type,

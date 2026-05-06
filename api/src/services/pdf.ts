@@ -1,172 +1,209 @@
-// PDF generation service using Puppeteer
-// Generates branded PDFs for proposals, invoices, and contracts
+/**
+ * PDF generation service — uses PDFKit for both proposals and invoices.
+ * No Puppeteer dependency required.
+ */
+
+import PDFDocument from 'pdfkit';
+import https from 'https';
+import http from 'http';
+
+async function fetchImageBuffer(url: string): Promise<Buffer | null> {
+  return new Promise((resolve) => {
+    try {
+      const client = url.startsWith('https') ? https : http;
+      const req = client.get(url, (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => resolve(Buffer.concat(chunks)));
+        res.on('error', () => resolve(null));
+      });
+      req.on('error', () => resolve(null));
+      req.setTimeout(4000, () => { req.destroy(); resolve(null); });
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+function usd(n: number): string {
+  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 export async function generateProposalPdf(params: {
   estimate_number: string;
+  estimate_date: string;
   job_address: string;
+  customer_name?: string;
+  customer_email?: string;
   notes?: string;
+  disclaimer?: string;
   total_price: number;
   company_name: string;
+  company_address?: string;
+  company_phone?: string;
+  company_email?: string;
   logo_url?: string;
+  approval_url?: string;
+  expiry_date?: string;
 }): Promise<Buffer> {
-  const puppeteer = await import('puppeteer');
-  const browser = await puppeteer.default.launch({ args: ['--no-sandbox'] });
-  const page = await browser.newPage();
+  let logoBuffer: Buffer | null = null;
+  if (params.logo_url) {
+    logoBuffer = await fetchImageBuffer(params.logo_url);
+  }
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 48px; color: #1a1a1a; }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
-        .logo { max-height: 60px; max-width: 200px; }
-        .company-name { font-size: 24px; font-weight: 700; }
-        .doc-title { font-size: 32px; font-weight: 700; color: #007AFF; margin-bottom: 8px; }
-        .doc-number { font-size: 16px; color: #666; margin-bottom: 32px; }
-        .section { margin-bottom: 24px; }
-        .label { font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-        .value { font-size: 16px; }
-        .total-box { background: #f5f5f5; border-radius: 12px; padding: 24px; margin-top: 40px; }
-        .total-label { font-size: 14px; color: #666; }
-        .total-amount { font-size: 36px; font-weight: 700; color: #007AFF; margin-top: 4px; }
-        .notes { font-size: 14px; color: #444; line-height: 1.6; white-space: pre-wrap; }
-        .footer { margin-top: 60px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 16px; }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <div>
-          ${params.logo_url ? `<img src="${params.logo_url}" class="logo" alt="Logo">` : `<div class="company-name">${params.company_name}</div>`}
-        </div>
-        <div style="text-align:right">
-          <div class="doc-title">PROPOSAL</div>
-          <div class="doc-number">${params.estimate_number}</div>
-        </div>
-      </div>
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 50, size: 'LETTER' });
+    const chunks: Buffer[] = [];
+    doc.on('data', (c: Buffer) => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
 
-      <div class="section">
-        <div class="label">Job Address</div>
-        <div class="value">${params.job_address}</div>
-      </div>
+    const M  = 50;
+    const PW = doc.page.width - 2 * M;  // 512pt
 
-      ${params.notes ? `
-      <div class="section">
-        <div class="label">Scope of Work</div>
-        <div class="notes">${params.notes}</div>
-      </div>
-      ` : ''}
+    const BLUE       = '#0047C8';
+    const NAVY       = '#1e3a8a';
+    const LIGHT_BLUE = '#EFF6FF';
+    const BORDER     = '#DBEAFE';
+    const GRAY       = '#6B7280';
+    const DARK       = '#111827';
+    const MID        = '#374151';
 
-      <div class="total-box">
-        <div class="total-label">Total Project Price</div>
-        <div class="total-amount">$${params.total_price.toFixed(2)}</div>
-      </div>
+    let y = M;
 
-      <div class="footer">
-        ${params.company_name} &bull; Generated ${new Date().toLocaleDateString()}
-      </div>
-    </body>
-    </html>
-  `;
+    // ── Header ─────────────────────────────────────────────────────────────────
+    doc.font('Helvetica-Bold').fontSize(26).fillColor(BLUE).text('ESTIMATE', M, y);
 
-  await page.setContent(html, { waitUntil: 'networkidle0' });
-  const pdf = await page.pdf({ format: 'Letter', printBackground: true });
-  await browser.close();
-  return Buffer.from(pdf);
-}
+    const LOGO_W = 100;
+    const LOGO_X = M + PW - LOGO_W;
+    if (logoBuffer) {
+      try { doc.image(logoBuffer, LOGO_X, y, { fit: [LOGO_W, 60] }); } catch { /* skip */ }
+    }
 
-export async function generateInvoicePdf(params: {
-  invoice_number: string;
-  customer_name: string;
-  job_address: string;
-  line_items: Array<{ description: string; qty: number; unit_price: number; taxable: boolean }>;
-  state_rate: number;
-  local_rate: number;
-  due_date: string;
-  notes?: string;
-  company_name: string;
-  logo_url?: string;
-  exemption_type?: string;
-}): Promise<Buffer> {
-  const puppeteer = await import('puppeteer');
-  const browser = await puppeteer.default.launch({ args: ['--no-sandbox'] });
-  const page = await browser.newPage();
+    y += 36;
 
-  const subtotal = params.line_items.reduce((s, li) => s + li.qty * li.unit_price, 0);
-  const taxable = params.line_items.filter((li) => li.taxable && !params.exemption_type).reduce((s, li) => s + li.qty * li.unit_price, 0);
-  const stateTax = taxable * params.state_rate;
-  const localTax = taxable * params.local_rate;
-  const total = subtotal + stateTax + localTax;
+    const INFO_COL2  = M + Math.round(PW * 0.42);
+    const INFO_COL2_W = LOGO_X - INFO_COL2 - 8;
 
-  const lineRows = params.line_items
-    .map(
-      (li) => `
-    <tr>
-      <td>${li.description}</td>
-      <td style="text-align:right">${li.qty}</td>
-      <td style="text-align:right">$${li.unit_price.toFixed(2)}</td>
-      <td style="text-align:right">$${(li.qty * li.unit_price).toFixed(2)}</td>
-    </tr>
-  `
-    )
-    .join('');
+    doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK)
+      .text(params.company_name, M, y, { width: INFO_COL2 - M - 8 });
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 48px; color: #1a1a1a; }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
-        .doc-title { font-size: 32px; font-weight: 700; color: #007AFF; }
-        table { width: 100%; border-collapse: collapse; margin: 24px 0; }
-        th { background: #f5f5f5; padding: 10px 12px; text-align: left; font-size: 12px; text-transform: uppercase; color: #666; }
-        td { padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 14px; }
-        .totals { margin-left: auto; width: 320px; }
-        .total-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
-        .total-final { font-size: 20px; font-weight: 700; padding-top: 8px; border-top: 2px solid #007AFF; color: #007AFF; }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <div>
-          ${params.logo_url ? `<img src="${params.logo_url}" style="max-height:60px;max-width:200px" alt="Logo">` : `<div style="font-size:24px;font-weight:700">${params.company_name}</div>`}
-        </div>
-        <div style="text-align:right">
-          <div class="doc-title">INVOICE</div>
-          <div style="color:#666">${params.invoice_number}</div>
-          <div style="color:#666;margin-top:8px">Due: ${new Date(params.due_date).toLocaleDateString()}</div>
-        </div>
-      </div>
+    let addrY = y + 15;
+    if (params.company_address) {
+      params.company_address.split('\n').map((l) => l.trim()).filter(Boolean).forEach((line) => {
+        doc.font('Helvetica').fontSize(9).fillColor(GRAY).text(line, M, addrY, { width: INFO_COL2 - M - 8 });
+        addrY += 12;
+      });
+    }
 
-      <div style="margin-bottom:24px">
-        <div style="font-size:12px;color:#999;text-transform:uppercase">Bill To</div>
-        <div style="font-size:16px;font-weight:600">${params.customer_name}</div>
-        <div style="color:#666">${params.job_address}</div>
-      </div>
+    let contactY = y + 15;
+    if (params.company_email) {
+      doc.font('Helvetica').fontSize(9).fillColor(GRAY)
+        .text(params.company_email, INFO_COL2, contactY, { width: INFO_COL2_W, align: 'right' });
+      contactY += 12;
+    }
+    if (params.company_phone) {
+      doc.font('Helvetica').fontSize(9).fillColor(GRAY)
+        .text(params.company_phone, INFO_COL2, contactY, { width: INFO_COL2_W, align: 'right' });
+      contactY += 12;
+    }
 
-      <table>
-        <thead><tr><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Total</th></tr></thead>
-        <tbody>${lineRows}</tbody>
-      </table>
+    y = Math.max(addrY, contactY) + 18;
 
-      <div class="totals">
-        <div class="total-row"><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
-        <div class="total-row"><span>State Tax (${(params.state_rate * 100).toFixed(2)}%)</span><span>$${stateTax.toFixed(2)}</span></div>
-        <div class="total-row"><span>Local Tax (${(params.local_rate * 100).toFixed(2)}%)</span><span>$${localTax.toFixed(2)}</span></div>
-        ${params.exemption_type ? `<div class="total-row" style="color:#34C759"><span>Tax Exemption (${params.exemption_type})</span><span>Applied</span></div>` : ''}
-        <div class="total-row total-final"><span>Total</span><span>$${total.toFixed(2)}</span></div>
-      </div>
+    // ── Divider ────────────────────────────────────────────────────────────────
+    doc.moveTo(M, y).lineTo(M + PW, y).strokeColor('#E5E7EB').lineWidth(1).stroke();
+    y += 14;
 
-      ${params.notes ? `<div style="margin-top:40px;font-size:12px;color:#666">${params.notes}</div>` : ''}
-    </body>
-    </html>
-  `;
+    // ── Prepared For / Job Address boxes ───────────────────────────────────────
+    const BOX_GAP = 12;
+    const BOX_W   = (PW - BOX_GAP) / 2;
+    const BOX_PAD = 10;
+    const BOX_H   = 60;
 
-  await page.setContent(html, { waitUntil: 'networkidle0' });
-  const pdf = await page.pdf({ format: 'Letter', printBackground: true });
-  await browser.close();
-  return Buffer.from(pdf);
+    const drawBox = (bx: number, label: string, lines: (string | undefined | null)[], bold: boolean[]) => {
+      doc.rect(bx, y, BOX_W, BOX_H).fillAndStroke(LIGHT_BLUE, BORDER);
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(NAVY).text(label.toUpperCase(), bx + BOX_PAD, y + BOX_PAD);
+      let iy = y + BOX_PAD + 14;
+      lines.forEach((line, i) => {
+        if (!line) return;
+        doc.font(bold[i] ? 'Helvetica-Bold' : 'Helvetica').fontSize(9)
+          .fillColor(bold[i] ? DARK : GRAY)
+          .text(line, bx + BOX_PAD, iy, { width: BOX_W - BOX_PAD * 2 });
+        iy += 13;
+      });
+    };
+
+    drawBox(M, 'Prepared For', [params.customer_name, params.customer_email], [true, false]);
+    drawBox(M + BOX_W + BOX_GAP, 'Job Address', [params.job_address], [false]);
+
+    y += BOX_H + 12;
+
+    // ── Estimate details bar ────────────────────────────────────────────────────
+    const DET_H  = 52;
+    const DET_CW = PW / 3;
+    const detailsData = [
+      { label: 'Estimate no.',  value: params.estimate_number },
+      { label: 'Date',          value: new Date(params.estimate_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) },
+      { label: 'Valid until',   value: params.expiry_date ? new Date(params.expiry_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '30 days' },
+    ];
+
+    doc.rect(M, y, PW, DET_H).fillAndStroke(LIGHT_BLUE, BORDER);
+    detailsData.forEach((d, i) => {
+      const dx = M + i * DET_CW + 10;
+      if (i > 0) {
+        doc.moveTo(M + i * DET_CW, y + 8).lineTo(M + i * DET_CW, y + DET_H - 8)
+          .strokeColor(BORDER).lineWidth(0.5).stroke();
+      }
+      doc.font('Helvetica-Bold').fontSize(7).fillColor(GRAY)
+        .text(d.label.toUpperCase(), dx, y + 9, { width: DET_CW - 20 });
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(MID)
+        .text(d.value, dx, y + 22, { width: DET_CW - 20 });
+    });
+
+    y += DET_H + 20;
+
+    // ── Scope of Work ──────────────────────────────────────────────────────────
+    if (params.notes) {
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(GRAY)
+        .text('SCOPE OF WORK', M, y);
+      y += 14;
+      doc.font('Helvetica').fontSize(10).fillColor(DARK)
+        .text(params.notes, M, y, { width: PW, lineGap: 3 });
+      y += doc.heightOfString(params.notes, { width: PW, lineGap: 3 }) + 20;
+    }
+
+    // ── Total price box ────────────────────────────────────────────────────────
+    const TOT_H = 60;
+    doc.rect(M, y, PW, TOT_H).fill(NAVY);
+    doc.font('Helvetica').fontSize(10).fillColor('rgba(255,255,255,0.7)').text('Total Project Price', M + 20, y + 12, { width: PW - 40 });
+    doc.font('Helvetica-Bold').fontSize(22).fillColor('#ffffff').text(usd(params.total_price), M + 20, y + 28, { width: PW - 40 });
+    y += TOT_H + 20;
+
+    // ── Approval link ───────────────────────────────────────────────────────────
+    if (params.approval_url) {
+      doc.rect(M, y, PW, 36).fill(LIGHT_BLUE);
+      doc.font('Helvetica').fontSize(9).fillColor(NAVY)
+        .text('Review and approve this estimate online:', M + 12, y + 8, { width: PW - 24 });
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(BLUE)
+        .text(params.approval_url, M + 12, y + 22, { width: PW - 24 });
+      y += 48;
+    }
+
+    // ── Disclaimer ────────────────────────────────────────────────────────────
+    if (params.disclaimer) {
+      doc.moveTo(M, y).lineTo(M + PW, y).strokeColor('#E5E7EB').lineWidth(0.5).stroke();
+      y += 10;
+      doc.font('Helvetica').fontSize(7.5).fillColor(GRAY)
+        .text(params.disclaimer, M, y, { width: PW, lineGap: 2 });
+      y += doc.heightOfString(params.disclaimer, { width: PW, lineGap: 2 }) + 12;
+    }
+
+    // ── Footer ─────────────────────────────────────────────────────────────────
+    const FOOTER_Y = doc.page.height - 36;
+    const footerParts = [params.company_name, params.company_phone, params.company_email].filter(Boolean);
+    doc.font('Helvetica').fontSize(7).fillColor('#9CA3AF')
+      .text(footerParts.join('  ·  '), M, FOOTER_Y, { width: PW, align: 'center' });
+
+    doc.end();
+  });
 }

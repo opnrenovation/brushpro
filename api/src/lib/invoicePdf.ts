@@ -13,6 +13,7 @@ interface InvoiceData {
   invoice_date: string;
   due_date: string;
   payment_terms_label: string;
+  disclaimer?: string;
   line_items: LineItem[];
   payments: Payment[];
   notes?: string;
@@ -313,6 +314,15 @@ export async function generateInvoicePdf(
       doc.font('Helvetica').fontSize(9).fillColor(GRAY)
         .text(invoice.notes, M, y, { width: PW });
       y += doc.heightOfString(invoice.notes, { width: PW }) + 16;
+    }
+
+    // ── Disclaimer ─────────────────────────────────────────────────────────────
+    if (invoice.disclaimer) {
+      doc.moveTo(M, y).lineTo(M + PW, y).strokeColor('#E5E7EB').lineWidth(0.5).stroke();
+      y += 10;
+      doc.font('Helvetica').fontSize(7.5).fillColor(GRAY)
+        .text(invoice.disclaimer, M, y, { width: PW, lineGap: 2 });
+      y += doc.heightOfString(invoice.disclaimer, { width: PW, lineGap: 2 }) + 14;
     }
 
     // ── Pay online bar ──────────────────────────────────────────────────────────

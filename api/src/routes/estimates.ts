@@ -145,6 +145,30 @@ estimatesRouter.post('/:id/send', async (req, res) => {
       },
     });
 
+    // Generate proposal PDF (non-fatal)
+    let pdfBuffer: Buffer | undefined;
+    try {
+      pdfBuffer = await generateProposalPdf({
+        estimate_number: estimate.estimate_number,
+        estimate_date: estimate.created_at.toISOString(),
+        job_address: estimate.job?.address || '',
+        customer_name: estimate.job?.customer?.name ?? undefined,
+        customer_email: estimate.job?.customer?.email ?? undefined,
+        notes: (estimate as any).notes ?? undefined,
+        disclaimer: settings?.disclaimer ?? undefined,
+        total_price: total,
+        company_name: settings?.company_name || 'OPN Renovation',
+        company_address: settings?.address ?? undefined,
+        company_phone: settings?.phone ?? undefined,
+        company_email: settings?.email ?? undefined,
+        logo_url: settings?.logo_url ?? undefined,
+        approval_url: approvalUrl,
+        expiry_date: expiresAt.toISOString(),
+      });
+    } catch (pdfErr) {
+      console.error('Proposal PDF generation failed (non-fatal):', pdfErr);
+    }
+
     // Try to email customer — non-fatal so approval link is always generated
     let email_sent = false;
     const customerEmail = estimate.job?.customer.email;
@@ -162,6 +186,7 @@ estimatesRouter.post('/:id/send', async (req, res) => {
             <p>This link expires in 30 days.</p>
             <p>${settings?.company_name || ''}</p>
           `,
+          attachments: pdfBuffer ? [{ filename: `Estimate-${estimate.estimate_number}.pdf`, content: pdfBuffer }] : undefined,
           tags: [{ name: 'estimate_id', value: estimate.id }],
         });
         email_sent = true;
