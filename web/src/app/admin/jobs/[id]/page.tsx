@@ -75,7 +75,7 @@ export default function JobDetailPage() {
 
   // Invoice modal state
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
-  const [invoiceForm, setInvoiceForm] = useState({ type: 'FINAL', due_days: '7', notes: '', tax_profile_id: '' });
+  const [invoiceForm, setInvoiceForm] = useState({ type: 'FINAL', payment_terms: 'Due on receipt', custom_days: '0', notes: '', tax_profile_id: '' });
   const [invoiceLineItems, setInvoiceLineItems] = useState<LineItem[]>([{ ...emptyItem }]);
   const [invoiceError, setInvoiceError] = useState('');
 
@@ -238,7 +238,7 @@ export default function JobDetailPage() {
       qc.invalidateQueries({ queryKey: ['jobs', id] });
       setShowInvoiceModal(false);
       setInvoiceLineItems([{ ...emptyItem }]);
-      setInvoiceForm({ type: 'FINAL', due_days: '7', notes: '', tax_profile_id: '' });
+      setInvoiceForm({ type: 'FINAL', payment_terms: 'Due on receipt', custom_days: '0', notes: '', tax_profile_id: '' });
       setInvoiceError('');
     },
     onError: (e: unknown) => {
@@ -268,11 +268,18 @@ export default function JobDetailPage() {
     },
   });
 
+  const TERMS_DAYS: Record<string, number> = {
+    'Due on receipt': 0, 'Net 7': 7, 'Net 15': 15,
+    'Net 30': 30, 'Net 45': 45, 'Net 60': 60,
+  };
+
   function handleCreateInvoice() {
     const valid = invoiceLineItems.filter(li => li.description.trim() && li.unit_price > 0);
     if (valid.length === 0) { setInvoiceError('Add at least one line item.'); return; }
     if (!invoiceForm.tax_profile_id) { setInvoiceError('Select a tax profile.'); return; }
-    const dueDays = parseInt(invoiceForm.due_days) || 7;
+    const dueDays = invoiceForm.payment_terms === 'Custom'
+      ? (parseInt(invoiceForm.custom_days) || 0)
+      : (TERMS_DAYS[invoiceForm.payment_terms] ?? 0);
     const due_date = new Date();
     due_date.setDate(due_date.getDate() + dueDays);
     const taxable = !job.tax_exempt;
@@ -1111,10 +1118,24 @@ export default function JobDetailPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Due (days from today)</label>
-                  <input className="input" type="number" min="1" value={invoiceForm.due_days} onChange={e => setInvoiceForm(f => ({ ...f, due_days: e.target.value }))} />
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Payment Terms</label>
+                  <select className="input" value={invoiceForm.payment_terms} onChange={e => setInvoiceForm(f => ({ ...f, payment_terms: e.target.value }))}>
+                    <option value="Due on receipt">Due on receipt</option>
+                    <option value="Net 7">Net 7</option>
+                    <option value="Net 15">Net 15</option>
+                    <option value="Net 30">Net 30</option>
+                    <option value="Net 45">Net 45</option>
+                    <option value="Net 60">Net 60</option>
+                    <option value="Custom">Custom days...</option>
+                  </select>
                 </div>
               </div>
+              {invoiceForm.payment_terms === 'Custom' && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Days Until Due</label>
+                  <input className="input" type="number" min="0" value={invoiceForm.custom_days} onChange={e => setInvoiceForm(f => ({ ...f, custom_days: e.target.value }))} placeholder="e.g. 21" />
+                </div>
+              )}
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Tax Profile</label>
                 <select className="input" value={invoiceForm.tax_profile_id} onChange={e => setInvoiceForm(f => ({ ...f, tax_profile_id: e.target.value }))}>
