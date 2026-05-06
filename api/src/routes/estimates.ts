@@ -36,7 +36,7 @@ estimatesRouter.post('/', async (req, res) => {
     if (!tax_profile_id) {
       // Try to match by job's municipality first
       const job_id = req.body.job_id;
-      let profile = null;
+      let profile: { id: string } | null = null;
       if (job_id) {
         const job = await prisma.job.findUnique({ where: { id: job_id } });
         if (job?.municipality) {
