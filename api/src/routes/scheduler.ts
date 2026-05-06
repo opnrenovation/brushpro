@@ -1,5 +1,10 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import {
+  createCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent,
+} from '../lib/googleCalendar';
 
 const router = Router();
 
@@ -205,6 +210,30 @@ router.post('/appointments', async (req: Request, res: Response) => {
       },
       include: { appointment_type: true },
     });
+
+    // Sync to Google Calendar (non-blocking)
+    try {
+      const googleEventId = await createCalendarEvent({
+        id: appt.id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        notes,
+        appointment_type_name: appt.appointment_type.name,
+        scheduled_at: new Date(scheduled_at),
+        duration_minutes: appt.duration_minutes,
+      });
+      if (googleEventId) {
+        await prisma.appointment.update({
+          where: { id: appt.id },
+          data: { google_event_id: googleEventId },
+        });
+      }
+    } catch (gcalErr) {
+      console.error('[GCal] Non-fatal error creating admin calendar event:', gcalErr);
+    }
+
     res.status(201).json({ data: appt });
   } catch {
     res.status(500).json({ error: 'Failed to create appointment' });
@@ -214,15 +243,70 @@ router.post('/appointments', async (req: Request, res: Response) => {
 // PATCH /appointments/:id
 router.patch('/appointments/:id', async (req: Request, res: Response) => {
   try {
-    const { status, notes } = req.body;
+    const { status, notes, scheduled_at } = req.body;
+
+    // Fetch current record for Google Calendar sync
+    const current = await prisma.appointment.findUnique({
+      where: { id: req.params.id },
+      include: { appointment_type: true },
+    });
+
     const updated = await prisma.appointment.update({
       where: { id: req.params.id },
+      include: { appointment_type: true },
       data: {
         ...(status !== undefined && { status }),
         ...(notes !== undefined && { notes }),
+        ...(scheduled_at !== undefined && { scheduled_at: new Date(scheduled_at) }),
         ...(status === 'CANCELLED' && { cancelled_at: new Date() }),
       },
     });
+
+    // Sync to Google Calendar (non-blocking)
+    try {
+      if (status === 'CANCELLED' && current?.google_event_id) {
+        await deleteCalendarEvent(current.google_event_id);
+        await prisma.appointment.update({
+          where: { id: req.params.id },
+          data: { google_event_id: null },
+        });
+      } else if (current?.google_event_id) {
+        // Update existing event (reschedule or notes change)
+        await updateCalendarEvent(current.google_event_id, {
+          id: updated.id,
+          first_name: updated.first_name,
+          last_name: updated.last_name,
+          email: updated.email,
+          phone: updated.phone ?? undefined,
+          notes: updated.notes ?? undefined,
+          appointment_type_name: updated.appointment_type.name,
+          scheduled_at: new Date(updated.scheduled_at),
+          duration_minutes: updated.duration_minutes,
+        });
+      } else if (status !== 'CANCELLED' && scheduled_at) {
+        // No existing event — create one (e.g. if GCal was added after initial booking)
+        const googleEventId = await createCalendarEvent({
+          id: updated.id,
+          first_name: updated.first_name,
+          last_name: updated.last_name,
+          email: updated.email,
+          phone: updated.phone ?? undefined,
+          notes: updated.notes ?? undefined,
+          appointment_type_name: updated.appointment_type.name,
+          scheduled_at: new Date(updated.scheduled_at),
+          duration_minutes: updated.duration_minutes,
+        });
+        if (googleEventId) {
+          await prisma.appointment.update({
+            where: { id: req.params.id },
+            data: { google_event_id: googleEventId },
+          });
+        }
+      }
+    } catch (gcalErr) {
+      console.error('[GCal] Non-fatal error updating calendar event:', gcalErr);
+    }
+
     res.json({ data: updated });
   } catch {
     res.status(500).json({ error: 'Failed to update appointment' });

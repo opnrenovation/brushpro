@@ -1,6 +1,10 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { sendEmail } from '../lib/resend';
+import {
+  createCalendarEvent,
+  getGoogleBusyTimes,
+} from '../lib/googleCalendar';
 
 const router = Router();
 
@@ -170,7 +174,19 @@ router.get('/availability', async (req: Request, res: Response) => {
       })
     );
 
-    const available = slots.filter((s) => !bookedSlots.has(s));
+    // Also block times that overlap with Google Calendar events
+    const googleBusy = await getGoogleBusyTimes(date);
+
+    const available = slots.filter((s) => {
+      if (bookedSlots.has(s)) return false;
+      // Check overlap with any Google Calendar busy period
+      const [sh, sm] = s.split(':').map(Number);
+      const slotStart = new Date(date);
+      slotStart.setHours(sh, sm, 0, 0);
+      const slotEnd = new Date(slotStart.getTime() + duration * 60 * 1000);
+      return !googleBusy.some((b) => slotStart < b.end && slotEnd > b.start);
+    });
+
     res.json({ data: available });
   } catch {
     res.status(500).json({ error: 'Failed to compute availability' });
@@ -222,6 +238,29 @@ router.post('/appointments', async (req: Request, res: Response) => {
         where: { id: lead_id },
         data: { appointment_id: appt.id, stage: 'APPOINTMENT' },
       });
+    }
+
+    // Create Google Calendar event (non-blocking — failure doesn't affect booking)
+    try {
+      const googleEventId = await createCalendarEvent({
+        id: appt.id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        notes,
+        appointment_type_name: apptType.name,
+        scheduled_at: scheduledAt,
+        duration_minutes: apptType.duration_minutes,
+      });
+      if (googleEventId) {
+        await prisma.appointment.update({
+          where: { id: appt.id },
+          data: { google_event_id: googleEventId },
+        });
+      }
+    } catch (gcalErr) {
+      console.error('[GCal] Non-fatal error creating calendar event:', gcalErr);
     }
 
     const settings = await prisma.companySettings.findFirst();
