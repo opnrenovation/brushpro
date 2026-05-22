@@ -279,6 +279,8 @@ invoicesRouter.get('/:id/pdf', async (req, res) => {
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="Invoice-${invoice.invoice_number}.pdf"`);
+    res.setHeader('X-Logo-Url', settings?.logo_url ? 'set' : 'missing');
+    res.setHeader('X-Logo-Buffer', logoBuffer ? `${logoBuffer.length}bytes` : 'null');
     res.send(pdfBuffer);
   } catch (err) {
     console.error('PDF generation error:', err);
