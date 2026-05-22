@@ -1,6 +1,4 @@
 import PDFDocument from 'pdfkit';
-import https from 'https';
-import http from 'http';
 
 interface LineItem { description: string; qty: number; unit_price: number; taxable: boolean; }
 interface TaxProfile { state_rate: number; local_rate: number; name: string; }
@@ -29,7 +27,7 @@ interface CompanySettings {
   phone?: string;
   email?: string;
   address?: string;
-  logo_url?: string;
+  logoBuffer?: Buffer | null;
 }
 
 const METHOD: Record<string, string> = { CHECK: 'Check', CASH: 'Cash', CARD: 'Card', TRANSFER: 'Bank Transfer' };
@@ -49,44 +47,12 @@ function calcDiscount(subtotal: number, type: string | null | undefined, value: 
   return 0;
 }
 
-function fetchImageBuffer(url: string, redirectsLeft = 5): Promise<Buffer | null> {
-  return new Promise((resolve) => {
-    try {
-      const client = url.startsWith('https') ? https : http;
-      const req = client.get(url, (res) => {
-        // Follow redirects
-        if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location && redirectsLeft > 0) {
-          resolve(fetchImageBuffer(res.headers.location, redirectsLeft - 1));
-          return;
-        }
-        if (res.statusCode && res.statusCode >= 400) {
-          console.error(`[invoicePdf] Logo fetch failed with status ${res.statusCode} for ${url}`);
-          resolve(null);
-          return;
-        }
-        const chunks: Buffer[] = [];
-        res.on('data', (c: Buffer) => chunks.push(c));
-        res.on('end', () => resolve(Buffer.concat(chunks)));
-        res.on('error', () => resolve(null));
-      });
-      req.on('error', (e) => { console.error('[invoicePdf] Logo fetch error:', e.message); resolve(null); });
-      req.setTimeout(8000, () => { req.destroy(); console.error('[invoicePdf] Logo fetch timed out'); resolve(null); });
-    } catch {
-      resolve(null);
-    }
-  });
-}
-
 export async function generateInvoicePdf(
   invoice: InvoiceData,
   settings: CompanySettings,
   payUrl: string,
 ): Promise<Buffer> {
-  // Pre-fetch logo before opening the doc stream
-  let logoBuffer: Buffer | null = null;
-  if (settings.logo_url) {
-    logoBuffer = await fetchImageBuffer(settings.logo_url);
-  }
+  const logoBuffer = settings.logoBuffer ?? null;
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: 'LETTER' });

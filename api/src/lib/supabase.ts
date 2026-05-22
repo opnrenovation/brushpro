@@ -39,6 +39,30 @@ export async function getSignedUrl(bucket: string, path: string): Promise<string
   return data.signedUrl;
 }
 
+// Downloads a file given its Supabase public URL using the service-key client.
+// Works regardless of whether the bucket is public or private.
+export async function downloadLogoBuffer(logoUrl: string): Promise<Buffer | null> {
+  try {
+    const parsed = new URL(logoUrl);
+    // pathname: /storage/v1/object/public/<bucket>/<path...>
+    const parts = parsed.pathname.split('/');
+    const publicIdx = parts.indexOf('public');
+    if (publicIdx === -1 || publicIdx + 2 >= parts.length) return null;
+    const bucket = parts[publicIdx + 1];
+    const filePath = parts.slice(publicIdx + 2).join('/');
+    const supabase = getClient();
+    const { data, error } = await supabase.storage.from(bucket).download(filePath);
+    if (error || !data) {
+      console.error('[supabase] Logo download failed:', error?.message);
+      return null;
+    }
+    return Buffer.from(await data.arrayBuffer());
+  } catch (e) {
+    console.error('[supabase] downloadLogoBuffer error:', e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
 export async function deleteFile(bucket: string, path: string): Promise<void> {
   const supabase = getClient();
   const { error } = await supabase.storage.from(bucket).remove([path]);

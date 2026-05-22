@@ -2,6 +2,7 @@ import { Router } from 'express';
 import Stripe from 'stripe';
 import { prisma } from '../../lib/prisma';
 import { generateInvoicePdf } from '../../lib/invoicePdf';
+import { downloadLogoBuffer } from '../../lib/supabase';
 import { sendEmail } from '../../lib/resend';
 
 let _stripe: Stripe | null = null;
@@ -32,6 +33,7 @@ async function sendDepositReceipt(invoiceId: string): Promise<void> {
     if (!recipient?.email) return;
 
     const settings = await prisma.companySettings.findFirst();
+    const logoBuffer = settings?.logo_url ? await downloadLogoBuffer(settings.logo_url) : null;
     const lineItems = invoice.line_items as Array<{ description: string; qty: number; unit_price: number; taxable: boolean }>;
     const appUrl = process.env.APP_URL || 'http://localhost:3000';
     const payUrl = `${appUrl}/invoices/${invoice.id}`;
@@ -89,7 +91,7 @@ async function sendDepositReceipt(invoiceId: string): Promise<void> {
         phone: settings?.phone ?? undefined,
         email: settings?.email ?? undefined,
         address: settings?.address ?? undefined,
-        logo_url: settings?.logo_url ?? undefined,
+        logoBuffer,
       },
       payUrl,
     );

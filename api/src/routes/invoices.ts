@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { sendEmail } from '../lib/resend';
 import { generateInvoicePdf } from '../lib/invoicePdf';
+import { downloadLogoBuffer } from '../lib/supabase';
 import Stripe from 'stripe';
 
 let _stripe: Stripe | null = null;
@@ -137,6 +138,7 @@ invoicesRouter.post('/:id/send', async (req, res) => {
     const payUrl = `${appUrl}/invoices/${invoice.id}`;
 
     // Generate PDF attachment
+    const logoBuffer = settings?.logo_url ? await downloadLogoBuffer(settings.logo_url) : null;
     let pdfBuffer: Buffer | undefined;
     try {
       pdfBuffer = await generateInvoicePdf(
@@ -162,7 +164,7 @@ invoicesRouter.post('/:id/send', async (req, res) => {
           phone: settings?.phone ?? undefined,
           email: settings?.email ?? undefined,
           address: settings?.address ?? undefined,
-          logo_url: settings?.logo_url ?? undefined,
+          logoBuffer,
         },
         payUrl,
       );
@@ -245,6 +247,7 @@ invoicesRouter.get('/:id/pdf', async (req, res) => {
     const settings = await prisma.companySettings.findFirst();
     const appUrl = process.env.APP_URL || 'http://localhost:3000';
     const lineItems = invoice.line_items as Array<{ description: string; qty: number; unit_price: number; taxable: boolean }>;
+    const logoBuffer = settings?.logo_url ? await downloadLogoBuffer(settings.logo_url) : null;
 
     const pdfBuffer = await generateInvoicePdf(
       {
@@ -269,7 +272,7 @@ invoicesRouter.get('/:id/pdf', async (req, res) => {
         phone: settings?.phone ?? undefined,
         email: settings?.email ?? undefined,
         address: settings?.address ?? undefined,
-        logo_url: settings?.logo_url ?? undefined,
+        logoBuffer,
       },
       `${appUrl}/invoices/${invoice.id}`,
     );
