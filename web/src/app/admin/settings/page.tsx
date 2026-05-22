@@ -581,25 +581,29 @@ function TaxSection() {
 
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState({ name: '', municipality: '', state_rate: '', local_rate: '' });
-  const [newProfile, setNewProfile] = useState({ name: '', municipality: '', state_rate: '', local_rate: '', is_default: false });
+  const [editValues, setEditValues] = useState({ name: '', state_code: '', municipality: '', state_rate: '', local_rate: '' });
+  const [newProfile, setNewProfile] = useState({ name: '', state_code: '', municipality: '', state_rate: '', local_rate: '', is_default: false });
 
   const createMutation = useMutation({
     mutationFn: () => taxProfilesApi.create({
-      ...newProfile,
+      name: newProfile.name,
+      state_code: newProfile.state_code,
+      municipality: newProfile.municipality,
+      is_default: newProfile.is_default,
       state_rate: parseFloat(newProfile.state_rate) / 100 || 0,
       local_rate: parseFloat(newProfile.local_rate) / 100 || 0,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tax-profiles'] });
       setAdding(false);
-      setNewProfile({ name: '', municipality: '', state_rate: '', local_rate: '', is_default: false });
+      setNewProfile({ name: '', state_code: '', municipality: '', state_rate: '', local_rate: '', is_default: false });
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: (id: string) => taxProfilesApi.update(id, {
       name: editValues.name,
+      state_code: editValues.state_code,
       municipality: editValues.municipality,
       state_rate: parseFloat(editValues.state_rate) / 100 || 0,
       local_rate: parseFloat(editValues.local_rate) / 100 || 0,
@@ -615,10 +619,11 @@ function TaxSection() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tax-profiles'] }),
   });
 
-  function startEdit(p: { id: string; name: string; municipality: string; state_rate: number; local_rate: number }) {
+  function startEdit(p: { id: string; name: string; state_code: string; municipality: string; state_rate: number; local_rate: number }) {
     setEditingId(p.id);
     setEditValues({
       name: p.name,
+      state_code: p.state_code,
       municipality: p.municipality,
       state_rate: (Number(p.state_rate) * 100).toString(),
       local_rate: (Number(p.local_rate) * 100).toString(),
@@ -635,12 +640,13 @@ function TaxSection() {
           </div>
         ) : (
           <table className="data-table">
-            <thead><tr><th>Name</th><th>Municipality</th><th>State Rate</th><th>Local Rate</th><th>Default</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>State</th><th>Municipality</th><th>State Rate</th><th>Local Rate</th><th>Default</th><th></th></tr></thead>
             <tbody>
-              {(profiles as { id: string; name: string; municipality: string; state_rate: number; local_rate: number; is_default: boolean }[]).map((p) => (
+              {(profiles as { id: string; name: string; state_code: string; municipality: string; state_rate: number; local_rate: number; is_default: boolean }[]).map((p) => (
                 editingId === p.id ? (
                   <tr key={p.id}>
                     <td><input value={editValues.name} onChange={(e) => setEditValues((v) => ({ ...v, name: e.target.value }))} className="glass-input" style={{ padding: '6px 10px', fontSize: 13, width: '100%' }} /></td>
+                    <td><input value={editValues.state_code} onChange={(e) => setEditValues((v) => ({ ...v, state_code: e.target.value.toUpperCase().slice(0, 2) }))} placeholder="IA" className="glass-input" style={{ padding: '6px 10px', fontSize: 13, width: '50px' }} /></td>
                     <td><input value={editValues.municipality} onChange={(e) => setEditValues((v) => ({ ...v, municipality: e.target.value }))} className="glass-input" style={{ padding: '6px 10px', fontSize: 13, width: '120px' }} /></td>
                     <td><input type="number" value={editValues.state_rate} onChange={(e) => setEditValues((v) => ({ ...v, state_rate: e.target.value }))} placeholder="6.0" className="glass-input" style={{ padding: '6px 10px', fontSize: 13, width: '70px' }} /></td>
                     <td><input type="number" value={editValues.local_rate} onChange={(e) => setEditValues((v) => ({ ...v, local_rate: e.target.value }))} placeholder="1.0" className="glass-input" style={{ padding: '6px 10px', fontSize: 13, width: '70px' }} /></td>
@@ -655,6 +661,7 @@ function TaxSection() {
                 ) : (
                   <tr key={p.id}>
                     <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{p.name}</td>
+                    <td style={{ color: 'rgba(0,0,0,0.6)', fontFamily: 'Menlo,monospace', fontSize: 12 }}>{p.state_code}</td>
                     <td style={{ color: 'rgba(0,0,0,0.6)' }}>{p.municipality}</td>
                     <td style={{ color: 'rgba(0,0,0,0.6)' }}>{(Number(p.state_rate) * 100).toFixed(3)}%</td>
                     <td style={{ color: 'rgba(0,0,0,0.6)' }}>{(Number(p.local_rate) * 100).toFixed(3)}%</td>
@@ -673,6 +680,7 @@ function TaxSection() {
               {adding && (
                 <tr>
                   <td><input value={newProfile.name} onChange={(e) => setNewProfile((n) => ({ ...n, name: e.target.value }))} placeholder="Des Moines" className="glass-input" style={{ padding: '6px 10px', fontSize: 13, width: '100%' }} /></td>
+                  <td><input value={newProfile.state_code} onChange={(e) => setNewProfile((n) => ({ ...n, state_code: e.target.value.toUpperCase().slice(0, 2) }))} placeholder="IA" className="glass-input" style={{ padding: '6px 10px', fontSize: 13, width: '50px' }} /></td>
                   <td><input value={newProfile.municipality} onChange={(e) => setNewProfile((n) => ({ ...n, municipality: e.target.value }))} placeholder="Municipality" className="glass-input" style={{ padding: '6px 10px', fontSize: 13, width: '120px' }} /></td>
                   <td><input type="number" value={newProfile.state_rate} onChange={(e) => setNewProfile((n) => ({ ...n, state_rate: e.target.value }))} placeholder="6.0" className="glass-input" style={{ padding: '6px 10px', fontSize: 13, width: '70px' }} /></td>
                   <td><input type="number" value={newProfile.local_rate} onChange={(e) => setNewProfile((n) => ({ ...n, local_rate: e.target.value }))} placeholder="1.0" className="glass-input" style={{ padding: '6px 10px', fontSize: 13, width: '70px' }} /></td>
@@ -684,7 +692,7 @@ function TaxSection() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-primary" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => createMutation.mutate()} disabled={!newProfile.name.trim() || createMutation.isPending}>Save</button>
+                      <button className="btn btn-primary" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => createMutation.mutate()} disabled={!newProfile.name.trim() || !newProfile.state_code.trim() || createMutation.isPending}>Save</button>
                       <button className="btn btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => setAdding(false)}>Cancel</button>
                     </div>
                   </td>
