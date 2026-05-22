@@ -234,6 +234,55 @@ invoicesRouter.post('/:id/send', async (req, res) => {
   }
 });
 
+invoicesRouter.get('/:id/pdf', async (req, res) => {
+  try {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: req.params.id },
+      include: { job: { include: { customer: true } }, customer: true, tax_profile: true, payments: true },
+    });
+    if (!invoice) { res.status(404).json({ error: 'Invoice not found' }); return; }
+
+    const settings = await prisma.companySettings.findFirst();
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const lineItems = invoice.line_items as Array<{ description: string; qty: number; unit_price: number; taxable: boolean }>;
+
+    const pdfBuffer = await generateInvoicePdf(
+      {
+        invoice_number: invoice.invoice_number,
+        type: invoice.type,
+        status: invoice.status,
+        invoice_date: invoice.created_at.toISOString(),
+        due_date: invoice.due_date.toISOString(),
+        payment_terms_label: settings?.payment_terms_label ?? 'Due on receipt',
+        disclaimer: settings?.disclaimer ?? undefined,
+        notes: invoice.notes ?? undefined,
+        tax_profile: { state_rate: Number(invoice.tax_profile.state_rate), local_rate: Number(invoice.tax_profile.local_rate), name: invoice.tax_profile.name },
+        discount_type: invoice.discount_type,
+        discount_value: invoice.discount_value ? Number(invoice.discount_value) : null,
+        line_items: lineItems,
+        payments: invoice.payments.map((p) => ({ amount: Number(p.amount), method: p.method, paid_at: p.paid_at.toISOString() })),
+        job: invoice.job ? { address: invoice.job.address ?? undefined, name: invoice.job.name ?? undefined, customer: invoice.job.customer ? { name: invoice.job.customer.name ?? undefined, email: invoice.job.customer.email ?? undefined } : undefined } : null,
+        customer: invoice.customer ? { name: invoice.customer.name ?? undefined, email: invoice.customer.email ?? undefined } : null,
+      },
+      {
+        company_name: settings?.company_name,
+        phone: settings?.phone ?? undefined,
+        email: settings?.email ?? undefined,
+        address: settings?.address ?? undefined,
+        logo_url: settings?.logo_url ?? undefined,
+      },
+      `${appUrl}/invoices/${invoice.id}`,
+    );
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="Invoice-${invoice.invoice_number}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error('PDF generation error:', err);
+    res.status(500).json({ error: 'Failed to generate PDF' });
+  }
+});
+
 invoicesRouter.post('/:id/payments', async (req, res) => {
   try {
     const invoice = await prisma.invoice.findUnique({

@@ -117,6 +117,7 @@ export const invoicesApi = {
   deletePayment: (invId: string, payId: string) => api.delete(`/invoices/${invId}/payments/${payId}`),
   void: (id: string) => api.patch(`/invoices/${id}`, { status: 'VOID', deleted_at: new Date().toISOString() }),
   stripeLink: (id: string) => api.post(`/invoices/${id}/stripe-link`),
+  pdf: (id: string) => api.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
 };
 
 // Tax Profiles

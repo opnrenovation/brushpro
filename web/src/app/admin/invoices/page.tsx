@@ -352,9 +352,13 @@ export default function InvoicesPage() {
                   <td>
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button
-                        onClick={() => window.open(`/invoices/${inv.id}`, '_blank')}
+                        onClick={async () => {
+                          const res = await invoicesApi.pdf(inv.id);
+                          const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+                          window.open(url, '_blank');
+                        }}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)', padding: 6 }}
-                        title="View invoice"
+                        title="View PDF"
                       >
                         <Eye size={14} strokeWidth={1.5} />
                       </button>
