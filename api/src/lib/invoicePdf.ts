@@ -49,18 +49,28 @@ function calcDiscount(subtotal: number, type: string | null | undefined, value: 
   return 0;
 }
 
-async function fetchImageBuffer(url: string): Promise<Buffer | null> {
+function fetchImageBuffer(url: string, redirectsLeft = 5): Promise<Buffer | null> {
   return new Promise((resolve) => {
     try {
       const client = url.startsWith('https') ? https : http;
       const req = client.get(url, (res) => {
+        // Follow redirects
+        if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location && redirectsLeft > 0) {
+          resolve(fetchImageBuffer(res.headers.location, redirectsLeft - 1));
+          return;
+        }
+        if (res.statusCode && res.statusCode >= 400) {
+          console.error(`[invoicePdf] Logo fetch failed with status ${res.statusCode} for ${url}`);
+          resolve(null);
+          return;
+        }
         const chunks: Buffer[] = [];
         res.on('data', (c: Buffer) => chunks.push(c));
         res.on('end', () => resolve(Buffer.concat(chunks)));
         res.on('error', () => resolve(null));
       });
-      req.on('error', () => resolve(null));
-      req.setTimeout(4000, () => { req.destroy(); resolve(null); });
+      req.on('error', (e) => { console.error('[invoicePdf] Logo fetch error:', e.message); resolve(null); });
+      req.setTimeout(8000, () => { req.destroy(); console.error('[invoicePdf] Logo fetch timed out'); resolve(null); });
     } catch {
       resolve(null);
     }
