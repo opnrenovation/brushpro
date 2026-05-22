@@ -125,9 +125,11 @@ export async function generateInvoicePdf(
     if (logoBuffer) {
       try {
         doc.image(logoBuffer, LOGO_X, y, { fit: [LOGO_W, 60] });
-      } catch {
-        // logo decode failed — skip silently
+      } catch (e) {
+        console.error('[invoicePdf] Logo render failed:', e instanceof Error ? e.message : e);
       }
+    } else {
+      console.warn('[invoicePdf] No logo buffer — logo_url fetch returned null');
     }
 
     y += 36;
@@ -345,8 +347,8 @@ export async function generateInvoicePdf(
       y += 58;
     }
 
-    // ── Footer ─────────────────────────────────────────────────────────────────
-    const FOOTER_Y = doc.page.height - 36;
+    // ── Footer — must stay within content area (page height minus bottom margin) ─
+    const FOOTER_Y = doc.page.height - doc.page.margins.bottom - 14;
     const footerParts = [companyName, settings.phone, settings.email].filter(Boolean);
     doc.font('Helvetica').fontSize(7).fillColor('#9CA3AF')
       .text(footerParts.join('  ·  '), M, FOOTER_Y, { width: PW, align: 'center' });
