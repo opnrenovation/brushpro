@@ -145,6 +145,8 @@ model User {
   password_hash        String
   must_change_password Boolean   @default(false)
   is_active            Boolean   @default(true)
+  reset_token_hash     String?
+  reset_token_expires_at DateTime?
   last_login_at        DateTime?
   created_at           DateTime  @default(now())
 

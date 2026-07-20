@@ -104,15 +104,15 @@ authRouter.post('/reset-request', async (req: Request, res: Response) => {
     const resetToken = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    // Store token in a simple way — we'll use a metadata approach
-    // In production use a dedicated password_reset_tokens table; here we store in user record
+    // Store the reset token hash in a DEDICATED field — never touch the real
+    // password_hash, so requesting a reset can't lock the user out, and the
+    // token has a real, enforced expiry.
     const hash = await bcrypt.hash(resetToken, 10);
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        // Store as temp password hash — must_change_password will be set on confirm
-        password_hash: hash,
-        must_change_password: true,
+        reset_token_hash: hash,
+        reset_token_expires_at: expires,
       },
     });
 
@@ -148,12 +148,18 @@ authRouter.post('/reset-confirm', async (req: Request, res: Response) => {
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      res.status(400).json({ error: 'Invalid reset request' });
+    if (!user || !user.reset_token_hash || !user.reset_token_expires_at) {
+      res.status(400).json({ error: 'Invalid or expired reset token' });
       return;
     }
 
-    const valid = await bcrypt.compare(token, user.password_hash);
+    // Enforce expiry — reject stale tokens even if the hash still matches.
+    if (user.reset_token_expires_at.getTime() < Date.now()) {
+      res.status(400).json({ error: 'Invalid or expired reset token' });
+      return;
+    }
+
+    const valid = await bcrypt.compare(token, user.reset_token_hash);
     if (!valid) {
       res.status(400).json({ error: 'Invalid or expired reset token' });
       return;
@@ -162,7 +168,8 @@ authRouter.post('/reset-confirm', async (req: Request, res: Response) => {
     const hash = await bcrypt.hash(new_password, 12);
     await prisma.user.update({
       where: { id: user.id },
-      data: { password_hash: hash, must_change_password: false },
+      // Set the new password and consume the one-time token.
+      data: { password_hash: hash, must_change_password: false, reset_token_hash: null, reset_token_expires_at: null },
     });
 
     res.json({ message: 'Password reset successfully' });
