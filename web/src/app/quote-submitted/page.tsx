@@ -87,7 +87,7 @@ export default function QuoteSubmittedPage() {
             }}
           >
             Your quote request has been received. We will contact you within
-            <strong style={{ color: '#fff' }}> 1 business day</strong> to discuss your project.
+            <strong style={{ color: '#1D1D1F' }}> 1 business day</strong> to discuss your project.
           </p>
 
           <div

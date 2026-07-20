@@ -226,7 +226,19 @@ export default function BookPage() {
     setSelectedSlot(null);
     fetch(`/api/public/availability?date=${selectedDate}&type_id=${selectedType.id}`)
       .then((r) => r.json())
-      .then((data) => setSlots(data.slots ?? []))
+      // The API returns { data: ["HH:MM", ...] }. Map each 24h string into the
+      // { time, display } shape the UI renders.
+      .then((data) => {
+        const times: string[] = data.data ?? data.slots ?? [];
+        setSlots(
+          times.map((t) => {
+            const [h, m] = t.split(':').map(Number);
+            const period = h >= 12 ? 'PM' : 'AM';
+            const h12 = h % 12 === 0 ? 12 : h % 12;
+            return { time: t, display: `${h12}:${String(m).padStart(2, '0')} ${period}` };
+          })
+        );
+      })
       .catch(() => setSlots([]))
       .finally(() => setLoadingSlots(false));
   }, [selectedDate, selectedType]);

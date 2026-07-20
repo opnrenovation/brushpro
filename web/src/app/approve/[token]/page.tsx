@@ -251,8 +251,18 @@ export default function ApprovePage() {
 
   async function handleDecline() {
     if (!confirm('Are you sure you want to decline this estimate?')) return;
-    try { await fetch(`/api/v1/approve/${token}/decline`, { method: 'POST' }); } catch { /* continue */ }
-    setStep('declined');
+    try {
+      const res = await fetch(`/api/v1/approve/${token}/decline`, { method: 'POST' });
+      if (!res.ok) {
+        // The estimate can't be declined (already approved/declined or expired).
+        const body = await res.json().catch(() => ({}));
+        setSubmitError(body.error || 'This estimate can no longer be declined.');
+        return;
+      }
+      setStep('declined');
+    } catch {
+      setSubmitError('Could not reach the server. Please try again.');
+    }
   }
 
   // ── Loading ────────────────────────────────────────────────────────────────
@@ -426,6 +436,15 @@ export default function ApprovePage() {
                 Decline
               </button>
             </div>
+            {submitError && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', marginTop: 16,
+                background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, color: '#dc2626', fontSize: 14,
+              }}>
+                <AlertCircle size={16} strokeWidth={1.5} />
+                {submitError}
+              </div>
+            )}
           </div>
         )}
 
@@ -623,7 +642,7 @@ export default function ApprovePage() {
                 {usd(depositAmount)}
               </div>
               <div style={{ fontSize: 13, color: GRAY }}>
-                {estimate?.deposit_percentage ?? 30}% of project total
+                Due now to reserve your booking
               </div>
             </div>
 
