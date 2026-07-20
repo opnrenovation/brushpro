@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Mail, Plus, BarChart2, TrendingUp, MousePointer, Eye, X,
+  Mail, Plus, BarChart2, TrendingUp, MousePointer, Eye, X, Send,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -35,15 +35,6 @@ interface EmailTemplate {
   thumbnail_url: string | null;
   updated_at: string;
 }
-
-const ANALYTICS_PLACEHOLDER = [
-  { name: 'Jan', opens: 65, clicks: 28 },
-  { name: 'Feb', opens: 72, clicks: 31 },
-  { name: 'Mar', opens: 80, clicks: 42 },
-  { name: 'Apr', opens: 55, clicks: 22 },
-  { name: 'May', opens: 90, clicks: 50 },
-  { name: 'Jun', opens: 77, clicks: 38 },
-];
 
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) => {
   if (!active || !payload) return null;
@@ -114,6 +105,19 @@ export default function MarketingPage() {
     },
   });
 
+  const sendCampaignMutation = useMutation({
+    mutationFn: (id: string) => campaignsApi.send(id),
+    onSuccess: (res: { data?: { data?: { recipients?: number } } }) => {
+      qc.invalidateQueries({ queryKey: ['campaigns'] });
+      const n = res?.data?.data?.recipients;
+      alert(n != null ? `Campaign sent to ${n} recipient${n === 1 ? '' : 's'}.` : 'Campaign sent.');
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      alert(msg || 'Failed to send campaign.');
+    },
+  });
+
   function handleCampaignSubmit() {
     if (!campaignForm.name || !campaignForm.subject) {
       setCampaignError('Name and subject are required.');
@@ -141,6 +145,24 @@ export default function MarketingPage() {
     campaigns.filter((c) => c.click_rate != null).length > 0
       ? campaigns.reduce((s, c) => s + (c.click_rate || 0), 0) / campaigns.filter((c) => c.click_rate != null).length
       : 0;
+
+  // Real per-month open/click averages from sent campaigns (last 6 months).
+  const chartData = (() => {
+    const sent = campaigns
+      .filter((c) => c.status === 'SENT' && c.sent_at)
+      .sort((a, b) => new Date(a.sent_at!).getTime() - new Date(b.sent_at!).getTime());
+    const byMonth = new Map<string, { opens: number[]; clicks: number[] }>();
+    for (const c of sent) {
+      const key = new Date(c.sent_at!).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      if (!byMonth.has(key)) byMonth.set(key, { opens: [], clicks: [] });
+      if (c.open_rate != null) byMonth.get(key)!.opens.push(c.open_rate);
+      if (c.click_rate != null) byMonth.get(key)!.clicks.push(c.click_rate);
+    }
+    const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
+    return Array.from(byMonth.entries())
+      .map(([name, v]) => ({ name, opens: avg(v.opens), clicks: avg(v.clicks) }))
+      .slice(-6);
+  })();
 
   return (
     <div>
@@ -273,6 +295,7 @@ export default function MarketingPage() {
                   <th>Open Rate</th>
                   <th>Click Rate</th>
                   <th>Sent</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -292,6 +315,20 @@ export default function MarketingPage() {
                     </td>
                     <td style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>
                       {c.sent_at ? new Date(c.sent_at).toLocaleDateString() : '—'}
+                    </td>
+                    <td>
+                      {c.status === 'DRAFT' ? (
+                        <button
+                          onClick={() => { if (confirm(`Send campaign "${c.name}" now? This emails every subscribed recipient.`)) sendCampaignMutation.mutate(c.id); }}
+                          disabled={sendCampaignMutation.isPending}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: '#007AFF', fontSize: 13, fontWeight: 500, padding: 4 }}
+                          title="Send campaign"
+                        >
+                          <Send size={14} strokeWidth={1.5} /> Send
+                        </button>
+                      ) : (
+                        <span style={{ color: 'rgba(0,0,0,0.25)', fontSize: 13 }}>—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -353,7 +390,7 @@ export default function MarketingPage() {
               { icon: <Mail size={20} strokeWidth={1.5} />, label: 'Campaigns Sent', value: String(totalSent), color: '#007AFF' },
               { icon: <Eye size={20} strokeWidth={1.5} />, label: 'Avg Open Rate', value: `${avgOpenRate.toFixed(1)}%`, color: '#34C759' },
               { icon: <MousePointer size={20} strokeWidth={1.5} />, label: 'Avg Click Rate', value: `${avgClickRate.toFixed(1)}%`, color: '#E8A838' },
-              { icon: <TrendingUp size={20} strokeWidth={1.5} />, label: 'Total Contacts', value: String(campaigns.reduce((s, c) => s + c.total_recipients, 0)), color: '#5856D6' },
+              { icon: <TrendingUp size={20} strokeWidth={1.5} />, label: 'Total Recipients', value: String(campaigns.reduce((s, c) => s + c.total_recipients, 0)), color: '#5856D6' },
             ].map((stat) => (
               <div key={stat.label} className="glass" style={{ flex: 1, padding: '20px 24px' }}>
                 <div style={{ color: stat.color, marginBottom: 12 }}>{stat.icon}</div>
@@ -373,8 +410,13 @@ export default function MarketingPage() {
               <BarChart2 size={18} strokeWidth={1.5} style={{ color: '#007AFF' }} />
               <h3 style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 15 }}>Email Performance (Last 6 Months)</h3>
             </div>
+            {chartData.length === 0 ? (
+              <div style={{ padding: '48px 0', textAlign: 'center', color: 'rgba(0,0,0,0.35)', fontSize: 14 }}>
+                No sent campaigns yet. Performance will appear here once you send your first campaign.
+              </div>
+            ) : (
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={ANALYTICS_PLACEHOLDER} barCategoryGap="35%">
+              <BarChart data={chartData} barCategoryGap="35%">
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
                 <XAxis dataKey="name" stroke="rgba(0,0,0,0.3)" tick={{ fontSize: 12, fill: 'rgba(0,0,0,0.4)' }} axisLine={false} tickLine={false} />
                 <YAxis stroke="rgba(0,0,0,0.3)" tick={{ fontSize: 12, fill: 'rgba(0,0,0,0.4)' }} axisLine={false} tickLine={false} unit="%" />
@@ -383,6 +425,8 @@ export default function MarketingPage() {
                 <Bar dataKey="clicks" name="Click Rate" fill="#007AFF" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+            )}
+            {chartData.length > 0 && (
             <div style={{ display: 'flex', gap: 20, justifyContent: 'center', marginTop: 12 }}>
               {[{ color: '#34C759', label: 'Open Rate' }, { color: '#007AFF', label: 'Click Rate' }].map((l) => (
                 <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -391,6 +435,7 @@ export default function MarketingPage() {
                 </div>
               ))}
             </div>
+            )}
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
-import { resend, sendEmail, upsertResendContact } from '../lib/resend';
+import { sendEmail } from '../lib/resend';
 import { AuthRequest } from '../middleware/auth';
 
 export const campaignsRouter = Router();
@@ -57,42 +57,50 @@ campaignsRouter.post('/:id/send', async (req, res) => {
       return;
     }
 
-    // Get all contacts from the campaign lists
-    const members = await prisma.contactListMember.findMany({
-      where: { list_id: { in: campaign.list_ids } },
-      include: { contact: true },
-      distinct: ['contact_id'],
-    });
-
-    const subscribedContacts = members
-      .map((m) => m.contact)
-      .filter((c) => c.subscribed && !c.deleted_at && c.email);
-
-    // Sync contacts to Resend audience
-    for (const contact of subscribedContacts) {
-      await upsertResendContact({
-        email: contact.email,
-        first_name: contact.first_name,
-        last_name: contact.last_name,
-        unsubscribed: false,
-      }).catch(() => {});
+    // Resolve recipients. With specific lists selected, use their members;
+    // with no list chosen, fall back to every subscribed contact.
+    let candidateContacts;
+    if (campaign.list_ids && campaign.list_ids.length > 0) {
+      const members = await prisma.contactListMember.findMany({
+        where: { list_id: { in: campaign.list_ids } },
+        include: { contact: true },
+        distinct: ['contact_id'],
+      });
+      candidateContacts = members.map((m) => m.contact);
+    } else {
+      candidateContacts = await prisma.contact.findMany({ where: { subscribed: true, deleted_at: null } });
     }
 
-    const settings = await prisma.companySettings.findFirst();
+    const subscribedContacts = candidateContacts.filter((c) => c.subscribed && !c.deleted_at && c.email);
 
-    // Use Resend Broadcasts API
-    const { data: broadcast, error } = await (resend.broadcasts as unknown as {
-      create: (params: object) => Promise<{ data: { id: string } | null; error: Error | null }>;
-    }).create({
-      audienceId: process.env.RESEND_AUDIENCE_ID,
-      from: `${process.env.EMAIL_FROM_NAME} <${process.env.EMAIL_FROM}>`,
-      subject: campaign.subject,
-      html: campaign.html_body,
-      name: campaign.name,
-    });
+    if (subscribedContacts.length === 0) {
+      res.status(400).json({ error: 'No subscribed recipients in the selected list(s).' });
+      return;
+    }
 
-    if (error || !broadcast) {
-      throw new Error('Resend broadcast failed');
+    // Email ONLY the recipients on the selected lists — one message each — so
+    // the campaign never reaches the whole shared audience, and previously
+    // unsubscribed contacts are never re-subscribed or contacted.
+    let sent = 0;
+    const failed: string[] = [];
+    for (const contact of subscribedContacts) {
+      try {
+        await sendEmail({
+          to: contact.email,
+          subject: campaign.subject,
+          html: campaign.html_body,
+          tags: [{ name: 'campaign_id', value: campaign.id }],
+        });
+        sent++;
+      } catch (sendErr) {
+        console.error(`Campaign ${campaign.id} send failed for ${contact.email}:`, sendErr);
+        failed.push(contact.email);
+      }
+    }
+
+    if (sent === 0) {
+      res.status(502).json({ error: 'Failed to send campaign to any recipient.' });
+      return;
     }
 
     await prisma.campaign.update({
@@ -100,12 +108,11 @@ campaignsRouter.post('/:id/send', async (req, res) => {
       data: {
         status: 'SENT',
         sent_at: new Date(),
-        total_recipients: subscribedContacts.length,
-        resend_broadcast_id: broadcast.id,
+        total_recipients: sent,
       },
     });
 
-    res.json({ data: { sent: true, recipients: subscribedContacts.length } });
+    res.json({ data: { sent: true, recipients: sent, failed: failed.length } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to send campaign' });
