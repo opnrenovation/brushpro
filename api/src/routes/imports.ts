@@ -158,6 +158,16 @@ importsRouter.post('/customers', uploadCsv.single('file'), async (req: AuthReque
         // Check if contact with this email already exists
         let existingContact = email ? await prisma.contact.findUnique({ where: { email } }) : null;
 
+        // Skip rows that already have a customer, so re-importing the same file
+        // doesn't create duplicate customer rows (and hit the unique contact_id).
+        const dupe = existingContact
+          ? await prisma.customer.findFirst({ where: { contact_id: existingContact.id, deleted_at: null } })
+          : await prisma.customer.findFirst({ where: { name, address, deleted_at: null } });
+        if (dupe) {
+          skipped++;
+          continue;
+        }
+
         const customer = await prisma.customer.create({
           data: {
             name,

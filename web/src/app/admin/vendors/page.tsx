@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Truck, Search, Plus, X } from 'lucide-react';
+import { Truck, Search, Plus, X, Pencil, Trash2 } from 'lucide-react';
 import { vendorsApi } from '@/lib/api';
 
 const CATEGORIES = ['ALL', 'PAINT_SUPPLIER', 'EQUIPMENT', 'SUBCONTRACTOR', 'MATERIALS', 'OTHER'];
@@ -28,6 +28,7 @@ export default function VendorsPage() {
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState('');
   const qc = useQueryClient();
@@ -35,27 +36,62 @@ export default function VendorsPage() {
   const { data } = useQuery({ queryKey: ['vendors'], queryFn: () => vendorsApi.list() });
   const vendors: Vendor[] = data?.data?.data || data?.data || [];
 
-  const createMutation = useMutation({
-    mutationFn: (f: typeof emptyForm) => vendorsApi.create({
-      name: f.name,
-      category: f.category,
-      contact_name: f.contact_name || undefined,
-      email: f.email || undefined,
-      phone: f.phone || undefined,
-      address: f.address || undefined,
-      notes: f.notes || undefined,
-    }),
+  const payloadFrom = (f: typeof emptyForm) => ({
+    name: f.name,
+    category: f.category,
+    contact_name: f.contact_name || undefined,
+    email: f.email || undefined,
+    phone: f.phone || undefined,
+    address: f.address || undefined,
+    notes: f.notes || undefined,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (f: typeof emptyForm) => editingId
+      ? vendorsApi.update(editingId, payloadFrom(f))
+      : vendorsApi.create(payloadFrom(f)),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vendors'] });
       setShowModal(false);
       setForm(emptyForm);
+      setEditingId(null);
       setFormError('');
     },
     onError: (e: unknown) => {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setFormError(msg || 'Failed to create vendor. Please try again.');
+      setFormError(msg || 'Failed to save vendor. Please try again.');
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => vendorsApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['vendors'] }),
+    onError: () => alert('Failed to delete vendor.'),
+  });
+
+  function openNew() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setFormError('');
+    setShowModal(true);
+  }
+
+  function openEdit(v: Vendor) {
+    setEditingId(v.id);
+    setForm({
+      name: v.name, category: v.category, contact_name: v.contact_name || '',
+      email: v.email || '', phone: v.phone || '', address: v.address || '', notes: v.notes || '',
+    });
+    setFormError('');
+    setShowModal(true);
+  }
+
+  function closeModal() {
+    setShowModal(false);
+    setForm(emptyForm);
+    setEditingId(null);
+    setFormError('');
+  }
 
   function handleSubmit() {
     if (!form.name) {
@@ -63,7 +99,7 @@ export default function VendorsPage() {
       return;
     }
     setFormError('');
-    createMutation.mutate(form);
+    saveMutation.mutate(form);
   }
 
   const filtered = vendors.filter((v) => {
@@ -82,7 +118,7 @@ export default function VendorsPage() {
           <Truck size={20} color="#007AFF" strokeWidth={1.5} />
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' }}>Vendors</h1>
         </div>
-        <button className="btn btn-primary" onClick={() => { setShowModal(true); setFormError(''); }}>
+        <button className="btn btn-primary" onClick={openNew}>
           <Plus size={16} strokeWidth={1.5} /> New Vendor
         </button>
       </div>
@@ -91,8 +127,8 @@ export default function VendorsPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
           <div className="glass" style={{ width: '100%', maxWidth: 480, padding: 32, maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>New Vendor</h2>
-              <button onClick={() => { setShowModal(false); setForm(emptyForm); setFormError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>{editingId ? 'Edit Vendor' : 'New Vendor'}</h2>
+              <button onClick={closeModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)' }}>
                 <X size={20} strokeWidth={1.5} />
               </button>
             </div>
@@ -132,9 +168,9 @@ export default function VendorsPage() {
 
             {formError && <p style={{ color: '#FF3B30', fontSize: 13, marginBottom: 16 }}>{formError}</p>}
             <div style={{ display: 'flex', gap: 10 }}>
-              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowModal(false); setForm(emptyForm); setFormError(''); }}>Cancel</button>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSubmit} disabled={createMutation.isPending}>
-                {createMutation.isPending ? 'Creating...' : 'Create Vendor'}
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={closeModal}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSubmit} disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? 'Saving...' : editingId ? 'Save Changes' : 'Create Vendor'}
               </button>
             </div>
           </div>
@@ -167,11 +203,11 @@ export default function VendorsPage() {
       <div className="glass" style={{ overflow: 'hidden' }}>
         <table className="data-table">
           <thead>
-            <tr><th>Vendor</th><th>Category</th><th>Contact</th><th>Email</th><th>Phone</th></tr>
+            <tr><th>Vendor</th><th>Category</th><th>Contact</th><th>Email</th><th>Phone</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'rgba(0,0,0,0.3)', padding: 40 }}>No vendors found</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'rgba(0,0,0,0.3)', padding: 40 }}>No vendors found</td></tr>
             )}
             {filtered.map((v) => (
               <tr key={v.id}>
@@ -184,6 +220,16 @@ export default function VendorsPage() {
                 <td style={{ color: 'rgba(0,0,0,0.6)', fontSize: 13 }}>{v.contact_name || '—'}</td>
                 <td style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>{v.email || '—'}</td>
                 <td style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>{v.phone || '—'}</td>
+                <td>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button onClick={() => openEdit(v)} title="Edit vendor" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#007AFF', padding: 6 }}>
+                      <Pencil size={14} strokeWidth={1.5} />
+                    </button>
+                    <button onClick={() => { if (confirm(`Delete vendor "${v.name}"? This cannot be undone.`)) deleteMutation.mutate(v.id); }} title="Delete vendor" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF3B30', padding: 6 }}>
+                      <Trash2 size={14} strokeWidth={1.5} />
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>

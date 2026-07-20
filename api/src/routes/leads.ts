@@ -208,6 +208,12 @@ router.post('/:id/convert', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Lead must be in WON stage to convert' });
       return;
     }
+    // Guard against re-conversion — a lead already linked to a job would
+    // otherwise spawn a duplicate job on every repeated POST.
+    if (lead.job_id) {
+      res.status(400).json({ error: 'Lead has already been converted to a job' });
+      return;
+    }
 
     const { job_name, address, municipality } = req.body;
     const settings = await prisma.companySettings.findFirst();

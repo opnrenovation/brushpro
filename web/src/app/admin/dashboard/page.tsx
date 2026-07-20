@@ -109,7 +109,7 @@ export default function DashboardPage() {
           <span style={{ fontSize: 14, color: '#FF3B30', fontWeight: 500 }}>
             {invoices.length} overdue invoice{invoices.length !== 1 ? 's' : ''} need attention.
           </span>
-          <Link href="/admin/jobs" style={{ fontSize: 13, color: '#FF3B30', textDecoration: 'underline', marginLeft: 'auto' }}>Review</Link>
+          <Link href="/admin/invoices" style={{ fontSize: 13, color: '#FF3B30', textDecoration: 'underline', marginLeft: 'auto' }}>Review</Link>
         </div>
       )}
     </div>

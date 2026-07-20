@@ -272,6 +272,22 @@ function ContractsSection() {
 
   const [showModal, setShowModal] = useState(false);
   const [editTemplate, setEditTemplate] = useState<{ id?: string; name: string; body: string; description: string; is_default: boolean } | null>(null);
+  const [bodyLoading, setBodyLoading] = useState(false);
+
+  // Open the editor and pull the FULL template (the list omits `body`), so
+  // saving an edit never overwrites the contract text with an empty string.
+  async function openTemplate(t: { id: string; name: string; description: string | null; is_default: boolean }) {
+    setEditTemplate({ id: t.id, name: t.name, body: '', description: t.description || '', is_default: t.is_default });
+    setShowModal(true);
+    setBodyLoading(true);
+    try {
+      const res = await contractTemplatesApi.get(t.id);
+      const full = (res.data?.data || res.data) as { name: string; body: string; description: string | null; is_default: boolean };
+      setEditTemplate((cur) => (cur && cur.id === t.id ? { ...cur, body: full.body || '', name: full.name ?? cur.name, description: full.description ?? cur.description, is_default: full.is_default ?? cur.is_default } : cur));
+    } finally {
+      setBodyLoading(false);
+    }
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => contractTemplatesApi.delete(id),
@@ -308,17 +324,14 @@ function ContractsSection() {
               <button
                 className="btn btn-ghost"
                 style={{ fontSize: 13, padding: '6px 12px' }}
-                onClick={() => {
-                  setEditTemplate({ id: t.id, name: t.name, body: '', description: t.description || '', is_default: t.is_default });
-                  setShowModal(true);
-                }}
+                onClick={() => openTemplate(t)}
               >
                 <Edit2 size={13} strokeWidth={1.5} /> Edit
               </button>
               <button
                 className="btn btn-danger"
                 style={{ fontSize: 13, padding: '6px 12px' }}
-                onClick={() => deleteMutation.mutate(t.id)}
+                onClick={() => { if (confirm(`Delete template "${t.name}"? This cannot be undone.`)) deleteMutation.mutate(t.id); }}
               >
                 <Trash2 size={13} strokeWidth={1.5} /> Delete
               </button>
@@ -377,10 +390,10 @@ function ContractsSection() {
               <button
                 className="btn btn-primary"
                 onClick={() => saveMutation.mutate(editTemplate)}
-                disabled={saveMutation.isPending || !editTemplate.name.trim()}
+                disabled={saveMutation.isPending || bodyLoading || !editTemplate.name.trim()}
                 style={{ flex: 1, justifyContent: 'center' }}
               >
-                {saveMutation.isPending ? 'Saving...' : 'Save Template'}
+                {bodyLoading ? 'Loading...' : saveMutation.isPending ? 'Saving...' : 'Save Template'}
               </button>
             </div>
           </div>
@@ -493,7 +506,7 @@ function PriceBookSection() {
                     <button
                       className="btn btn-danger"
                       style={{ fontSize: 12, padding: '4px 10px' }}
-                      onClick={() => deleteMutation.mutate(item.id)}
+                      onClick={() => { if (confirm(`Delete "${item.name}" from the price book? This cannot be undone.`)) deleteMutation.mutate(item.id); }}
                     >
                       <Trash2 size={12} strokeWidth={1.5} />
                     </button>
@@ -669,7 +682,7 @@ function TaxSection() {
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => startEdit(p)}>Edit</button>
-                        <button className="btn btn-danger" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => deleteMutation.mutate(p.id)}>
+                        <button className="btn btn-danger" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => { if (confirm(`Delete tax profile "${p.name}"? This cannot be undone.`)) deleteMutation.mutate(p.id); }}>
                           <Trash2 size={12} strokeWidth={1.5} />
                         </button>
                       </div>
@@ -828,7 +841,7 @@ function SchedulerSection() {
                     <td style={{ color: 'rgba(0,0,0,0.6)' }}>{r.end_time}</td>
                     <td><span className={`pill ${r.is_active ? 'pill-green' : 'pill-muted'}`}>{r.is_active ? 'Active' : 'Off'}</span></td>
                     <td>
-                      <button className="btn btn-danger" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => deleteRuleMutation.mutate(r.id)}>
+                      <button className="btn btn-danger" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => { if (confirm('Delete this availability rule?')) deleteRuleMutation.mutate(r.id); }}>
                         <Trash2 size={12} strokeWidth={1.5} />
                       </button>
                     </td>

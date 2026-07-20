@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Users, Search, Plus, CheckCircle, XCircle, Upload, X, MoreHorizontal, Pencil, Trash2, Briefcase } from 'lucide-react';
-import { contactsApi } from '@/lib/api';
+import { contactsApi, importsApi } from '@/lib/api';
 
 const TYPES = ['ALL', 'PROSPECT', 'CUSTOMER', 'BOTH'];
 const SOURCES = ['MANUAL', 'WEBSITE_FORM', 'REFERRAL', 'GOOGLE', 'FACEBOOK', 'INSTAGRAM', 'YELP', 'OTHER'];
@@ -44,8 +44,31 @@ export default function ContactsPage() {
   const [formError, setFormError] = useState('');
   const [listsNotice, setListsNotice] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
+
+  // Standard column names map 1:1 to contact fields.
+  const IMPORT_MAPPING = { first_name: 'first_name', last_name: 'last_name', email: 'email', phone: 'phone', company: 'company', tags: 'tags', source: 'source', address: 'address', city: 'city', state: 'state', zip: 'zip' };
+  const importMutation = useMutation({
+    mutationFn: (file: File) => importsApi.contacts(file, IMPORT_MAPPING, 'PROSPECT'),
+    onSuccess: (res: { data?: { data?: { imported?: number; skipped?: number; errors?: number } } }) => {
+      qc.invalidateQueries({ queryKey: ['contacts'] });
+      const d = res?.data?.data;
+      setImportResult(d ? `Imported ${d.imported ?? 0}, skipped ${d.skipped ?? 0}, ${d.errors ?? 0} error(s).` : 'Import complete.');
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setImportResult(msg || 'Import failed. Check the file format and try again.');
+    },
+  });
+
+  function handleImportFile(file: File | undefined | null) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.csv')) { setImportResult('Please choose a .csv file.'); return; }
+    setImportResult(null);
+    importMutation.mutate(file);
+  }
 
   const { data } = useQuery({ queryKey: ['contacts'], queryFn: () => contactsApi.list() });
   const contacts: Contact[] = data?.data?.data || data?.data || [];
@@ -145,7 +168,10 @@ export default function ContactsPage() {
   }
 
   const filtered = contacts.filter((c) => {
-    const matchType = typeFilter === 'ALL' || c.type === typeFilter;
+    // A BOTH contact is both a customer and a prospect, so it belongs under
+    // either tab — not just an exact-match tab.
+    const matchType = typeFilter === 'ALL' || c.type === typeFilter ||
+      (c.type === 'BOTH' && (typeFilter === 'CUSTOMER' || typeFilter === 'PROSPECT'));
     const q = search.toLowerCase();
     const matchSearch =
       !q ||
@@ -383,7 +409,7 @@ export default function ContactsPage() {
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => { e.preventDefault(); setDragOver(false); }}
+            onDrop={(e) => { e.preventDefault(); setDragOver(false); handleImportFile(e.dataTransfer.files?.[0]); }}
             style={{
               border: `2px dashed ${dragOver ? '#007AFF' : 'rgba(0,0,0,0.15)'}`,
               borderRadius: 16, padding: '64px 40px', textAlign: 'center',
@@ -396,10 +422,12 @@ export default function ContactsPage() {
             <p style={{ color: 'rgba(0,0,0,0.4)', fontSize: 14, marginBottom: 24 }}>or click to browse. Required columns: first_name, last_name, email</p>
             <label style={{ cursor: 'pointer' }}>
               <div className="btn btn-ghost" style={{ display: 'inline-flex' }}>
-                <Upload size={15} strokeWidth={1.5} /> Choose CSV File
+                <Upload size={15} strokeWidth={1.5} /> {importMutation.isPending ? 'Importing...' : 'Choose CSV File'}
               </div>
-              <input type="file" accept=".csv" style={{ display: 'none' }} />
+              <input type="file" accept=".csv" style={{ display: 'none' }} disabled={importMutation.isPending}
+                onChange={(e) => { handleImportFile(e.target.files?.[0]); e.target.value = ''; }} />
             </label>
+            {importResult && <p style={{ marginTop: 16, fontSize: 13, color: importResult.includes('failed') || importResult.includes('Please') ? '#FF3B30' : '#34C759' }}>{importResult}</p>}
           </div>
           <div className="glass" style={{ padding: '20px 24px' }}>
             <h3 style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 14, marginBottom: 12 }}>CSV Format Guide</h3>

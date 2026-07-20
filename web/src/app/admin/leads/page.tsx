@@ -25,14 +25,7 @@ interface Lead {
 
 function daysSince(d: string) { return Math.floor((Date.now() - new Date(d).getTime()) / 86400000); }
 
-const FALLBACK: Lead[] = [
-  { id: '1', stage: 'NEW', source: 'WEBSITE_FORM', service_needed: 'Residential Painting', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), contact: { first_name: 'Sarah', last_name: 'Mitchell', email: 'sarah@example.com', phone: '(515) 555-0101' }, estimate: null },
-  { id: '2', stage: 'APPOINTMENT', source: 'REFERRAL', service_needed: 'Interior Painting', created_at: new Date(Date.now() - 86400000 * 2).toISOString(), updated_at: new Date(Date.now() - 86400000).toISOString(), contact: { first_name: 'Daniel', last_name: 'Park', email: 'dpark@example.com', phone: '(515) 555-0202' }, estimate: null },
-  { id: '3', stage: 'ESTIMATE_SENT', source: 'MANUAL', service_needed: 'Cabinet Painting', created_at: new Date(Date.now() - 86400000 * 5).toISOString(), updated_at: new Date(Date.now() - 86400000).toISOString(), contact: { first_name: 'Kim', last_name: 'Nguyen', email: 'kim@example.com', phone: null }, estimate: { estimate_number: 'EST-0041', status: 'SENT' } },
-  { id: '4', stage: 'WON', source: 'WEBSITE_FORM', service_needed: 'Exterior Painting', created_at: new Date(Date.now() - 86400000 * 10).toISOString(), updated_at: new Date(Date.now() - 86400000 * 3).toISOString(), contact: { first_name: 'Tom', last_name: 'Eriksen', email: 'tom@example.com', phone: '(515) 555-0404' }, estimate: { estimate_number: 'EST-0039', status: 'APPROVED' } },
-];
-
-const SERVICES = ['Residential Painting', 'Commercial Painting', 'Interior Painting', 'Exterior Painting', 'Cabinet Painting', 'Deck Staining', 'Accent Walls', 'Color Consultation'];
+const SERVICES =['Residential Painting', 'Commercial Painting', 'Interior Painting', 'Exterior Painting', 'Cabinet Painting', 'Deck Staining', 'Accent Walls', 'Color Consultation'];
 const SOURCES = ['MANUAL', 'WEBSITE_FORM', 'REFERRAL', 'GOOGLE', 'FACEBOOK', 'INSTAGRAM', 'YELP', 'OTHER'];
 
 const emptyForm = { first_name: '', last_name: '', email: '', phone: '', service_needed: '', source: 'MANUAL', project_address: '', notes: '' };
@@ -45,14 +38,9 @@ export default function LeadsPage() {
   const [formError, setFormError] = useState('');
   const qc = useQueryClient();
 
-  const { data } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['leads'],
     queryFn: () => leadsApi.list(),
-  });
-
-  const stageMutation = useMutation({
-    mutationFn: ({ id, stage }: { id: string; stage: string }) => leadsApi.update(id, { stage }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['leads'] }),
   });
 
   const createMutation = useMutation({
@@ -91,7 +79,7 @@ export default function LeadsPage() {
     createMutation.mutate(form);
   }
 
-  const leads: Lead[] = data?.data?.data || data?.data || FALLBACK;
+  const leads: Lead[] = data?.data?.data || data?.data || [];
   const filtered = leads.filter((l) => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -211,7 +199,17 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {view === 'kanban' ? (
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: '60px 0', color: 'rgba(0,0,0,0.4)', fontSize: 14 }}>Loading leads...</div>
+      ) : isError ? (
+        <div style={{ textAlign: 'center', padding: '60px 0', color: '#FF3B30', fontSize: 14 }}>Failed to load leads. Please refresh the page.</div>
+      ) : leads.length === 0 ? (
+        <div className="glass" style={{ textAlign: 'center', padding: '60px 24px', color: 'rgba(0,0,0,0.4)' }}>
+          <Target size={32} strokeWidth={1} style={{ marginBottom: 12, opacity: 0.4 }} />
+          <p style={{ margin: 0, fontSize: 15, fontWeight: 500 }}>No leads yet</p>
+          <p style={{ margin: '4px 0 0', fontSize: 13 }}>Create your first lead to start building the pipeline.</p>
+        </div>
+      ) : view === 'kanban' ? (
         <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16 }}>
           {STAGES.filter((s) => s !== 'LOST').map((stage) => {
             const col = filtered.filter((l) => l.stage === stage);

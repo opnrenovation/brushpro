@@ -7,6 +7,13 @@
       "runtimeArgs": ["-c", "PATH=/opt/homebrew/bin:$PATH npm run dev --workspace=web"],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": ["-c", "cd api && PATH=/opt/homebrew/bin:$PATH npm run dev"],
+      "port": 3001,
+      "autoPort": true
     }
   ]
 }
