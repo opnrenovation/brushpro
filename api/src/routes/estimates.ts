@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../lib/prisma';
 import { sendEmail } from '../lib/resend';
 import { generateProposalPdf } from '../services/pdf';
+import { computeInvoiceTotals } from '../lib/invoiceTotals';
 
 export const estimatesRouter = Router();
 
@@ -138,7 +139,13 @@ estimatesRouter.post('/:id/send', async (req, res) => {
       taxable: boolean;
     }>;
 
-    const total = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
+    // Tax-inclusive total so the emailed figure matches the approval page the
+    // customer opens (which also adds tax). Estimates carry no discount.
+    const { total } = computeInvoiceTotals({
+      line_items: lineItems,
+      state_rate: Number(estimate.tax_profile.state_rate),
+      local_rate: Number(estimate.tax_profile.local_rate),
+    });
 
     // Update estimate to SENT first — email is best-effort
     const updated = await prisma.estimate.update({

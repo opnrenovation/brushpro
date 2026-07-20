@@ -72,7 +72,8 @@ export default function ReportsPage() {
   const profit = profitData?.data?.data || profitData?.data || [];
 
   const handleExport = async (type: 'tax' | 'profit') => {
-    const res = type === 'tax' ? await reportsApi.taxExport() : await reportsApi.profitExport();
+    // Export the SAME date range currently shown on screen.
+    const res = type === 'tax' ? await reportsApi.taxExport(params) : await reportsApi.profitExport(params);
     downloadBlob(new Blob([res.data], { type: 'text/csv' }), `${type}-report.csv`);
   };
 

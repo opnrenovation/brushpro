@@ -115,9 +115,28 @@ export const invoicesApi = {
   send: (id: string) => api.post(`/invoices/${id}/send`),
   addPayment: (id: string, data: unknown) => api.post(`/invoices/${id}/payments`, data),
   deletePayment: (invId: string, payId: string) => api.delete(`/invoices/${invId}/payments/${payId}`),
-  void: (id: string) => api.patch(`/invoices/${id}`, { status: 'VOID', deleted_at: new Date().toISOString() }),
+  // Void marks the invoice cancelled but keeps it visible under the VOID filter.
+  // The public invoice route refuses to display or charge VOID invoices.
+  void: (id: string) => api.patch(`/invoices/${id}`, { status: 'VOID' }),
   stripeLink: (id: string) => api.post(`/invoices/${id}/stripe-link`),
   pdf: (id: string) => api.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
+};
+
+// CSV Imports
+export const importsApi = {
+  contacts: (file: File, mapping: Record<string, string>, import_type = 'PROSPECT') => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('mapping', JSON.stringify(mapping));
+    fd.append('import_type', import_type);
+    return api.post('/imports/contacts', fd);
+  },
+  customers: (file: File, mapping: Record<string, string>) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('mapping', JSON.stringify(mapping));
+    return api.post('/imports/customers', fd);
+  },
 };
 
 // Tax Profiles
@@ -202,9 +221,10 @@ export const vendorsApi = {
 // Reports
 export const reportsApi = {
   tax: (params?: Record<string, string>) => api.get('/reports/tax', { params }),
-  taxExport: () => api.get('/reports/tax/export', { responseType: 'blob' }),
+  taxExport: (params?: Record<string, string>) => api.get('/reports/tax/export', { params, responseType: 'blob' }),
   taxOutstanding: (params?: Record<string, string>) => api.get('/reports/tax/outstanding', { params }),
   profit: (params?: Record<string, string>) => api.get('/reports/profit', { params }),
-  profitExport: () => api.get('/reports/profit/export', { responseType: 'blob' }),
+  profitExport: (params?: Record<string, string>) => api.get('/reports/profit/export', { params, responseType: 'blob' }),
   materials: (params?: Record<string, string>) => api.get('/reports/materials', { params }),
+  materialsExport: (params?: Record<string, string>) => api.get('/reports/materials/export', { params, responseType: 'blob' }),
 };

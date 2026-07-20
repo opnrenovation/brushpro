@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { sendEmail } from '../lib/resend';
 import { generateInvoicePdf } from '../lib/invoicePdf';
 import { downloadLogoBuffer } from '../lib/supabase';
+import { computeInvoiceTotals } from '../lib/invoiceTotals';
 import Stripe from 'stripe';
 
 let _stripe: Stripe | null = null;
@@ -14,14 +15,6 @@ function getStripe(): Stripe {
 }
 
 export const invoicesRouter = Router();
-
-function calcDiscount(subtotal: number, type: string | null, value: unknown): number {
-  if (!type || type === 'NONE' || !value) return 0;
-  const v = Number(value);
-  if (type === 'PERCENT') return subtotal * (v / 100);
-  if (type === 'FIXED') return Math.min(v, subtotal);
-  return 0;
-}
 
 invoicesRouter.get('/', async (req, res) => {
   try {
@@ -124,15 +117,13 @@ invoicesRouter.post('/:id/send', async (req, res) => {
       taxable: boolean;
     }>;
 
-    const subtotal = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
-    const discountAmt = calcDiscount(subtotal, invoice.discount_type, invoice.discount_value);
-    const discountedSubtotal = subtotal - discountAmt;
-    const taxableRaw = lineItems.filter((li) => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0);
-    const taxableFraction = subtotal > 0 ? taxableRaw / subtotal : 1;
-    const taxableAmount = discountedSubtotal * taxableFraction;
-    const stateTax = taxableAmount * Number(invoice.tax_profile.state_rate);
-    const localTax = taxableAmount * Number(invoice.tax_profile.local_rate);
-    const total = discountedSubtotal + stateTax + localTax;
+    const { subtotal, discountAmount: discountAmt, stateTax, localTax, total } = computeInvoiceTotals({
+      line_items: lineItems,
+      discount_type: invoice.discount_type,
+      discount_value: invoice.discount_value ? Number(invoice.discount_value) : null,
+      state_rate: Number(invoice.tax_profile.state_rate),
+      local_rate: Number(invoice.tax_profile.local_rate),
+    });
 
     const appUrl = process.env.APP_URL || 'http://localhost:3000';
     const payUrl = `${appUrl}/invoices/${invoice.id}`;
@@ -292,7 +283,7 @@ invoicesRouter.post('/:id/payments', async (req, res) => {
   try {
     const invoice = await prisma.invoice.findUnique({
       where: { id: req.params.id },
-      include: { payments: true },
+      include: { payments: true, tax_profile: true },
     });
     if (!invoice) {
       res.status(404).json({ error: 'Invoice not found' });
@@ -303,15 +294,20 @@ invoicesRouter.post('/:id/payments', async (req, res) => {
       data: { invoice_id: invoice.id, ...req.body },
     });
 
-    // Update invoice status
+    // Update invoice status against the true total (subtotal - discount + tax)
     const lineItems = invoice.line_items as Array<{ qty: number; unit_price: number; taxable: boolean }>;
-    const sub = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
-    const disc = calcDiscount(sub, invoice.discount_type, invoice.discount_value);
-    const total = sub - disc;
     const totalPaid = [...invoice.payments, payment].reduce((s, p) => s + Number(p.amount), 0);
+    const { total } = computeInvoiceTotals({
+      line_items: lineItems,
+      discount_type: invoice.discount_type,
+      discount_value: invoice.discount_value ? Number(invoice.discount_value) : null,
+      state_rate: Number(invoice.tax_profile.state_rate),
+      local_rate: Number(invoice.tax_profile.local_rate),
+    });
 
     let status: string;
-    if (totalPaid >= total) status = 'PAID';
+    // Allow a one-cent rounding tolerance so a "pay in full" never lands PARTIAL
+    if (totalPaid >= total - 0.005) status = 'PAID';
     else if (totalPaid > 0) status = 'PARTIAL';
     else status = invoice.status;
 
@@ -326,7 +322,7 @@ invoicesRouter.delete('/:id/payments/:paymentId', async (req, res) => {
   try {
     const invoice = await prisma.invoice.findUnique({
       where: { id: req.params.id },
-      include: { payments: true },
+      include: { payments: true, tax_profile: true },
     });
     if (!invoice) {
       res.status(404).json({ error: 'Invoice not found' });
@@ -335,17 +331,23 @@ invoicesRouter.delete('/:id/payments/:paymentId', async (req, res) => {
 
     await prisma.payment.delete({ where: { id: req.params.paymentId } });
 
-    const lineItems = invoice.line_items as Array<{ qty: number; unit_price: number }>;
-    const total = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
+    const lineItems = invoice.line_items as Array<{ qty: number; unit_price: number; taxable: boolean }>;
+    const { total } = computeInvoiceTotals({
+      line_items: lineItems,
+      discount_type: invoice.discount_type,
+      discount_value: invoice.discount_value ? Number(invoice.discount_value) : null,
+      state_rate: Number(invoice.tax_profile.state_rate),
+      local_rate: Number(invoice.tax_profile.local_rate),
+    });
     const remaining = invoice.payments.filter(p => p.id !== req.params.paymentId);
     const totalPaid = remaining.reduce((s, p) => s + Number(p.amount), 0);
 
     let status: string;
-    if (totalPaid >= total) status = 'PAID';
+    if (totalPaid >= total - 0.005) status = 'PAID';
     else if (totalPaid > 0) status = 'PARTIAL';
-    else status = 'SENT';
+    else status = invoice.status === 'DRAFT' ? 'DRAFT' : 'SENT';
 
-    await prisma.invoice.update({ where: { id: invoice.id }, data: { status: status as 'PAID' | 'PARTIAL' | 'SENT' } });
+    await prisma.invoice.update({ where: { id: invoice.id }, data: { status: status as 'PAID' | 'PARTIAL' | 'SENT' | 'DRAFT' } });
     res.json({ data: { deleted: true } });
   } catch {
     res.status(500).json({ error: 'Failed to delete payment' });
@@ -364,15 +366,16 @@ invoicesRouter.post('/:id/stripe-link', async (req, res) => {
     }
 
     const lineItems = invoice.line_items as Array<{ description: string; qty: number; unit_price: number; taxable: boolean }>;
-    const subtotal = lineItems.reduce((sum, li) => sum + li.qty * li.unit_price, 0);
-    const discountAmt = calcDiscount(subtotal, invoice.discount_type, invoice.discount_value);
-    const discountedSubtotal = subtotal - discountAmt;
-    const taxableRaw = lineItems.filter((li) => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0);
-    const taxableFraction = subtotal > 0 ? taxableRaw / subtotal : 1;
-    const tax = discountedSubtotal * taxableFraction * (Number(invoice.tax_profile.state_rate) + Number(invoice.tax_profile.local_rate));
-    const total = discountedSubtotal + tax;
     const alreadyPaid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-    const amountDue = Math.round((total - alreadyPaid) * 100); // cents
+    const { balance } = computeInvoiceTotals({
+      line_items: lineItems,
+      discount_type: invoice.discount_type,
+      discount_value: invoice.discount_value ? Number(invoice.discount_value) : null,
+      state_rate: Number(invoice.tax_profile.state_rate),
+      local_rate: Number(invoice.tax_profile.local_rate),
+      amount_paid: alreadyPaid,
+    });
+    const amountDue = Math.round(balance * 100); // cents
 
     const session = await getStripe().checkout.sessions.create({
       mode: 'payment',

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { sendEmail } from '../lib/resend';
+import { computeInvoiceTotals } from '../lib/invoiceTotals';
 import {
   createCalendarEvent,
   getGoogleBusyTimes,
@@ -308,7 +309,10 @@ router.get('/invoices/:id', async (req: Request, res: Response) => {
         payments: true,
       },
     });
-    if (!invoice || invoice.deleted_at) {
+    // Only sent/payable invoices are publicly viewable. A draft was never
+    // shared with the customer, and a void is cancelled — neither should be
+    // reachable (or payable) via a guessed URL.
+    if (!invoice || invoice.deleted_at || invoice.status === 'DRAFT' || invoice.status === 'VOID') {
       res.status(404).json({ error: 'Invoice not found' });
       return;
     }
@@ -323,6 +327,17 @@ router.get('/invoices/:id', async (req: Request, res: Response) => {
 // POST /api/public/invoices/:id/stripe-link?method=card|ach
 router.post('/invoices/:id/stripe-link', async (req: Request, res: Response) => {
   try {
+    // Validate the invoice is real and payable BEFORE checking payment config,
+    // so a void/draft invoice never reveals anything and always 404s.
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: req.params.id },
+      include: { job: { include: { customer: true } }, tax_profile: true, payments: true },
+    });
+    if (!invoice || invoice.deleted_at || invoice.status === 'DRAFT' || invoice.status === 'VOID') {
+      res.status(404).json({ error: 'Invoice not found' });
+      return;
+    }
+
     const Stripe = (await import('stripe')).default;
     const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
     if (!stripeKey) {
@@ -331,22 +346,19 @@ router.post('/invoices/:id/stripe-link', async (req: Request, res: Response) => 
     }
     const stripe = new Stripe(stripeKey, { apiVersion: '2025-02-24.acacia' });
 
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: req.params.id },
-      include: { job: { include: { customer: true } }, tax_profile: true, payments: true },
-    });
-    if (!invoice || invoice.deleted_at) {
-      res.status(404).json({ error: 'Invoice not found' });
-      return;
-    }
-
     const invoiceLineItems = invoice.line_items as Array<{ description: string; qty: number; unit_price: number; taxable: boolean }>;
-    const subtotal = invoiceLineItems.reduce((s, li) => s + li.qty * li.unit_price, 0);
-    const taxable = invoiceLineItems.filter(li => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0);
-    const tax = taxable * (Number(invoice.tax_profile.state_rate) + Number(invoice.tax_profile.local_rate));
-    const total = subtotal + tax;
     const alreadyPaid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-    const amountDue = Math.round((total - alreadyPaid) * 100);
+    // Use the canonical total (applies the discount) so the customer is charged
+    // exactly what the invoice page shows — not the undiscounted amount.
+    const { balance } = computeInvoiceTotals({
+      line_items: invoiceLineItems,
+      discount_type: invoice.discount_type,
+      discount_value: invoice.discount_value ? Number(invoice.discount_value) : null,
+      state_rate: Number(invoice.tax_profile.state_rate),
+      local_rate: Number(invoice.tax_profile.local_rate),
+      amount_paid: alreadyPaid,
+    });
+    const amountDue = Math.round(balance * 100);
 
     if (amountDue <= 0) {
       res.status(400).json({ error: 'Invoice is already paid.' });

@@ -121,8 +121,11 @@ function InvoicePageInner() {
           {settings.phone && <p style={{ fontSize: 13, color: '#888', margin: 0 }}>{settings.phone}</p>}
         </div>
 
-        {/* Paid confirmation banner */}
-        {(isPaid || justPaid) && (
+        {/* Paid confirmation banner — "paid in full" only once payment is
+            actually recorded. Right after returning from Stripe (justPaid) the
+            payment may still be settling, so show a processing message instead
+            of prematurely claiming paid AND showing pay buttons. */}
+        {isPaid ? (
           <div style={{ background: '#D1FAE5', border: '1px solid #34C759', borderRadius: 12, padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
             <CheckCircle size={22} color="#34C759" strokeWidth={1.5} />
             <div>
@@ -130,7 +133,15 @@ function InvoicePageInner() {
               <p style={{ fontSize: 13, color: '#059669', margin: '2px 0 0' }}>This invoice has been paid in full.</p>
             </div>
           </div>
-        )}
+        ) : justPaid ? (
+          <div style={{ background: '#D1FAE5', border: '1px solid #34C759', borderRadius: 12, padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <CheckCircle size={22} color="#34C759" strokeWidth={1.5} />
+            <div>
+              <p style={{ fontWeight: 700, color: '#065F46', margin: 0 }}>Thank you — your payment is processing.</p>
+              <p style={{ fontSize: 13, color: '#059669', margin: '2px 0 0' }}>It can take a moment to confirm. This page will update once it clears — no need to pay again.</p>
+            </div>
+          </div>
+        ) : null}
 
         {/* Invoice card */}
         <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', overflow: 'hidden', marginBottom: 20 }}>
@@ -250,8 +261,9 @@ function InvoicePageInner() {
           </div>
         </div>
 
-        {/* Pay section */}
-        {!isPaid && balance > 0 && (
+        {/* Pay section — hidden right after a Stripe return so the customer
+            can't be prompted to pay a second time while the first settles. */}
+        {!isPaid && balance > 0 && !justPaid && (
           <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', padding: '24px 28px' }}>
             <p style={{ fontSize: 15, fontWeight: 600, color: '#111', margin: '0 0 4px' }}>Pay online</p>
             <p style={{ fontSize: 13, color: '#888', margin: '0 0 20px' }}>Secure payment powered by Stripe.</p>

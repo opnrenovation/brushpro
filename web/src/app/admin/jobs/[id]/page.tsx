@@ -4,8 +4,29 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Plus, X, Trash2, Send, Eye, Pencil, Clock, MoreHorizontal, AlertTriangle, Link, CheckCircle } from 'lucide-react';
 import { jobsApi, estimatesApi, invoicesApi, settingsApi, taxProfilesApi } from '@/lib/api';
+import { computeInvoiceTotals } from '@/lib/invoiceTotals';
 
 const TABS = ['Overview', 'Estimates', 'Labor', 'Expenses', 'Invoices'];
+
+// An invoice as returned nested under a job (with tax profile + payments).
+interface JobInvoice {
+  id: string; invoice_number: string; type: string; status: string; due_date: string;
+  line_items: { qty: number; unit_price: number; taxable?: boolean }[];
+  payments: { amount: number }[];
+  discount_type?: string | null; discount_value?: number | null;
+  tax_profile?: { state_rate: number; local_rate: number } | null;
+}
+
+function jobInvoiceTotals(inv: JobInvoice) {
+  return computeInvoiceTotals({
+    line_items: inv.line_items || [],
+    discount_type: inv.discount_type,
+    discount_value: inv.discount_value,
+    state_rate: inv.tax_profile?.state_rate ?? 0,
+    local_rate: inv.tax_profile?.local_rate ?? 0,
+    amount_paid: (inv.payments || []).reduce((s, p) => s + Number(p.amount), 0),
+  });
+}
 
 function fmt(n: number) { return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`; }
 
@@ -301,11 +322,10 @@ export default function JobDetailPage() {
     recordPayment.mutate({ invId: paymentInvoice.id, payload: { amount, method: paymentForm.method, notes: paymentForm.notes || undefined, paid_at: new Date().toISOString() } });
   }
 
-  function openPaymentModal(inv: { id: string; invoice_number: string; line_items: { qty: number; unit_price: number }[]; payments: { amount: number }[] }) {
-    const total = inv.line_items.reduce((s, li) => s + li.qty * li.unit_price, 0);
-    const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
-    setPaymentInvoice({ id: inv.id, invoice_number: inv.invoice_number, balance: total - paid });
-    setPaymentForm({ amount: String((total - paid).toFixed(2)), method: 'CHECK', notes: '' });
+  function openPaymentModal(inv: JobInvoice) {
+    const { balance } = jobInvoiceTotals(inv);
+    setPaymentInvoice({ id: inv.id, invoice_number: inv.invoice_number, balance });
+    setPaymentForm({ amount: balance.toFixed(2), method: 'CHECK', notes: '' });
     setPaymentError('');
   }
 
@@ -1085,8 +1105,8 @@ export default function JobDetailPage() {
               ? <p style={{ color: 'rgba(0,0,0,0.4)' }}>No invoices yet.</p>
               : <table className="data-table">
                   <thead><tr><th>Number</th><th>Type</th><th>Status</th><th>Due</th><th>Total</th><th>Actions</th></tr></thead>
-                  <tbody>{(job.invoices as { id: string; invoice_number: string; type: string; status: string; due_date: string; line_items: { qty: number; unit_price: number }[]; payments: { amount: number }[] }[]).map((inv) => {
-                    const total = (inv.line_items || []).reduce((s, li) => s + li.qty * li.unit_price, 0);
+                  <tbody>{(job.invoices as JobInvoice[]).map((inv) => {
+                    const { total } = jobInvoiceTotals(inv);
                     const paid = (inv.payments || []).reduce((s, p) => s + Number(p.amount), 0);
                     const statusColor: Record<string, string> = { DRAFT: 'rgba(0,0,0,0.3)', SENT: '#007AFF', PARTIAL: '#FF9500', PAID: '#34C759', OVERDUE: '#FF3B30', VOID: 'rgba(0,0,0,0.3)' };
                     return (

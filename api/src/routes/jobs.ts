@@ -53,7 +53,7 @@ jobsRouter.get('/:id', async (req, res) => {
         estimates: { where: { deleted_at: null }, orderBy: { created_at: 'desc' } },
         labor: { orderBy: { work_date: 'desc' } },
         expenses: { orderBy: { expense_date: 'desc' } },
-        invoices: { where: { deleted_at: null }, orderBy: { created_at: 'desc' } },
+        invoices: { where: { deleted_at: null }, orderBy: { created_at: 'desc' }, include: { payments: true, tax_profile: true } },
       },
     });
     if (!job || job.deleted_at) {

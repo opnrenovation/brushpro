@@ -1,7 +1,29 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
+import { computeInvoiceTotals } from '../lib/invoiceTotals';
 
 export const reportsRouter = Router();
+
+// Taxable base and tax actually charged for one invoice, applying the invoice
+// discount (and zeroing out when the invoice is exempt). Matches the canonical
+// money math used by the PDF / email / Stripe charge.
+function invoiceTax(inv: {
+  line_items: unknown;
+  discount_type: string | null;
+  discount_value: unknown;
+  tax_profile: { state_rate: unknown; local_rate: unknown };
+  exempt: boolean;
+}) {
+  if (inv.exempt) return { taxableAmount: 0, stateTax: 0, localTax: 0 };
+  const { taxableAmount, stateTax, localTax } = computeInvoiceTotals({
+    line_items: inv.line_items as Array<{ qty: number; unit_price: number; taxable: boolean }>,
+    discount_type: inv.discount_type,
+    discount_value: inv.discount_value ? Number(inv.discount_value) : null,
+    state_rate: Number(inv.tax_profile.state_rate),
+    local_rate: Number(inv.tax_profile.local_rate),
+  });
+  return { taxableAmount, stateTax, localTax };
+}
 
 function dateRange(start?: string, end?: string) {
   const range: Record<string, Date> = {};
@@ -55,14 +77,17 @@ reportsRouter.get('/tax', async (req, res) => {
       }
 
       const exemption = inv.exemptions[0];
-      const lineItems = inv.line_items as Array<{ qty: number; unit_price: number; taxable: boolean }>;
-      const taxableAmount = lineItems
-        .filter((li) => li.taxable && !exemption)
-        .reduce((s, li) => s + li.qty * li.unit_price, 0);
+      const { taxableAmount, stateTax, localTax } = invoiceTax({
+        line_items: inv.line_items,
+        discount_type: inv.discount_type,
+        discount_value: inv.discount_value,
+        tax_profile: inv.tax_profile,
+        exempt: !!exemption,
+      });
 
       byJurisdiction[key].taxable_subtotal += taxableAmount;
-      byJurisdiction[key].state_tax_collected += taxableAmount * Number(inv.tax_profile.state_rate);
-      byJurisdiction[key].local_tax_collected += taxableAmount * Number(inv.tax_profile.local_rate);
+      byJurisdiction[key].state_tax_collected += stateTax;
+      byJurisdiction[key].local_tax_collected += localTax;
       if (exemption) byJurisdiction[key].exempt_count++;
     }
 
@@ -87,10 +112,13 @@ reportsRouter.get('/tax/export', async (req, res) => {
     });
 
     const rows = invoices.map((inv) => {
-      const lineItems = inv.line_items as Array<{ qty: number; unit_price: number; taxable: boolean }>;
-      const taxable = lineItems.filter((li) => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0);
-      const stateTax = taxable * Number(inv.tax_profile.state_rate);
-      const localTax = taxable * Number(inv.tax_profile.local_rate);
+      const { taxableAmount: taxable, stateTax, localTax } = invoiceTax({
+        line_items: inv.line_items,
+        discount_type: inv.discount_type,
+        discount_value: inv.discount_value,
+        tax_profile: inv.tax_profile,
+        exempt: inv.exemptions.length > 0,
+      });
       const customerName = inv.job?.customer?.name ?? inv.customer?.name ?? '';
       return `"${inv.invoice_number}","${customerName}","${inv.tax_profile.state_code}","${inv.tax_profile.municipality}",${taxable.toFixed(2)},${stateTax.toFixed(2)},${localTax.toFixed(2)},"${inv.exemptions.length ? inv.exemptions[0].exemption_type : ''}"`;
     });
@@ -147,12 +175,13 @@ reportsRouter.get('/tax/outstanding', async (req, res) => {
         };
       }
       const exemption = inv.exemptions[0];
-      const lineItems = inv.line_items as Array<{ qty: number; unit_price: number; taxable: boolean }>;
-      const taxableAmount = lineItems
-        .filter((li) => li.taxable && !exemption)
-        .reduce((s, li) => s + li.qty * li.unit_price, 0);
-      const stateTax = taxableAmount * Number(inv.tax_profile.state_rate);
-      const localTax = taxableAmount * Number(inv.tax_profile.local_rate);
+      const { taxableAmount, stateTax, localTax } = invoiceTax({
+        line_items: inv.line_items,
+        discount_type: inv.discount_type,
+        discount_value: inv.discount_value,
+        tax_profile: inv.tax_profile,
+        exempt: !!exemption,
+      });
 
       byMunicipality[key].invoice_count++;
       byMunicipality[key].taxable_subtotal += taxableAmount;
@@ -181,7 +210,7 @@ reportsRouter.get('/profit', async (req, res) => {
       include: {
         customer: true,
         invoices: {
-          where: { status: { in: ['PAID', 'PARTIAL'] } },
+          where: { status: { in: ['PAID', 'PARTIAL'] }, deleted_at: null },
           include: { payments: true },
         },
         labor: true,
@@ -233,10 +262,47 @@ reportsRouter.get('/profit', async (req, res) => {
 });
 
 reportsRouter.get('/profit/export', async (req, res) => {
-  // Similar to profit report but as CSV
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="profit-report.csv"');
-  res.send('job_name,customer,status,revenue,total_cost,gross_profit,margin_percent\n(see /reports/profit for data)');
+  try {
+    const { start, end } = req.query as Record<string, string>;
+    const dateFilter = dateRange(start, end);
+
+    const jobs = await prisma.job.findMany({
+      where: { deleted_at: null, ...(dateFilter ? { created_at: dateFilter } : {}) },
+      include: {
+        customer: true,
+        invoices: { where: { status: { in: ['PAID', 'PARTIAL'] }, deleted_at: null }, include: { payments: true } },
+        labor: true,
+        expenses: true,
+        estimates: { where: { status: 'APPROVED', deleted_at: null }, take: 1, orderBy: { created_at: 'desc' } },
+      },
+    });
+
+    const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+    const rows = jobs.map((job) => {
+      const revenue = job.invoices.reduce((s, inv) => s + inv.payments.reduce((ps, p) => ps + Number(p.amount), 0), 0);
+      const laborCost = job.labor.reduce((s, l) => s + Number(l.hours) * Number(l.rate), 0);
+      const expenseCost = job.expenses.reduce((s, e) => s + Number(e.amount), 0);
+      const materialCost = job.estimates[0]
+        ? (job.estimates[0].line_items as Array<{ type: string; qty: number; our_cost: number }>)
+            .filter((li) => li.type === 'material')
+            .reduce((s, li) => s + li.qty * li.our_cost, 0)
+        : 0;
+      const totalCost = laborCost + expenseCost + materialCost;
+      const profit = revenue - totalCost;
+      const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+      return [
+        esc(job.name), esc(job.customer.name), esc(job.status),
+        revenue.toFixed(2), totalCost.toFixed(2), profit.toFixed(2), (Math.round(margin * 10) / 10).toFixed(1),
+      ].join(',');
+    });
+
+    const csv = ['job_name,customer,status,revenue,total_cost,gross_profit,margin_percent', ...rows].join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="profit-report.csv"');
+    res.send(csv);
+  } catch {
+    res.status(500).json({ error: 'Failed to export profit report' });
+  }
 });
 
 reportsRouter.get('/materials', async (req, res) => {
@@ -265,8 +331,37 @@ reportsRouter.get('/materials', async (req, res) => {
   }
 });
 
-reportsRouter.get('/materials/export', async (_req, res) => {
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="materials-hours-report.csv"');
-  res.send('type,date,job_name,vendor_or_user,description,amount_or_hours\n');
+reportsRouter.get('/materials/export', async (req, res) => {
+  try {
+    const { start, end } = req.query as Record<string, string>;
+    const dateFilter = dateRange(start, end);
+
+    const expenses = await prisma.expense.findMany({
+      where: { category: 'MATERIALS', ...(dateFilter ? { created_at: dateFilter } : {}) },
+      include: { job: { include: { customer: true } } },
+      orderBy: { expense_date: 'desc' },
+    });
+    const labor = await prisma.laborEntry.findMany({
+      where: dateFilter ? { created_at: dateFilter } : {},
+      include: { job: { include: { customer: true } }, user: { select: { name: true } } },
+      orderBy: { work_date: 'desc' },
+    });
+
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const matRows = expenses.map((e) => [
+      'material', esc(e.expense_date.toISOString().slice(0, 10)), esc(e.job?.name ?? ''),
+      esc(e.vendor ?? ''), esc(e.description ?? ''), Number(e.amount).toFixed(2),
+    ].join(','));
+    const laborRows = labor.map((l) => [
+      'labor', esc(l.work_date.toISOString().slice(0, 10)), esc(l.job?.name ?? ''),
+      esc(l.user?.name ?? ''), esc(l.description ?? ''), Number(l.hours).toFixed(2),
+    ].join(','));
+
+    const csv = ['type,date,job_name,vendor_or_user,description,amount_or_hours', ...matRows, ...laborRows].join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="materials-hours-report.csv"');
+    res.send(csv);
+  } catch {
+    res.status(500).json({ error: 'Failed to export materials report' });
+  }
 });

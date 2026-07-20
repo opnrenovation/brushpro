@@ -1,8 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Plus, X, Send, Clock, Search, Trash2, List, Eye, Pencil } from 'lucide-react';
-import { invoicesApi, customersApi, taxProfilesApi } from '@/lib/api';
+import { FileText, Plus, X, Send, Clock, Search, Trash2, List, Eye, Pencil, User, Building2 } from 'lucide-react';
+import { invoicesApi, customersApi, taxProfilesApi, contactsApi, companiesApi } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth';
+import { computeInvoiceTotals } from '@/lib/invoiceTotals';
 
 function fmt(n: number) {
   return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -19,8 +21,12 @@ const STATUS_COLOR: Record<string, string> = {
 
 const ALL_STATUSES = ['ALL', 'DRAFT', 'SENT', 'PARTIAL', 'PAID', 'OVERDUE', 'VOID'];
 
-interface LineItem { description: string; qty: number; unit_price: number; }
+interface LineItem { description: string; qty: number; unit_price: number; taxable?: boolean; }
 interface Customer { id: string; name: string; email?: string; }
+interface Contact { id: string; first_name: string; last_name: string; email?: string; phone?: string; address?: string; company?: string; }
+interface Company { id: string; name: string; phone?: string; email?: string; address?: string; }
+interface CustomerRecord { id: string; contact_id?: string; name: string; }
+type SearchResult = { kind: 'contact'; data: Contact } | { kind: 'company'; data: Company };
 interface TaxProfile { id: string; name: string; state_rate: number; local_rate: number; is_default: boolean; }
 interface Payment { id: string; amount: number; method: string; notes?: string; paid_at: string; }
 interface Invoice {
@@ -36,9 +42,12 @@ interface Invoice {
   customer?: Customer | null;
   notes?: string;
   tax_profile_id?: string;
+  discount_type?: string;
+  discount_value?: number;
+  tax_profile?: { state_rate: number; local_rate: number };
 }
 
-const emptyItem: LineItem = { description: '', qty: 1, unit_price: 0 };
+const emptyItem: LineItem = { description: '', qty: 1, unit_price: 0, taxable: true };
 
 export default function InvoicesPage() {
   const qc = useQueryClient();
@@ -47,9 +56,15 @@ export default function InvoicesPage() {
 
   // Create modal state
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ customer_id: '', type: 'FINAL', due_days: '7', notes: '', tax_profile_id: '', discount_type: 'NONE', discount_value: '' });
+  const [form, setForm] = useState({ contact_id: '', company_id: '', selected_label: '', type: 'FINAL', due_days: '7', notes: '', tax_profile_id: '', discount_type: 'NONE', discount_value: '' });
   const [lineItems, setLineItems] = useState<LineItem[]>([{ ...emptyItem }]);
   const [formError, setFormError] = useState('');
+
+  // Customer search state (clients live in Contacts/Companies; a billing Customer is resolved on submit)
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const token = useAuthStore((s) => s.token);
 
   // Payment modal state
   const [paymentInv, setPaymentInv] = useState<{ id: string; invoice_number: string; balance: number } | null>(null);
@@ -72,6 +87,17 @@ export default function InvoicesPage() {
   const { data: customersData } = useQuery({
     queryKey: ['customers'],
     queryFn: () => customersApi.list({ limit: '500' }),
+    enabled: !!token,
+  });
+  const { data: contactsData } = useQuery({
+    queryKey: ['contacts', 'all'],
+    queryFn: () => contactsApi.list({ limit: '500' }),
+    enabled: !!token,
+  });
+  const { data: companiesData } = useQuery({
+    queryKey: ['companies', 'all'],
+    queryFn: () => companiesApi.list({ limit: '500' }),
+    enabled: !!token,
   });
   const { data: taxProfilesData } = useQuery({
     queryKey: ['tax-profiles'],
@@ -79,8 +105,46 @@ export default function InvoicesPage() {
   });
 
   const allInvoices: Invoice[] = invoicesData?.data?.data || invoicesData?.data || [];
-  const customers: Customer[] = customersData?.data?.data || customersData?.data || [];
   const taxProfiles: TaxProfile[] = taxProfilesData?.data?.data || taxProfilesData?.data || [];
+  const contacts: Contact[] = contactsData?.data?.data || contactsData?.data || [];
+  const companies: Company[] = companiesData?.data?.data || companiesData?.data || [];
+  const existingCustomers: CustomerRecord[] = (customersData?.data?.data || customersData?.data || []) as CustomerRecord[];
+  const contactToCustomerId = new Map(existingCustomers.filter(c => c.contact_id).map(c => [c.contact_id!, c.id]));
+
+  // Search the full client list (contacts + companies), not just billing customers
+  const searchResults: SearchResult[] = customerQuery.trim().length < 1 ? [] : [
+    ...contacts
+      .filter(c => `${c.first_name} ${c.last_name} ${c.company || ''}`.toLowerCase().includes(customerQuery.toLowerCase()))
+      .slice(0, 6)
+      .map(c => ({ kind: 'contact' as const, data: c })),
+    ...companies
+      .filter(c => c.name.toLowerCase().includes(customerQuery.toLowerCase()))
+      .slice(0, 6)
+      .map(c => ({ kind: 'company' as const, data: c })),
+  ];
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowDropdown(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Canonical money math for an invoice: subtotal - discount + tax, matching
+  // the PDF / email / Stripe charge. Rates come from the invoice's tax profile
+  // (embedded by the API, with the loaded profile list as a fallback).
+  function invoiceTotals(inv: Invoice) {
+    const tp = inv.tax_profile || taxProfiles.find(t => t.id === inv.tax_profile_id);
+    return computeInvoiceTotals({
+      line_items: inv.line_items,
+      discount_type: inv.discount_type,
+      discount_value: inv.discount_value,
+      state_rate: tp?.state_rate ?? 0,
+      local_rate: tp?.local_rate ?? 0,
+      amount_paid: inv.payments.reduce((s, p) => s + Number(p.amount), 0),
+    });
+  }
 
   const invoices = allInvoices.filter(inv => {
     if (statusFilter !== 'ALL' && inv.status !== statusFilter) return false;
@@ -94,12 +158,47 @@ export default function InvoicesPage() {
   });
 
   const createInvoice = useMutation({
-    mutationFn: (payload: unknown) => invoicesApi.create(payload),
+    mutationFn: async (payload: { contact_id: string; company_id: string; invoice: Record<string, unknown> }) => {
+      // Resolve the selected client (contact/company) into a billing Customer, creating one if needed.
+      let customerId: string | undefined;
+      if (payload.contact_id) {
+        customerId = contactToCustomerId.get(payload.contact_id);
+        if (!customerId) {
+          const contact = contacts.find(c => c.id === payload.contact_id);
+          if (!contact) throw new Error('Contact not found');
+          const res = await customersApi.create({
+            contact_id: contact.id,
+            name: `${contact.first_name} ${contact.last_name}`.trim(),
+            email: contact.email,
+            phone: contact.phone,
+            address: contact.address || '',
+          });
+          customerId = (res.data?.data || res.data)?.id;
+        }
+      } else if (payload.company_id) {
+        const company = companies.find(c => c.id === payload.company_id);
+        if (!company) throw new Error('Company not found');
+        const existingCust = existingCustomers.find(c => c.name === company.name);
+        if (existingCust) {
+          customerId = existingCust.id;
+        } else {
+          const res = await customersApi.create({
+            name: company.name,
+            phone: company.phone,
+            address: company.address || '',
+          });
+          customerId = (res.data?.data || res.data)?.id;
+        }
+      }
+      return invoicesApi.create({ ...payload.invoice, customer_id: customerId });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] });
+      qc.invalidateQueries({ queryKey: ['customers'] });
       setShowModal(false);
       setLineItems([{ ...emptyItem }]);
-      setForm({ customer_id: '', type: 'FINAL', due_days: '7', notes: '', tax_profile_id: taxProfiles.find(tp => tp.is_default)?.id || taxProfiles[0]?.id || '', discount_type: 'NONE', discount_value: '' });
+      setForm({ contact_id: '', company_id: '', selected_label: '', type: 'FINAL', due_days: '7', notes: '', tax_profile_id: taxProfiles.find(tp => tp.is_default)?.id || taxProfiles[0]?.id || '', discount_type: 'NONE', discount_value: '' });
+      setCustomerQuery('');
       setFormError('');
     },
     onError: (e: unknown) => {
@@ -116,9 +215,8 @@ export default function InvoicesPage() {
 
   const recordPayment = useMutation({
     mutationFn: ({ invId, payload }: { invId: string; payload: unknown }) => invoicesApi.addPayment(invId, payload),
-    onSuccess: (_, { invId }) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] });
-      window.open(`/invoices/${invId}`, '_blank');
       setPaymentInv(null);
       setPaymentForm({ amount: '', method: 'CHECK', notes: '' });
       setPaymentError('');
@@ -161,21 +259,40 @@ export default function InvoicesPage() {
     },
   });
 
+  function selectResult(result: SearchResult) {
+    if (result.kind === 'contact') {
+      setForm(f => ({ ...f, contact_id: result.data.id, company_id: '', selected_label: `${result.data.first_name} ${result.data.last_name}`.trim() }));
+    } else {
+      setForm(f => ({ ...f, contact_id: '', company_id: result.data.id, selected_label: result.data.name }));
+    }
+    setCustomerQuery('');
+    setShowDropdown(false);
+  }
+
+  function clearSelection() {
+    setForm(f => ({ ...f, contact_id: '', company_id: '', selected_label: '' }));
+    setCustomerQuery('');
+  }
+
   function handleCreate() {
+    if (!form.contact_id && !form.company_id) { setFormError('Select a customer for this invoice.'); return; }
     const valid = lineItems.filter(li => li.description.trim() && li.unit_price > 0);
     if (valid.length === 0) { setFormError('Add at least one line item.'); return; }
     if (!form.tax_profile_id) { setFormError('Select a tax profile.'); return; }
     const due_date = new Date();
     due_date.setDate(due_date.getDate() + (parseInt(form.due_days) || 7));
     createInvoice.mutate({
-      customer_id: form.customer_id || undefined,
-      type: form.type,
-      line_items: valid.map(li => ({ description: li.description, qty: li.qty || 1, unit_price: li.unit_price, taxable: true })),
-      tax_profile_id: form.tax_profile_id,
-      discount_type: form.discount_type,
-      discount_value: form.discount_type !== 'NONE' && form.discount_value ? parseFloat(form.discount_value) : 0,
-      due_date: due_date.toISOString(),
-      notes: form.notes || undefined,
+      contact_id: form.contact_id,
+      company_id: form.company_id,
+      invoice: {
+        type: form.type,
+        line_items: valid.map(li => ({ description: li.description, qty: li.qty || 1, unit_price: li.unit_price, taxable: li.taxable !== false })),
+        tax_profile_id: form.tax_profile_id,
+        discount_type: form.discount_type,
+        discount_value: form.discount_type !== 'NONE' && form.discount_value ? parseFloat(form.discount_value) : 0,
+        due_date: due_date.toISOString(),
+        notes: form.notes || undefined,
+      },
     });
   }
 
@@ -209,16 +326,15 @@ export default function InvoicesPage() {
         tax_profile_id: editForm.tax_profile_id,
         discount_type: editForm.discount_type,
         discount_value: editForm.discount_type !== 'NONE' && editForm.discount_value ? parseFloat(editForm.discount_value) : 0,
-        line_items: valid.map(li => ({ description: li.description, qty: li.qty || 1, unit_price: li.unit_price, taxable: true })),
+        line_items: valid.map(li => ({ description: li.description, qty: li.qty || 1, unit_price: li.unit_price, taxable: li.taxable !== false })),
       },
     });
   }
 
   function openPayment(inv: Invoice) {
-    const total = inv.line_items.reduce((s, li) => s + li.qty * li.unit_price, 0);
-    const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
-    setPaymentInv({ id: inv.id, invoice_number: inv.invoice_number, balance: total - paid });
-    setPaymentForm({ amount: String((total - paid).toFixed(2)), method: 'CHECK', notes: '' });
+    const { balance } = invoiceTotals(inv);
+    setPaymentInv({ id: inv.id, invoice_number: inv.invoice_number, balance });
+    setPaymentForm({ amount: balance.toFixed(2), method: 'CHECK', notes: '' });
     setPaymentError('');
   }
 
@@ -229,13 +345,11 @@ export default function InvoicesPage() {
     recordPayment.mutate({ invId: paymentInv.id, payload: { amount, method: paymentForm.method, notes: paymentForm.notes || undefined, paid_at: new Date().toISOString() } });
   }
 
-  const totalOutstanding = invoices
+  // Outstanding is a global figure — computed from ALL invoices, not the
+  // status/search-filtered view — so the headline number is stable.
+  const totalOutstanding = allInvoices
     .filter(inv => inv.status !== 'PAID' && inv.status !== 'VOID')
-    .reduce((s, inv) => {
-      const total = inv.line_items.reduce((t, li) => t + li.qty * li.unit_price, 0);
-      const paid = inv.payments.reduce((t, p) => t + Number(p.amount), 0);
-      return s + (total - paid);
-    }, 0);
+    .reduce((s, inv) => s + invoiceTotals(inv).balance, 0);
 
   return (
     <div style={{ padding: '32px 40px', maxWidth: 1100, margin: '0 auto' }}>
@@ -254,7 +368,8 @@ export default function InvoicesPage() {
           className="btn btn-primary"
           onClick={() => {
             const def = taxProfiles.find(tp => tp.is_default) || taxProfiles[0];
-            setForm({ customer_id: '', type: 'FINAL', due_days: '7', notes: '', tax_profile_id: def?.id || '', discount_type: 'NONE', discount_value: '' });
+            setForm({ contact_id: '', company_id: '', selected_label: '', type: 'FINAL', due_days: '7', notes: '', tax_profile_id: def?.id || '', discount_type: 'NONE', discount_value: '' });
+            setCustomerQuery('');
             setFormError('');
             setShowModal(true);
           }}
@@ -330,7 +445,7 @@ export default function InvoicesPage() {
           </thead>
           <tbody>
             {invoices.map(inv => {
-              const total = inv.line_items.reduce((s, li) => s + li.qty * li.unit_price, 0);
+              const { total } = invoiceTotals(inv);
               const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
               const recipient = inv.job?.customer ?? inv.customer;
               return (
@@ -426,11 +541,58 @@ export default function InvoicesPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Customer (optional)</label>
-                <select className="input" value={form.customer_id} onChange={e => setForm(f => ({ ...f, customer_id: e.target.value }))}>
-                  <option value="">No customer / standalone</option>
-                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}{c.email ? ` — ${c.email}` : ''}</option>)}
-                </select>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Customer *</label>
+                {form.selected_label ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: 'rgba(0,122,255,0.06)', border: '1px solid rgba(0,122,255,0.25)', borderRadius: 8 }}>
+                    {form.company_id ? <Building2 size={15} color="#007AFF" strokeWidth={1.5} /> : <User size={15} color="#007AFF" strokeWidth={1.5} />}
+                    <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{form.selected_label}</span>
+                    <button type="button" onClick={clearSelection} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.35)', padding: 0 }}>
+                      <X size={14} strokeWidth={2} />
+                    </button>
+                  </div>
+                ) : (
+                  <div ref={searchRef} style={{ position: 'relative' }}>
+                    <Search size={14} strokeWidth={1.5} color="rgba(0,0,0,0.3)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }} />
+                    <input
+                      className="input"
+                      style={{ paddingLeft: 34 }}
+                      placeholder="Search contacts or companies..."
+                      value={customerQuery}
+                      onChange={(e) => { setCustomerQuery(e.target.value); setShowDropdown(true); }}
+                      onFocus={() => setShowDropdown(true)}
+                    />
+                    {showDropdown && searchResults.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', zIndex: 200, marginTop: 4, overflow: 'hidden' }}>
+                        {searchResults.map((r, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onMouseDown={() => selectResult(r)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: i < searchResults.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,122,255,0.04)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                          >
+                            {r.kind === 'company' ? <Building2 size={14} color="#007AFF" strokeWidth={1.5} /> : <User size={14} color="rgba(0,0,0,0.4)" strokeWidth={1.5} />}
+                            <div>
+                              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>
+                                {r.kind === 'contact' ? `${r.data.first_name} ${r.data.last_name}` : r.data.name}
+                              </div>
+                              {r.kind === 'contact' && r.data.company && (
+                                <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)' }}>{r.data.company}</div>
+                              )}
+                            </div>
+                            <span style={{ marginLeft: 'auto', fontSize: 10, color: 'rgba(0,0,0,0.3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{r.kind}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {showDropdown && customerQuery.length > 0 && searchResults.length === 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', zIndex: 200, marginTop: 4, padding: '12px 14px', fontSize: 13, color: 'rgba(0,0,0,0.4)' }}>
+                        No results for &ldquo;{customerQuery}&rdquo;
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
@@ -471,16 +633,17 @@ export default function InvoicesPage() {
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 8 }}>Line Items</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 32px', gap: 8, marginBottom: 6 }}>
-                  {['Description', 'Qty', 'Price', ''].map(h => (
-                    <div key={h} style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 56px 96px 40px 28px', gap: 8, marginBottom: 6 }}>
+                  {['Description', 'Qty', 'Price', 'Tax', ''].map(h => (
+                    <div key={h} style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: h === 'Tax' ? 'center' : 'left' }}>{h}</div>
                   ))}
                 </div>
                 {lineItems.map((li, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 32px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 56px 96px 40px 28px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
                     <input className="input" value={li.description} onChange={e => setLineItems(items => items.map((x, idx) => idx === i ? { ...x, description: e.target.value } : x))} placeholder="Description" />
                     <input className="input" type="number" min="1" value={li.qty} onChange={e => setLineItems(items => items.map((x, idx) => idx === i ? { ...x, qty: parseInt(e.target.value) || 1 } : x))} />
                     <input className="input" type="number" min="0" step="0.01" value={li.unit_price || ''} onChange={e => setLineItems(items => items.map((x, idx) => idx === i ? { ...x, unit_price: parseFloat(e.target.value) || 0 } : x))} placeholder="0.00" />
+                    <input type="checkbox" checked={li.taxable !== false} title="Taxable" onChange={e => setLineItems(items => items.map((x, idx) => idx === i ? { ...x, taxable: e.target.checked } : x))} style={{ accentColor: '#007AFF', width: 16, height: 16, justifySelf: 'center' }} />
                     <button onClick={() => setLineItems(items => items.filter((_, idx) => idx !== i))} disabled={lineItems.length === 1} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.3)', padding: 4 }}>
                       <X size={14} strokeWidth={1.5} />
                     </button>
@@ -493,7 +656,7 @@ export default function InvoicesPage() {
                   + Add line item
                 </button>
                 <div style={{ textAlign: 'right', marginTop: 8, fontFamily: 'Menlo,monospace', fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>
-                  Total: {fmt(lineItems.reduce((s, li) => s + (li.qty || 1) * (li.unit_price || 0), 0))}
+                  Subtotal: {fmt(lineItems.reduce((s, li) => s + (li.qty || 1) * (li.unit_price || 0), 0))} <span style={{ fontWeight: 400, color: 'rgba(0,0,0,0.4)', fontSize: 12 }}>+ tax</span>
                 </div>
               </div>
               <div>
@@ -599,16 +762,17 @@ export default function InvoicesPage() {
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 8 }}>Line Items</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 32px', gap: 8, marginBottom: 6 }}>
-                  {['Description', 'Qty', 'Price', ''].map(h => (
-                    <div key={h} style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 56px 96px 40px 28px', gap: 8, marginBottom: 6 }}>
+                  {['Description', 'Qty', 'Price', 'Tax', ''].map(h => (
+                    <div key={h} style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: h === 'Tax' ? 'center' : 'left' }}>{h}</div>
                   ))}
                 </div>
                 {editLineItems.map((li, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 32px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 56px 96px 40px 28px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
                     <input className="input" value={li.description} onChange={e => setEditLineItems(items => items.map((x, idx) => idx === i ? { ...x, description: e.target.value } : x))} placeholder="Description" />
                     <input className="input" type="number" min="1" value={li.qty} onChange={e => setEditLineItems(items => items.map((x, idx) => idx === i ? { ...x, qty: parseInt(e.target.value) || 1 } : x))} />
                     <input className="input" type="number" min="0" step="0.01" value={li.unit_price || ''} onChange={e => setEditLineItems(items => items.map((x, idx) => idx === i ? { ...x, unit_price: parseFloat(e.target.value) || 0 } : x))} placeholder="0.00" />
+                    <input type="checkbox" checked={li.taxable !== false} title="Taxable" onChange={e => setEditLineItems(items => items.map((x, idx) => idx === i ? { ...x, taxable: e.target.checked } : x))} style={{ accentColor: '#007AFF', width: 16, height: 16, justifySelf: 'center' }} />
                     <button onClick={() => setEditLineItems(items => items.filter((_, idx) => idx !== i))} disabled={editLineItems.length === 1} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.3)', padding: 4 }}>
                       <X size={14} strokeWidth={1.5} />
                     </button>
@@ -621,7 +785,7 @@ export default function InvoicesPage() {
                   + Add line item
                 </button>
                 <div style={{ textAlign: 'right', marginTop: 8, fontFamily: 'Menlo,monospace', fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>
-                  Total: {fmt(editLineItems.reduce((s, li) => s + (li.qty || 1) * (li.unit_price || 0), 0))}
+                  Subtotal: {fmt(editLineItems.reduce((s, li) => s + (li.qty || 1) * (li.unit_price || 0), 0))} <span style={{ fontWeight: 400, color: 'rgba(0,0,0,0.4)', fontSize: 12 }}>+ tax</span>
                 </div>
               </div>
               <div>
