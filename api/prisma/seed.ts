@@ -320,6 +320,70 @@ By signing this agreement, Client acknowledges having read, understood, and agre
     console.log(`Iowa tax profiles seeded: ${iowaMunicipalities.length} municipalities.`);
   }
 
+  // ── Ensure county assignments and countywide profiles (idempotent, every boot) ──
+  // Production predates the migration history (start.sh uses `prisma db push`),
+  // so county data must be maintained here rather than in migration SQL.
+  const CITY_COUNTY: Record<string, string> = {
+    'Des Moines': 'Polk', 'Ankeny': 'Polk', 'West Des Moines': 'Polk', 'Urbandale': 'Polk',
+    'Johnston': 'Polk', 'Clive': 'Polk', 'Windsor Heights': 'Polk', 'Pleasant Hill': 'Polk',
+    'Altoona': 'Polk', 'Bondurant': 'Polk', 'Grimes': 'Polk', 'Polk City': 'Polk',
+    'Mitchellville': 'Polk', 'Norwalk': 'Warren', 'Indianola': 'Warren', 'Carlisle': 'Warren',
+    'Waukee': 'Dallas', 'Adel': 'Dallas', 'Perry': 'Dallas', 'Woodward': 'Dallas',
+    'Winterset': 'Madison', 'Cedar Rapids': 'Linn', 'Marion': 'Linn', 'Iowa City': 'Johnson',
+    'Coralville': 'Johnson', 'North Liberty': 'Johnson', 'Davenport': 'Scott', 'Bettendorf': 'Scott',
+    'Sioux City': 'Woodbury', 'Waterloo': 'Black Hawk', 'Cedar Falls': 'Black Hawk', 'Ames': 'Story',
+    'Dubuque': 'Dubuque', 'Council Bluffs': 'Pottawattamie', 'Mason City': 'Cerro Gordo',
+    'Burlington': 'Des Moines', 'Clinton': 'Clinton', 'Ottumwa': 'Wapello', 'Fort Dodge': 'Webster',
+    'Marshalltown': 'Marshall', 'Muscatine': 'Muscatine', 'Keokuk': 'Lee',
+  };
+  let backfilled = 0;
+  for (const [muni, county] of Object.entries(CITY_COUNTY)) {
+    const res = await prisma.taxProfile.updateMany({
+      where: { county: null, municipality: muni },
+      data: { county },
+    });
+    backfilled += res.count;
+  }
+  if (backfilled > 0) console.log(`Tax profile counties backfilled: ${backfilled}.`);
+
+  const IOWA_COUNTIES = [
+    'Adair', 'Adams', 'Allamakee', 'Appanoose', 'Audubon', 'Benton', 'Black Hawk', 'Boone',
+    'Bremer', 'Buchanan', 'Buena Vista', 'Butler', 'Calhoun', 'Carroll', 'Cass', 'Cedar',
+    'Cerro Gordo', 'Cherokee', 'Chickasaw', 'Clarke', 'Clay', 'Clayton', 'Clinton', 'Crawford',
+    'Dallas', 'Davis', 'Decatur', 'Delaware', 'Des Moines', 'Dickinson', 'Dubuque', 'Emmet',
+    'Fayette', 'Floyd', 'Franklin', 'Fremont', 'Greene', 'Grundy', 'Guthrie', 'Hamilton',
+    'Hancock', 'Hardin', 'Harrison', 'Henry', 'Howard', 'Humboldt', 'Ida', 'Iowa', 'Jackson',
+    'Jasper', 'Jefferson', 'Johnson', 'Jones', 'Keokuk', 'Kossuth', 'Lee', 'Linn', 'Louisa',
+    'Lucas', 'Lyon', 'Madison', 'Mahaska', 'Marion', 'Marshall', 'Mills', 'Mitchell', 'Monona',
+    'Monroe', 'Montgomery', 'Muscatine', "O'Brien", 'Osceola', 'Page', 'Palo Alto', 'Plymouth',
+    'Pocahontas', 'Polk', 'Pottawattamie', 'Poweshiek', 'Ringgold', 'Sac', 'Scott', 'Shelby',
+    'Sioux', 'Story', 'Tama', 'Taylor', 'Union', 'Van Buren', 'Wapello', 'Warren', 'Washington',
+    'Wayne', 'Webster', 'Winnebago', 'Winneshiek', 'Woodbury', 'Worth', 'Wright',
+  ];
+  const existingCountywide = await prisma.taxProfile.findMany({
+    where: { municipality: 'Countywide' },
+    select: { county: true },
+  });
+  const haveCounty = new Set(existingCountywide.map((p) => p.county));
+  let created = 0;
+  for (const county of IOWA_COUNTIES) {
+    if (haveCounty.has(county)) continue;
+    await prisma.taxProfile.create({
+      data: {
+        name: `${county} County, IA`,
+        state_code: 'IA',
+        state_rate: 0.06,
+        local_rate: 0.01,
+        municipality: 'Countywide',
+        county,
+        taxable_labor: false,
+        is_default: false,
+      },
+    });
+    created++;
+  }
+  if (created > 0) console.log(`Countywide tax profiles created: ${created}.`);
+
   // Seed default availability rules (Mon–Fri 8am–5pm, Sat 8am–1pm)
   const availCount = await prisma.availabilityRule.count();
   if (availCount === 0) {
