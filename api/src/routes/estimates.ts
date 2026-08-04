@@ -196,7 +196,7 @@ estimatesRouter.post('/:id/send', async (req, res) => {
             <p><strong>Estimate #:</strong> ${estimate.estimate_number}</p>
             <p><strong>Total:</strong> $${total.toFixed(2)}</p>
             <p><a href="${approvalUrl}" style="background:#007AFF;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Review &amp; Approve</a></p>
-            <p>This link expires in 30 days.</p>
+            <p>This link expires in ${expiryDays} days.</p>
             <p>${settings?.company_name || ''}</p>
           `,
           attachments: pdfBuffer ? [{ filename: `Estimate-${estimate.estimate_number}.pdf`, content: pdfBuffer }] : undefined,

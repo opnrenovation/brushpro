@@ -6,6 +6,7 @@
 import PDFDocument from 'pdfkit';
 import https from 'https';
 import http from 'http';
+import { bundledLogoBuffer } from '../lib/supabase';
 
 async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   return new Promise((resolve) => {
@@ -49,6 +50,9 @@ export async function generateProposalPdf(params: {
   let logoBuffer: Buffer | null = null;
   if (params.logo_url) {
     logoBuffer = await fetchImageBuffer(params.logo_url);
+  }
+  if (!logoBuffer) {
+    logoBuffer = bundledLogoBuffer();
   }
 
   return new Promise((resolve, reject) => {
