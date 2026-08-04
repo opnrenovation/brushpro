@@ -130,6 +130,9 @@ function BrandingSection() {
         <Field label="Website">
           <GlassInput value={val('website')} onChange={set('website')} placeholder="https://opnrenovation.com" />
         </Field>
+        <Field label="Google Review Link">
+          <GlassInput value={val('google_review_url')} onChange={set('google_review_url')} placeholder="https://g.page/r/..." />
+        </Field>
       </div>
       <Field label="Address">
         <textarea

@@ -187,6 +187,7 @@ model CompanySettings {
   final_payment_message   String?
   payment_terms_days      Int      @default(7)
   estimate_expiry_days    Int      @default(30)
+  google_review_url       String?
   updated_at              DateTime @updatedAt
 
   @@map("company_settings")
@@ -546,8 +547,26 @@ model Invoice {
   tax_profile TaxProfile   @relation(fields: [tax_profile_id], references: [id])
   payments    Payment[]
   exemptions  TaxExemption[]
+  feedback_request FeedbackRequest?
 
   @@map("invoices")
+}
+
+model FeedbackRequest {
+  id           String    @id @default(cuid())
+  invoice_id   String    @unique
+  email        String?
+  token        String    @unique @default(cuid())
+  sent_at      DateTime?
+  completed_at DateTime?
+  rating       Int?
+  comments     String?
+  created_at   DateTime  @default(now())
+
+  invoice Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([email, created_at])
+  @@map("feedback_requests")
 }
 
 model TaxProfile {

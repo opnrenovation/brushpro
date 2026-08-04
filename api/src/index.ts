@@ -28,6 +28,7 @@ import usersRouter from './routes/users';
 import publicRouter from './routes/public';
 import { vendorsRouter } from './routes/vendors';
 import { companiesRouter } from './routes/companies';
+import { startFeedbackCron } from './lib/feedbackCron';
 import { authenticate } from './middleware/auth';
 import { errorHandler } from './middleware/error';
 
@@ -79,6 +80,7 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`BrushPro API running on port ${PORT}`);
+  startFeedbackCron();
 });
 
 export default app;

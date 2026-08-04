@@ -418,4 +418,61 @@ router.post('/invoices/:id/stripe-link', async (req: Request, res: Response) => 
   }
 });
 
+// GET /api/public/feedback/:token — feedback form context
+router.get('/feedback/:token', async (req: Request, res: Response) => {
+  try {
+    const request = await prisma.feedbackRequest.findUnique({
+      where: { token: req.params.token },
+      include: { invoice: { include: { job: { include: { customer: true } }, customer: true } } },
+    });
+    if (!request || !request.sent_at) {
+      res.status(404).json({ error: 'Feedback request not found' });
+      return;
+    }
+    const settings = await prisma.companySettings.findFirst();
+    const recipient = request.invoice.job?.customer ?? request.invoice.customer;
+    res.json({
+      data: {
+        company_name: settings?.company_name || 'OPN Renovation',
+        customer_name: recipient?.name || null,
+        completed: Boolean(request.completed_at),
+        google_review_url: request.completed_at ? settings?.google_review_url || null : null,
+      },
+    });
+  } catch {
+    res.status(500).json({ error: 'Failed to load feedback request' });
+  }
+});
+
+// POST /api/public/feedback/:token — submit feedback
+router.post('/feedback/:token', async (req: Request, res: Response) => {
+  try {
+    const { rating, comments } = req.body as { rating?: number; comments?: string };
+    const parsed = Number(rating);
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 5) {
+      res.status(400).json({ error: 'rating must be an integer from 1 to 5' });
+      return;
+    }
+    const request = await prisma.feedbackRequest.findUnique({ where: { token: req.params.token } });
+    if (!request || !request.sent_at) {
+      res.status(404).json({ error: 'Feedback request not found' });
+      return;
+    }
+    if (!request.completed_at) {
+      await prisma.feedbackRequest.update({
+        where: { id: request.id },
+        data: {
+          rating: parsed,
+          comments: typeof comments === 'string' && comments.trim() ? comments.trim().slice(0, 4000) : null,
+          completed_at: new Date(),
+        },
+      });
+    }
+    const settings = await prisma.companySettings.findFirst();
+    res.json({ data: { google_review_url: settings?.google_review_url || null } });
+  } catch {
+    res.status(500).json({ error: 'Failed to submit feedback' });
+  }
+});
+
 export default router;
