@@ -167,7 +167,7 @@ export default function ServicesPage() {
               Our Painting Services
             </h1>
             <p className="site-body" style={{ fontSize: 18, maxWidth: 560, margin: '0 auto 32px' }}>
-              Complete painting solutions for homes and businesses across Des Moines and surrounding communities.
+              Honest, careful painting for homes and businesses across Des Moines and surrounding communities, from a family-owned local crew.
             </p>
             <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
               <Link href="/#quote" className="btn btn-accent" style={{ fontSize: 15 }}>

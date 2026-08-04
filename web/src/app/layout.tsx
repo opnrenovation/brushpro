@@ -3,14 +3,14 @@ import './globals.css';
 import Providers from './providers';
 
 export const metadata: Metadata = {
-  title: 'OPN Renovation | Des Moines Premier Painting Company',
+  title: "OPN Renovation | Des Moines' Most Trusted Painters Since 2019",
   description:
     'Family-owned painting company serving Des Moines, Ankeny, Pleasant Hill and Polk County. Residential, commercial, interior and exterior painting. Get a free quote today.',
   openGraph: {
     type: 'website',
     locale: 'en_US',
     siteName: 'OPN Renovation',
-    title: 'OPN Renovation | Des Moines Premier Painting Company',
+    title: "OPN Renovation | Des Moines' Most Trusted Painters Since 2019",
     description:
       'Family-owned painting company serving Des Moines, Ankeny, Pleasant Hill and Polk County.',
   },

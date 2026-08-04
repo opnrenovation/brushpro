@@ -11,6 +11,7 @@ import {
   Hammer,
   Palette,
   Lightbulb,
+  MessageCircle,
   Star,
   Award,
   Shield,
@@ -38,7 +39,7 @@ function Hero() {
       }}
     >
       {/* dark overlay so text stays readable */}
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.78)', zIndex: 0 }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex: 0 }} />
       <div
         style={{
           position: 'relative',
@@ -60,29 +61,37 @@ function Hero() {
             className="site-headline"
             style={{ fontSize: 'clamp(40px, 5vw, 72px)', color: '#ffffff', marginBottom: 24 }}
           >
-            Des Moines&apos; Premier
+            Des Moines&apos; Most Trusted
             <br />
-            <span style={{ color: '#E8A838' }}>Painting Company</span>
+            <span style={{ color: '#E8A838' }}>Painters Since 2019</span>
           </h1>
 
           <p
             className="site-body"
             style={{ fontSize: 18, marginBottom: 40, maxWidth: 480, color: 'rgba(255,255,255,0.82)' }}
           >
-            Residential. Commercial. Interior. Exterior.
-            Done right the first time.
+            A small, family-run crew serving our Des Moines neighbors.
+            Honest work, fair prices, and we treat your home like our own.
           </p>
 
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 48 }}>
-            <a href="tel:+15153330892" className="btn btn-accent" style={{ fontSize: 16, padding: '14px 28px', borderRadius: 100 }}>
-              <Phone size={18} strokeWidth={1.5} />
-              Call for a Free Quote
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 12 }}>
+            <a
+              href="sms:+15153330892?&body=Hi%20OPN%20Renovation%2C%20I%27d%20like%20to%20set%20up%20a%20free%20quote%20for%20a%20painting%20project."
+              className="btn btn-accent"
+              style={{ fontSize: 16, padding: '14px 28px', borderRadius: 100 }}
+            >
+              <MessageCircle size={18} strokeWidth={1.5} />
+              Text Us for a Free Quote
             </a>
             <Link href="/services" className="btn btn-ghost" style={{ fontSize: 16, padding: '14px 28px', borderRadius: 100 }}>
               View Our Work
               <ChevronRight size={16} strokeWidth={1.5} />
             </Link>
           </div>
+
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 48 }}>
+            Send a quick text and we will arrange an in-person quote.
+          </p>
 
           {/* Trust badges */}
           <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
@@ -200,7 +209,7 @@ function ServicesSection() {
             Our Services
           </h2>
           <p className="site-body" style={{ fontSize: 18, maxWidth: 480, margin: '0 auto' }}>
-            Complete painting solutions for residential and commercial properties across Des Moines.
+            Everything your home or business needs, handled by a local crew that takes pride in the details.
           </p>
         </div>
 
