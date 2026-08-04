@@ -576,6 +576,7 @@ model TaxProfile {
   state_rate    Decimal  @db.Decimal(6, 4)
   local_rate    Decimal  @db.Decimal(6, 4)
   municipality  String
+  county        String?
   taxable_labor Boolean  @default(false)
   is_default    Boolean  @default(false)
   created_at    DateTime @default(now())

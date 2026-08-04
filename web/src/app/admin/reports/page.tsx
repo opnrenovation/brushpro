@@ -162,11 +162,11 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Outstanding Tax by Municipality */}
+      {/* Outstanding Tax by County */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
-            <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-primary)' }}>Outstanding Tax by Municipality</h2>
+            <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-primary)' }}>Outstanding Tax by County</h2>
             <p style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)', marginTop: 2 }}>All open invoices (created but not fully paid) — state and local tax owed</p>
           </div>
         </div>
@@ -176,7 +176,7 @@ export default function ReportsPage() {
             : <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Municipality</th>
+                    <th>County</th>
                     <th>Open Invoices</th>
                     <th>Taxable Amount</th>
                     <th>State Tax</th>
@@ -185,9 +185,9 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(taxOutstanding as { municipality: string; invoice_count: number; taxable_subtotal: number; state_tax_outstanding: number; local_tax_outstanding: number; total_tax_outstanding: number; state_rate: number; local_rate: number }[]).map((r) => (
-                    <tr key={r.municipality}>
-                      <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{r.municipality}</td>
+                  {(taxOutstanding as { county: string; invoice_count: number; taxable_subtotal: number; state_tax_outstanding: number; local_tax_outstanding: number; total_tax_outstanding: number; state_rate: number; local_rate: number }[]).map((r) => (
+                    <tr key={r.county}>
+                      <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{r.county}</td>
                       <td style={{ color: 'rgba(0,0,0,0.6)' }}>{r.invoice_count}</td>
                       <td style={{ fontFamily: 'Menlo,monospace', color: 'rgba(0,0,0,0.7)' }}>{fmt(r.taxable_subtotal)}</td>
                       <td style={{ fontFamily: 'Menlo,monospace', color: 'rgba(0,0,0,0.6)' }}>
@@ -211,7 +211,7 @@ export default function ReportsPage() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
-            <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-primary)' }}>Tax Collected by Jurisdiction</h2>
+            <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-primary)' }}>Tax Collected by County</h2>
             <p style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)', marginTop: 2 }}>Paid and partially paid invoices</p>
           </div>
           <button className="btn btn-ghost" onClick={() => handleExport('tax')} style={{ fontSize: 13, padding: '7px 14px' }}>
@@ -222,14 +222,14 @@ export default function ReportsPage() {
           {tax.length === 0
             ? <div style={{ padding: 40, textAlign: 'center', color: 'rgba(0,0,0,0.4)' }}>No tax data available.</div>
             : <table className="data-table">
-                <thead><tr><th>Jurisdiction</th><th>Invoices</th><th>Taxable</th><th>Tax Collected</th></tr></thead>
+                <thead><tr><th>County</th><th>Invoices</th><th>Taxable</th><th>Tax Collected</th></tr></thead>
                 <tbody>
-                  {(tax as { municipality: string; invoice_count: number; taxable_amount: number; tax_collected: number }[]).map((r) => (
-                    <tr key={r.municipality}>
-                      <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{r.municipality}</td>
+                  {(tax as { county: string; invoice_count: number; taxable_subtotal: number; total_tax_collected: number }[]).map((r) => (
+                    <tr key={r.county}>
+                      <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{r.county}</td>
                       <td style={{ color: 'rgba(0,0,0,0.6)' }}>{r.invoice_count}</td>
-                      <td style={{ fontFamily: 'Menlo,monospace', color: 'rgba(0,0,0,0.7)' }}>{fmt(r.taxable_amount)}</td>
-                      <td style={{ fontFamily: 'Menlo,monospace', color: '#34C759', fontWeight: 600 }}>{fmt(r.tax_collected)}</td>
+                      <td style={{ fontFamily: 'Menlo,monospace', color: 'rgba(0,0,0,0.7)' }}>{fmt(r.taxable_subtotal)}</td>
+                      <td style={{ fontFamily: 'Menlo,monospace', color: '#34C759', fontWeight: 600 }}>{fmt(r.total_tax_collected)}</td>
                     </tr>
                   ))}
                 </tbody>

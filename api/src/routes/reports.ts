@@ -46,32 +46,38 @@ reportsRouter.get('/tax', async (req, res) => {
       include: { tax_profile: true, exemptions: true },
     });
 
+    // Iowa local option sales tax is remitted by county, so group by county
+    // (fall back to municipality for profiles without one).
     interface TaxEntry {
-      profile_name: string;
+      county: string;
       state_code: string;
-      municipality: string;
       state_rate: number;
       local_rate: number;
+      invoice_count: number;
       taxable_subtotal: number;
       state_tax_collected: number;
       local_tax_collected: number;
+      total_tax_collected: number;
       exempt_count: number;
     }
 
-    const byJurisdiction: Record<string, TaxEntry> = {};
+    const byCounty: Record<string, TaxEntry> = {};
 
     for (const inv of invoices) {
-      const key = inv.tax_profile_id;
-      if (!byJurisdiction[key]) {
-        byJurisdiction[key] = {
-          profile_name: inv.tax_profile.name,
+      const county = inv.tax_profile.county
+        ? `${inv.tax_profile.county} County`
+        : inv.tax_profile.municipality;
+      if (!byCounty[county]) {
+        byCounty[county] = {
+          county,
           state_code: inv.tax_profile.state_code,
-          municipality: inv.tax_profile.municipality,
           state_rate: Number(inv.tax_profile.state_rate),
           local_rate: Number(inv.tax_profile.local_rate),
+          invoice_count: 0,
           taxable_subtotal: 0,
           state_tax_collected: 0,
           local_tax_collected: 0,
+          total_tax_collected: 0,
           exempt_count: 0,
         };
       }
@@ -85,13 +91,15 @@ reportsRouter.get('/tax', async (req, res) => {
         exempt: !!exemption,
       });
 
-      byJurisdiction[key].taxable_subtotal += taxableAmount;
-      byJurisdiction[key].state_tax_collected += stateTax;
-      byJurisdiction[key].local_tax_collected += localTax;
-      if (exemption) byJurisdiction[key].exempt_count++;
+      byCounty[county].invoice_count++;
+      byCounty[county].taxable_subtotal += taxableAmount;
+      byCounty[county].state_tax_collected += stateTax;
+      byCounty[county].local_tax_collected += localTax;
+      byCounty[county].total_tax_collected += stateTax + localTax;
+      if (exemption) byCounty[county].exempt_count++;
     }
 
-    res.json({ data: Object.values(byJurisdiction) });
+    res.json({ data: Object.values(byCounty) });
   } catch {
     res.status(500).json({ error: 'Failed to generate tax report' });
   }
@@ -120,10 +128,10 @@ reportsRouter.get('/tax/export', async (req, res) => {
         exempt: inv.exemptions.length > 0,
       });
       const customerName = inv.job?.customer?.name ?? inv.customer?.name ?? '';
-      return `"${inv.invoice_number}","${customerName}","${inv.tax_profile.state_code}","${inv.tax_profile.municipality}",${taxable.toFixed(2)},${stateTax.toFixed(2)},${localTax.toFixed(2)},"${inv.exemptions.length ? inv.exemptions[0].exemption_type : ''}"`;
+      return `"${inv.invoice_number}","${customerName}","${inv.tax_profile.state_code}","${inv.tax_profile.county ? `${inv.tax_profile.county} County` : ''}","${inv.tax_profile.municipality}",${taxable.toFixed(2)},${stateTax.toFixed(2)},${localTax.toFixed(2)},"${inv.exemptions.length ? inv.exemptions[0].exemption_type : ''}"`;
     });
 
-    const csv = ['invoice_number,customer,state,municipality,taxable_amount,state_tax,local_tax,exemption', ...rows].join('\n');
+    const csv = ['invoice_number,customer,state,county,municipality,taxable_amount,state_tax,local_tax,exemption', ...rows].join('\n');
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="tax-report.csv"');
     res.send(csv);
@@ -148,7 +156,7 @@ reportsRouter.get('/tax/outstanding', async (req, res) => {
     });
 
     interface OutstandingEntry {
-      municipality: string;
+      county: string;
       state_rate: number;
       local_rate: number;
       invoice_count: number;
@@ -161,10 +169,12 @@ reportsRouter.get('/tax/outstanding', async (req, res) => {
     const byMunicipality: Record<string, OutstandingEntry> = {};
 
     for (const inv of invoices) {
-      const key = inv.tax_profile.municipality;
+      const key = inv.tax_profile.county
+        ? `${inv.tax_profile.county} County`
+        : inv.tax_profile.municipality;
       if (!byMunicipality[key]) {
         byMunicipality[key] = {
-          municipality: inv.tax_profile.municipality,
+          county: key,
           state_rate: Number(inv.tax_profile.state_rate),
           local_rate: Number(inv.tax_profile.local_rate),
           invoice_count: 0,
