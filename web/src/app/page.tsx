@@ -38,7 +38,7 @@ function Hero() {
       }}
     >
       {/* dark overlay so text stays readable */}
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.62)', zIndex: 0 }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.78)', zIndex: 0 }} />
       <div
         style={{
           position: 'relative',
@@ -56,14 +56,6 @@ function Hero() {
       >
         {/* Left: text */}
         <div>
-          <div
-            className="pill pill-blue"
-            style={{ marginBottom: 24, display: 'inline-flex', background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.3)', color: '#fff' }}
-          >
-            <MapPin size={12} strokeWidth={1.5} style={{ marginRight: 4 }} />
-            Des Moines, Iowa
-          </div>
-
           <h1
             className="site-headline"
             style={{ fontSize: 'clamp(40px, 5vw, 72px)', color: '#ffffff', marginBottom: 24 }}
@@ -82,7 +74,7 @@ function Hero() {
           </p>
 
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 48 }}>
-            <a href="tel:+15155551234" className="btn btn-accent" style={{ fontSize: 16, padding: '14px 28px', borderRadius: 100 }}>
+            <a href="tel:+15153330892" className="btn btn-accent" style={{ fontSize: 16, padding: '14px 28px', borderRadius: 100 }}>
               <Phone size={18} strokeWidth={1.5} />
               Call for a Free Quote
             </a>
@@ -95,7 +87,7 @@ function Hero() {
           {/* Trust badges */}
           <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
             {[
-              '4+ Years in Business',
+              '7+ Years in Business',
               'Family Owned',
               'Fully Insured',
               'Free Estimates',
@@ -123,7 +115,7 @@ function Hero() {
         <div style={{ position: 'relative' }}>
           <div style={{ borderRadius: 20, overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.15)' }}>
             <Image
-              src="/opn-images/House-exterior-1920w.jpg"
+              src="/opn-images/exterior-siding-947w.jpg"
               alt="Exterior painting by OPN Renovation"
               width={700}
               height={520}
@@ -528,11 +520,11 @@ function Footer() {
               <Image src="/opn-logo-white.png" alt="OPN Renovation" width={64} height={64} style={{ objectFit: 'contain' }} />
             </div>
             <p className="site-body" style={{ fontSize: 14, marginBottom: 20, lineHeight: 1.7 }}>
-              Family-owned painting company serving Des Moines and surrounding communities since 2020.
+              Family-owned painting company serving Des Moines and surrounding communities since 2019.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <a
-                href="tel:+15155551234"
+                href="tel:+15153330892"
                 className="btn btn-ghost"
                 style={{ fontSize: 13, padding: '8px 14px', width: 'fit-content' }}
               >

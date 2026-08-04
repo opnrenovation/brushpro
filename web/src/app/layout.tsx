@@ -32,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               image: 'https://opnrenovation.com/logo.png',
               '@id': 'https://opnrenovation.com',
               url: 'https://opnrenovation.com',
-              telephone: '+15155551234',
+              telephone: '+15153330892',
               address: {
                 '@type': 'PostalAddress',
                 addressLocality: 'Des Moines',

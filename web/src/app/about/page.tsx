@@ -71,7 +71,7 @@ export default function AboutPage() {
                 <span style={{ color: '#E8A838' }}>Des Moines Proud.</span>
               </h1>
               <p className="site-body" style={{ fontSize: 18, lineHeight: 1.8, marginBottom: 40, maxWidth: 600 }}>
-                OPN Renovation is a family-owned painting company based in Des Moines, Iowa. Since 2020, we
+                OPN Renovation is a family-owned painting company based in Des Moines, Iowa. Since 2019, we
                 have been helping homeowners and businesses across the metro transform their spaces with
                 expert painting and surface preparation services.
               </p>
@@ -80,9 +80,9 @@ export default function AboutPage() {
                   Get a Free Quote
                   <ChevronRight size={16} strokeWidth={1.5} />
                 </Link>
-                <a href="tel:+15155551234" className="btn btn-ghost" style={{ fontSize: 15 }}>
+                <a href="tel:+15153330892" className="btn btn-ghost" style={{ fontSize: 15 }}>
                   <Phone size={15} strokeWidth={1.5} />
-                  (515) 555-1234
+                  (515) 333-0892
                 </a>
               </div>
             </div>
@@ -102,7 +102,7 @@ export default function AboutPage() {
                 </h2>
                 <div className="site-body" style={{ fontSize: 16, lineHeight: 1.85 }}>
                   <p style={{ marginBottom: 20 }}>
-                    OPN Renovation started in 2020 with a simple goal: provide painting services that
+                    OPN Renovation started in 2019 with a simple goal: provide painting services that
                     Des Moines homeowners could actually trust. Too many contractors show up late, do
                     mediocre work, and disappear when something goes wrong.
                   </p>
@@ -112,7 +112,7 @@ export default function AboutPage() {
                     their craft, use premium materials, and never cut corners on prep work.
                   </p>
                   <p>
-                    Over the past 4+ years, we have completed hundreds of residential and commercial
+                    Over the past 7+ years, we have completed hundreds of residential and commercial
                     projects throughout Des Moines, Ankeny, Pleasant Hill, and the surrounding
                     communities. Most of our business comes from referrals — and that tells us we are
                     doing something right.
@@ -122,7 +122,7 @@ export default function AboutPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                 {[
-                  { number: '4+', label: 'Years in Business' },
+                  { number: '7+', label: 'Years in Business' },
                   { number: '100%', label: 'Family Owned' },
                   { number: 'A+', label: 'Customer Satisfaction' },
                   { number: 'Free', label: 'Written Estimates' },
@@ -254,9 +254,9 @@ export default function AboutPage() {
                   <Link href="/book" className="btn btn-primary" style={{ justifyContent: 'center', fontSize: 15 }}>
                     Book an Appointment
                   </Link>
-                  <a href="tel:+15155551234" className="btn btn-ghost" style={{ justifyContent: 'center', fontSize: 15 }}>
+                  <a href="tel:+15153330892" className="btn btn-ghost" style={{ justifyContent: 'center', fontSize: 15 }}>
                     <Phone size={15} strokeWidth={1.5} />
-                    (515) 555-1234
+                    (515) 333-0892
                   </a>
                 </div>
               </div>

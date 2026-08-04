@@ -64,12 +64,12 @@ export default function ContactPage() {
                         Phone
                       </p>
                       <a
-                        href="tel:+15155551234"
+                        href="tel:+15153330892"
                         className="btn btn-ghost"
                         style={{ width: '100%', justifyContent: 'flex-start', fontSize: 15 }}
                       >
                         <Phone size={16} strokeWidth={1.5} style={{ color: '#E8A838' }} />
-                        (515) 555-1234
+                        (515) 333-0892
                       </a>
                     </div>
 
