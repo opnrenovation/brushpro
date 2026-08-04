@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { sendEmail } from '../lib/resend';
 import { generateInvoicePdf } from '../lib/invoicePdf';
-import { downloadLogoBuffer } from '../lib/supabase';
+import { getInvoiceLogoBuffer } from '../lib/supabase';
 import { computeInvoiceTotals } from '../lib/invoiceTotals';
 import Stripe from 'stripe';
 
@@ -129,7 +129,7 @@ invoicesRouter.post('/:id/send', async (req, res) => {
     const payUrl = `${appUrl}/invoices/${invoice.id}`;
 
     // Generate PDF attachment
-    const logoBuffer = settings?.logo_url ? await downloadLogoBuffer(settings.logo_url) : null;
+    const logoBuffer = await getInvoiceLogoBuffer(settings?.logo_url);
     let pdfBuffer: Buffer | undefined;
     try {
       pdfBuffer = await generateInvoicePdf(
@@ -238,7 +238,7 @@ invoicesRouter.get('/:id/pdf', async (req, res) => {
     const settings = await prisma.companySettings.findFirst();
     const appUrl = process.env.APP_URL || 'http://localhost:3000';
     const lineItems = invoice.line_items as Array<{ description: string; qty: number; unit_price: number; taxable: boolean }>;
-    const logoBuffer = settings?.logo_url ? await downloadLogoBuffer(settings.logo_url) : null;
+    const logoBuffer = await getInvoiceLogoBuffer(settings?.logo_url);
 
     const pdfBuffer = await generateInvoicePdf(
       {

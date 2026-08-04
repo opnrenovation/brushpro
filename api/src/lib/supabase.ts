@@ -1,4 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import fs from 'fs';
+import path from 'path';
 
 let _supabase: SupabaseClient | null = null;
 
@@ -51,6 +53,29 @@ export async function downloadLogoBuffer(logoUrl: string): Promise<Buffer | null
     console.error('[logo] fetch error:', e instanceof Error ? e.message : e);
     return null;
   }
+}
+
+// Bundled OPN logo (api/assets/opn-logo.png) — works from both src/ (tsx) and dist/ (tsc).
+let _bundledLogo: Buffer | null | undefined;
+export function bundledLogoBuffer(): Buffer | null {
+  if (_bundledLogo === undefined) {
+    try {
+      _bundledLogo = fs.readFileSync(path.join(__dirname, '..', '..', 'assets', 'opn-logo.png'));
+    } catch (e) {
+      console.error('[logo] bundled logo missing:', e instanceof Error ? e.message : e);
+      _bundledLogo = null;
+    }
+  }
+  return _bundledLogo;
+}
+
+// Logo for PDFs: uploaded logo if it resolves, otherwise the bundled OPN logo.
+export async function getInvoiceLogoBuffer(logoUrl?: string | null): Promise<Buffer | null> {
+  if (logoUrl) {
+    const remote = await downloadLogoBuffer(logoUrl);
+    if (remote) return remote;
+  }
+  return bundledLogoBuffer();
 }
 
 export async function deleteFile(bucket: string, path: string): Promise<void> {
