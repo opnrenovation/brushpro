@@ -303,14 +303,16 @@ export default function ApprovePage() {
         {/* ── Company header ─────────────────────────────────────────────── */}
         {estimate && (
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            {estimate.company_logo && (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={estimate.company_logo}
-                alt={estimate.company_name}
-                style={{ height: 52, marginBottom: 10, objectFit: 'contain' }}
-              />
-            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={estimate.company_logo || '/opn-logo.png'}
+              alt={estimate.company_name}
+              style={{ height: 52, marginBottom: 10, objectFit: 'contain' }}
+              onError={(e) => {
+                const img = e.currentTarget;
+                if (!img.src.endsWith('/opn-logo.png')) img.src = '/opn-logo.png';
+              }}
+            />
             <div style={{ fontSize: 20, fontWeight: 700, color: DARK }}>{estimate.company_name}</div>
           </div>
         )}
