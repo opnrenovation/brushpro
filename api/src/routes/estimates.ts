@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../lib/prisma';
-import { sendEmail } from '../lib/resend';
+import { sendEmail, COMPANY_BCC } from '../lib/resend';
 import { generateProposalPdf } from '../services/pdf';
 import { computeInvoiceTotals } from '../lib/invoiceTotals';
 
@@ -189,6 +189,7 @@ estimatesRouter.post('/:id/send', async (req, res) => {
       try {
         const emailData = await sendEmail({
           to: customerEmail,
+          bcc: COMPANY_BCC,
           subject: `Estimate ${estimate.estimate_number} from ${settings?.company_name || 'BrushPro'}`,
           html: `
 <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;color:#111">

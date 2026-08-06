@@ -228,6 +228,24 @@ approveRouter.post('/:token/sign', async (req, res) => {
       data: { status: 'ACTIVE' },
     });
 
+    // The signer is now a client: promote their contact from PROSPECT to
+    // CUSTOMER and close out any open lead as WON (non-fatal).
+    try {
+      const contactId = estimate.job?.customer?.contact_id;
+      if (contactId) {
+        await prisma.contact.updateMany({
+          where: { id: contactId, type: 'PROSPECT' },
+          data: { type: 'CUSTOMER' },
+        });
+        await prisma.lead.updateMany({
+          where: { contact_id: contactId, stage: { notIn: ['WON', 'LOST'] } },
+          data: { stage: 'WON' },
+        });
+      }
+    } catch (crmErr) {
+      console.error('[approve] lead/contact promotion failed (non-fatal):', crmErr);
+    }
+
     // ── Auto-create FINAL invoice from approved estimate ──────────────────────
     let invoiceId: string | null = null;
     let checkout_url: string | null = null;

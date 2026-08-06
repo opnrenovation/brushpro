@@ -2,6 +2,10 @@ import { Resend } from 'resend';
 
 export const resend = new Resend(process.env.RESEND_API_KEY);
 
+// Shared company inbox that receives a copy of customer-facing email.
+// Do NOT use for credential emails (invites, password resets) or campaigns.
+export const COMPANY_BCC = process.env.COMPANY_BCC_EMAIL || 'info@opnrenovation.com';
+
 export async function sendEmail(params: {
   to: string | string[];
   subject: string;
@@ -9,6 +13,7 @@ export async function sendEmail(params: {
   from?: string;
   replyTo?: string;
   text?: string;
+  bcc?: string | string[];
   tags?: Array<{ name: string; value: string }>;
   attachments?: Array<{ filename: string; content: Buffer }>;
 }) {
@@ -19,6 +24,7 @@ export async function sendEmail(params: {
     html: params.html,
     text: params.text,
     replyTo: params.replyTo,
+    bcc: params.bcc ? (Array.isArray(params.bcc) ? params.bcc : [params.bcc]) : undefined,
     tags: params.tags,
     attachments: params.attachments?.map(a => ({ filename: a.filename, content: a.content })),
   });

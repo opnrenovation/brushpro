@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { sendEmail } from '../lib/resend';
+import { sendEmail, COMPANY_BCC } from '../lib/resend';
 import { computeInvoiceTotals } from '../lib/invoiceTotals';
 import {
   createCalendarEvent,
@@ -65,6 +65,7 @@ router.post('/leads', async (req: Request, res: Response) => {
     // Auto-reply to prospect
     await sendEmail({
       to: email,
+      bcc: COMPANY_BCC,
       subject: `Thanks for reaching out, ${first_name}!`,
       html: `<p>Hi ${first_name},</p>
 <p>Thanks for reaching out to ${settings?.company_name || 'OPN Renovation'}! We received your request for ${service_needed || 'painting services'} and will be in touch within 1 business day.</p>
@@ -276,6 +277,7 @@ router.post('/appointments', async (req: Request, res: Response) => {
     // Confirmation email to booker
     await sendEmail({
       to: email,
+      bcc: COMPANY_BCC,
       subject: `Appointment Confirmed — ${apptType.name}`,
       html: `${schedulerSettings?.confirmation_email_body ? `<p>${schedulerSettings.confirmation_email_body}</p>` : ''}
 <p>Hi ${first_name},</p>

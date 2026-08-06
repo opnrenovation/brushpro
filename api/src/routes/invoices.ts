@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
-import { sendEmail } from '../lib/resend';
+import { sendEmail, COMPANY_BCC } from '../lib/resend';
 import { generateInvoicePdf } from '../lib/invoicePdf';
 import { getInvoiceLogoBuffer } from '../lib/supabase';
 import { computeInvoiceTotals } from '../lib/invoiceTotals';
@@ -171,6 +171,7 @@ invoicesRouter.post('/:id/send', async (req, res) => {
 
       await sendEmail({
         to: recipient.email,
+        bcc: COMPANY_BCC,
         subject: `Invoice ${invoice.invoice_number} — ${settings?.company_name || 'OPN Renovation'}`,
         html: `
 <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;color:#111">

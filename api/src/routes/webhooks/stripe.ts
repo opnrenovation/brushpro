@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { prisma } from '../../lib/prisma';
 import { generateInvoicePdf } from '../../lib/invoicePdf';
 import { getInvoiceLogoBuffer } from '../../lib/supabase';
-import { sendEmail } from '../../lib/resend';
+import { sendEmail, COMPANY_BCC } from '../../lib/resend';
 
 let _stripe: Stripe | null = null;
 function getStripe(): Stripe {
@@ -100,6 +100,7 @@ async function sendDepositReceipt(invoiceId: string): Promise<void> {
 
     await sendEmail({
       to: recipient.email,
+      bcc: COMPANY_BCC,
       subject: `Deposit received — ${companyName} Invoice ${invoice.invoice_number}`,
       html: `
         <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;color:#111">

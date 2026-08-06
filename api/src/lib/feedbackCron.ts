@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import prisma from './prisma';
-import { sendEmail } from './resend';
+import { sendEmail, COMPANY_BCC } from './resend';
 
 const FOLLOW_UP_DELAY_MS = 2 * 24 * 60 * 60 * 1000; // 2 days after invoice send
 const PER_EMAIL_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // don't ask the same client more than once a month
@@ -72,6 +72,7 @@ export async function runFeedbackSweep(): Promise<{ sent: number; skipped: numbe
     try {
       await sendEmail({
         to: email,
+        bcc: COMPANY_BCC,
         subject: `How did we do? — ${companyName}`,
         html: `
 <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;color:#111">
