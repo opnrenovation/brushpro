@@ -181,8 +181,10 @@ model CompanySettings {
   estimate_notes          String?
   // Deposit / billing settings
   deposit_required        Boolean  @default(true)
-  deposit_percentage      Decimal  @default(30.00) @db.Decimal(5, 2)
+  deposit_percentage      Decimal  @default(50.00) @db.Decimal(5, 2)
   deposit_minimum_amount  Decimal? @db.Decimal(10, 2)
+  // Jobs whose total is below this amount require no deposit at all
+  deposit_min_job_total   Decimal  @default(1000.00) @db.Decimal(10, 2)
   deposit_message         String?
   final_payment_message   String?
   payment_terms_days      Int      @default(7)

@@ -436,6 +436,9 @@ function BillingSection() {
         <Field label="Minimum Deposit ($)">
           <GlassInput value={val('deposit_minimum_amount')} onChange={set('deposit_minimum_amount')} type="number" placeholder="Optional floor" />
         </Field>
+        <Field label="No Deposit Under ($)">
+          <GlassInput value={val('deposit_min_job_total')} onChange={set('deposit_min_job_total')} type="number" placeholder="1000" />
+        </Field>
         <Field label="Payment Terms (days)">
           <GlassInput value={val('payment_terms_days')} onChange={set('payment_terms_days')} type="number" placeholder="30" />
         </Field>

@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { sendEmail, COMPANY_BCC } from '../lib/resend';
 import { generateProposalPdf } from '../services/pdf';
 import { computeInvoiceTotals } from '../lib/invoiceTotals';
+import { computeDeposit } from '../lib/deposit';
 
 export const estimatesRouter = Router();
 
@@ -141,11 +142,16 @@ estimatesRouter.post('/:id/send', async (req, res) => {
 
     // Tax-inclusive total so the emailed figure matches the approval page the
     // customer opens (which also adds tax). Estimates carry no discount.
-    const { total } = computeInvoiceTotals({
+    const { subtotal, total } = computeInvoiceTotals({
       line_items: lineItems,
       state_rate: Number(estimate.tax_profile.state_rate),
       local_rate: Number(estimate.tax_profile.local_rate),
     });
+
+    const deposit = computeDeposit(settings, subtotal, total);
+    const depositLine = deposit.required
+      ? `A ${deposit.percentage}% deposit of $${deposit.amount.toFixed(2)} will be collected when you approve. The balance is due on completion.`
+      : 'No deposit is required for this project. Work will be scheduled as soon as you approve.';
 
     // Update estimate to SENT first — email is best-effort
     const updated = await prisma.estimate.update({
@@ -177,6 +183,7 @@ estimatesRouter.post('/:id/send', async (req, res) => {
         logo_url: settings?.logo_url ?? undefined,
         approval_url: approvalUrl,
         expiry_date: expiresAt.toISOString(),
+        deposit_text: depositLine,
       });
     } catch (pdfErr) {
       console.error('Proposal PDF generation failed (non-fatal):', pdfErr);
@@ -206,6 +213,7 @@ estimatesRouter.post('/:id/send', async (req, res) => {
     <div style="text-align:center;margin-bottom:24px">
       <a href="${approvalUrl}" style="background:#007AFF;color:#fff;padding:14px 32px;text-decoration:none;border-radius:10px;display:inline-block;font-weight:600;font-size:16px">Review &amp; Approve</a>
     </div>
+    <p style="color:#555;font-size:14px;margin:0 0 16px">${depositLine}</p>
     <p style="color:#666;font-size:13px;margin:0 0 16px">This link expires in ${expiryDays} days. Your estimate is also attached as a PDF.</p>
     <p style="color:#aaa;font-size:12px;margin:0">${settings?.company_name || 'OPN Renovation'}${settings?.phone ? ` · ${settings.phone}` : ''}${settings?.email ? ` · ${settings.email}` : ''}</p>
   </div>

@@ -46,6 +46,7 @@ export async function generateProposalPdf(params: {
   logo_url?: string;
   approval_url?: string;
   expiry_date?: string;
+  deposit_text?: string;
 }): Promise<Buffer> {
   let logoBuffer: Buffer | null = null;
   if (params.logo_url) {
@@ -182,7 +183,14 @@ export async function generateProposalPdf(params: {
     doc.rect(M, y, PW, TOT_H).fill(NAVY);
     doc.font('Helvetica').fontSize(10).fillColor('rgba(255,255,255,0.7)').text('Total Project Price', M + 20, y + 12, { width: PW - 40 });
     doc.font('Helvetica-Bold').fontSize(22).fillColor('#ffffff').text(usd(params.total_price), M + 20, y + 28, { width: PW - 40 });
-    y += TOT_H + 20;
+    y += TOT_H + 12;
+
+    // ── Payment terms line ─────────────────────────────────────────────────────
+    if (params.deposit_text) {
+      doc.font('Helvetica').fontSize(9).fillColor(MID)
+        .text(params.deposit_text, M, y, { width: PW, lineGap: 2 });
+      y += doc.heightOfString(params.deposit_text, { width: PW, lineGap: 2 }) + 12;
+    }
 
     // ── Approval link ───────────────────────────────────────────────────────────
     if (params.approval_url) {

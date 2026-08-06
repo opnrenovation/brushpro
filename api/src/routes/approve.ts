@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { sendEmail } from '../lib/resend';
 import { uploadFile } from '../lib/supabase';
+import { computeDeposit, depositTerms } from '../lib/deposit';
 import { v4 as uuidv4 } from 'uuid';
 
 export const approveRouter = Router();
@@ -68,16 +69,15 @@ approveRouter.get('/:token', async (req, res) => {
       (await prisma.contractTemplate.findFirst({ where: { is_default: true } })) ||
       (await prisma.contractTemplate.findFirst());
 
-    const deposit = settings?.deposit_required
-      ? (subtotal * Number(settings?.deposit_percentage ?? 30)) / 100
-      : 0;
+    const deposit = computeDeposit(settings, subtotal, total);
 
     const contractBody = template
       ? template.body_text
           .replace(/{customer_name}/g, estimate.job?.customer.name ?? '')
           .replace(/{job_address}/g, estimate.job?.address ?? '')
           .replace(/{total_price}/g, `$${total.toFixed(2)}`)
-          .replace(/{deposit_amount}/g, `$${deposit.toFixed(2)}`)
+          .replace(/{deposit_amount}/g, `$${deposit.amount.toFixed(2)}`)
+          .replace(/{deposit_terms}/g, depositTerms(deposit, total))
           .replace(/{company_name}/g, settings?.company_name ?? 'Service Provider')
           .replace(/{estimate_number}/g, estimate.estimate_number)
           .replace(/{payment_terms}/g, String(settings?.payment_terms_days ?? 7))
@@ -105,9 +105,9 @@ approveRouter.get('/:token', async (req, res) => {
       company_logo: settings?.logo_url ?? null,
       contract_body: contractBody,
       status: estimate.status,
-      deposit_required: settings?.deposit_required ?? false,
-      deposit_amount: deposit,
-      deposit_percentage: Number(settings?.deposit_percentage ?? 30),
+      deposit_required: deposit.required,
+      deposit_amount: deposit.amount,
+      deposit_percentage: deposit.percentage,
     });
   } catch {
     res.status(500).json({ message: 'Failed to load estimate' });
@@ -172,9 +172,6 @@ approveRouter.post('/:token/sign', async (req, res) => {
     const scopeLines = lineItems
       .map(li => `  - ${li.description} (${li.qty} × $${li.unit_price.toFixed(2)})`)
       .join('\n');
-    const deposit = settings?.deposit_required
-      ? (subtotal * Number(settings?.deposit_percentage ?? 30)) / 100
-      : 0;
     const taxProfile = await prisma.taxProfile.findUnique({ where: { id: estimate.tax_profile_id } });
     const taxRate = job_tax_exempt(estimate)
       ? 0
@@ -183,13 +180,15 @@ approveRouter.post('/:token/sign', async (req, res) => {
       ? 0
       : lineItems.filter(li => li.taxable).reduce((s, li) => s + li.qty * li.unit_price, 0) * taxRate;
     const total = subtotal + taxAmount;
+    const deposit = computeDeposit(settings, subtotal, total);
 
     const body_text = template
       ? template.body_text
           .replace(/{customer_name}/g, estimate.job?.customer.name ?? '')
           .replace(/{job_address}/g, estimate.job?.address ?? '')
           .replace(/{total_price}/g, `$${total.toFixed(2)}`)
-          .replace(/{deposit_amount}/g, `$${deposit.toFixed(2)}`)
+          .replace(/{deposit_amount}/g, `$${deposit.amount.toFixed(2)}`)
+          .replace(/{deposit_terms}/g, depositTerms(deposit, total))
           .replace(/{company_name}/g, settings?.company_name ?? 'Service Provider')
           .replace(/{estimate_number}/g, estimate.estimate_number)
           .replace(/{payment_terms}/g, String(settings?.payment_terms_days ?? 7))
@@ -289,12 +288,8 @@ approveRouter.post('/:token/sign', async (req, res) => {
       invoiceId = invoice.id;
 
       // Create Stripe checkout for deposit amount if deposits are required
-      const depositAmt = settings?.deposit_required
-        ? Math.max(
-            (subtotal * Number(settings?.deposit_percentage ?? 30)) / 100,
-            Number(settings?.deposit_minimum_amount ?? 0),
-          )
-        : 0;
+      // (jobs under the deposit_min_job_total threshold require none)
+      const depositAmt = deposit.amount;
 
       if (depositAmt > 0) {
         try {
@@ -312,7 +307,7 @@ approveRouter.post('/:token/sign', async (req, res) => {
                   unit_amount: Math.round(depositAmt * 100),
                   product_data: {
                     name: `Deposit — ${estimate.estimate_number}`,
-                    description: `${Number(settings?.deposit_percentage ?? 30)}% deposit on project total of $${total.toFixed(2)}`,
+                    description: `${deposit.percentage}% deposit on project total of $${total.toFixed(2)}`,
                   },
                 },
                 quantity: 1,

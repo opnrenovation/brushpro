@@ -51,6 +51,7 @@ settingsRouter.patch('/', async (req, res) => {
     const decimalFields = [
       'deposit_percentage',
       'deposit_minimum_amount',
+      'deposit_min_job_total',
       'default_labor_rate',
     ];
     for (const f of decimalFields) {
