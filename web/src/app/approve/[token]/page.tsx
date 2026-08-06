@@ -307,7 +307,7 @@ export default function ApprovePage() {
             <img
               src={estimate.company_logo || '/opn-logo.png'}
               alt={estimate.company_name}
-              style={{ height: 52, margin: '0 auto 10px', objectFit: 'contain', display: 'block' }}
+              style={{ height: 104, margin: '0 auto 12px', objectFit: 'contain', display: 'block' }}
               onError={(e) => {
                 const img = e.currentTarget;
                 if (!img.src.endsWith('/opn-logo.png')) img.src = '/opn-logo.png';

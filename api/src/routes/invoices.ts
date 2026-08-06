@@ -176,7 +176,7 @@ invoicesRouter.post('/:id/send', async (req, res) => {
         html: `
 <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;color:#111">
   <div style="background:#007AFF;padding:24px 32px;border-radius:12px 12px 0 0">
-    <img src="https://www.opnrenovation.com/opn-logo-white.png" alt="${settings?.company_name || 'OPN Renovation'}" width="48" height="48" style="display:block;margin-bottom:10px" />
+    <img src="https://www.opnrenovation.com/opn-logo-white.png" alt="${settings?.company_name || 'OPN Renovation'}" width="96" height="96" style="display:block;margin-bottom:10px" />
     <p style="color:#fff;font-size:20px;font-weight:700;margin:0">${settings?.company_name || 'OPN Renovation'}</p>
     <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:14px">Invoice ${invoice.invoice_number}</p>
   </div>

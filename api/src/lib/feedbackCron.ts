@@ -77,7 +77,7 @@ export async function runFeedbackSweep(): Promise<{ sent: number; skipped: numbe
         html: `
 <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;color:#111">
   <div style="background:#007AFF;padding:24px 32px;border-radius:12px 12px 0 0">
-    <img src="https://www.opnrenovation.com/opn-logo-white.png" alt="${companyName}" width="48" height="48" style="display:block;margin-bottom:10px" />
+    <img src="https://www.opnrenovation.com/opn-logo-white.png" alt="${companyName}" width="96" height="96" style="display:block;margin-bottom:10px" />
     <p style="color:#fff;font-size:20px;font-weight:700;margin:0">${companyName}</p>
   </div>
   <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
