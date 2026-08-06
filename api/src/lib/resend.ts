@@ -2,9 +2,16 @@ import { Resend } from 'resend';
 
 export const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Shared company inbox that receives a copy of customer-facing email.
-// Do NOT use for credential emails (invites, password resets) or campaigns.
-export const COMPANY_BCC = process.env.COMPANY_BCC_EMAIL || 'info@opnrenovation.com';
+// Recipients copied on customer-facing email. Haruko and Danny are BCC'd
+// directly because Hotmail/Live silently drop mail forwarded from the
+// info@ mailbox. Do NOT use for credential emails (invites, password
+// resets) or campaigns. Override with COMPANY_BCC_EMAIL (comma-separated).
+export const COMPANY_BCC = (
+  process.env.COMPANY_BCC_EMAIL || 'info@opnrenovation.com,harunakata@hotmail.com,odperez@live.com'
+)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 export async function sendEmail(params: {
   to: string | string[];
