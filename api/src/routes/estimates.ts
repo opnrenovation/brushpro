@@ -191,14 +191,24 @@ estimatesRouter.post('/:id/send', async (req, res) => {
           to: customerEmail,
           subject: `Estimate ${estimate.estimate_number} from ${settings?.company_name || 'BrushPro'}`,
           html: `
-            <p>Dear ${estimate.job?.customer.name},</p>
-            <p>Please review and approve your estimate for ${estimate.job?.address}.</p>
-            <p><strong>Estimate #:</strong> ${estimate.estimate_number}</p>
-            <p><strong>Total:</strong> $${total.toFixed(2)}</p>
-            <p><a href="${approvalUrl}" style="background:#007AFF;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Review &amp; Approve</a></p>
-            <p>This link expires in ${expiryDays} days.</p>
-            <p>${settings?.company_name || ''}</p>
-          `,
+<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;color:#111">
+  <div style="background:#007AFF;padding:24px 32px;border-radius:12px 12px 0 0">
+    <img src="https://www.opnrenovation.com/opn-logo-white.png" alt="${settings?.company_name || 'OPN Renovation'}" width="48" height="48" style="display:block;margin-bottom:10px" />
+    <p style="color:#fff;font-size:20px;font-weight:700;margin:0">${settings?.company_name || 'OPN Renovation'}</p>
+    <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:14px">Estimate ${estimate.estimate_number}</p>
+  </div>
+  <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
+    <p style="margin:0 0 8px">Dear ${estimate.job?.customer.name},</p>
+    <p style="color:#555;margin:0 0 24px">Please review and approve your estimate for ${estimate.job?.address}.</p>
+    <p style="margin:0 0 8px"><strong>Estimate #:</strong> ${estimate.estimate_number}</p>
+    <p style="margin:0 0 24px"><strong>Total:</strong> $${total.toFixed(2)}</p>
+    <div style="text-align:center;margin-bottom:24px">
+      <a href="${approvalUrl}" style="background:#007AFF;color:#fff;padding:14px 32px;text-decoration:none;border-radius:10px;display:inline-block;font-weight:600;font-size:16px">Review &amp; Approve</a>
+    </div>
+    <p style="color:#666;font-size:13px;margin:0 0 16px">This link expires in ${expiryDays} days. Your estimate is also attached as a PDF.</p>
+    <p style="color:#aaa;font-size:12px;margin:0">${settings?.company_name || 'OPN Renovation'}${settings?.phone ? ` · ${settings.phone}` : ''}${settings?.email ? ` · ${settings.email}` : ''}</p>
+  </div>
+</div>`,
           attachments: pdfBuffer ? [{ filename: `Estimate-${estimate.estimate_number}.pdf`, content: pdfBuffer }] : undefined,
           tags: [{ name: 'estimate_id', value: estimate.id }],
         });
