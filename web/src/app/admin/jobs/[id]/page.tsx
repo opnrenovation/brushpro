@@ -73,6 +73,7 @@ export default function JobDetailPage() {
   const [flatAmount, setFlatAmount] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([{ ...emptyItem }]);
   const [estNotes, setEstNotes] = useState('');
+  const [estExpiryDays, setEstExpiryDays] = useState('');
   const [estError, setEstError] = useState('');
 
   // Edit estimate modal state
@@ -187,6 +188,23 @@ export default function JobDetailPage() {
     mutationFn: (estId: string) => estimatesApi.update(estId, { status: 'EXPIRED' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs', id] }),
     onError: () => alert('Failed to expire estimate.'),
+  });
+
+  const completeJob = useMutation({
+    mutationFn: () => jobsApi.complete(id),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['jobs', id] });
+      const d = res.data || {};
+      if (d.email_sent) {
+        alert(`Job marked complete. Invoice ${d.invoice_number} with the remaining balance was emailed to the client.`);
+      } else {
+        alert(`Job marked complete, but the invoice email did not go out${d.email_error ? `: ${d.email_error}` : ''}. You can send it from the Invoices tab.`);
+      }
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      alert(msg || 'Failed to complete the job.');
+    },
   });
 
   const updateJob = useMutation({
@@ -355,6 +373,7 @@ export default function JobDetailPage() {
     setFlatAmount('');
     setLineItems([{ ...emptyItem }]);
     setEstNotes('');
+    setEstExpiryDays('');
     setEstError('');
   }
 
@@ -418,7 +437,7 @@ export default function JobDetailPage() {
         unit_price: parseFloat(flatAmount),
         taxable,
       }];
-      createEstimate.mutate({ job_id: id, line_items: items, notes: estNotes || undefined });
+      createEstimate.mutate({ job_id: id, line_items: items, notes: estNotes || undefined, expiry_days: estExpiryDays ? parseInt(estExpiryDays, 10) : undefined });
     } else {
       const valid = lineItems.filter(li => li.description.trim() && li.unit_price > 0);
       if (valid.length === 0) {
@@ -431,7 +450,7 @@ export default function JobDetailPage() {
         unit_price: li.unit_price,
         taxable,
       }));
-      createEstimate.mutate({ job_id: id, line_items: items, notes: estNotes || undefined });
+      createEstimate.mutate({ job_id: id, line_items: items, notes: estNotes || undefined, expiry_days: estExpiryDays ? parseInt(estExpiryDays, 10) : undefined });
     }
   }
 
@@ -637,6 +656,14 @@ export default function JobDetailPage() {
               <textarea className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14, minHeight: 64, resize: 'vertical' }}
                 value={estNotes} onChange={(e) => setEstNotes(e.target.value)}
                 placeholder="Any notes for this estimate..." />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(0,0,0,0.5)', marginBottom: 6 }}>Valid For (days)</label>
+              <input className="glass-input" style={{ width: '100%', padding: '9px 12px', fontSize: 14 }}
+                type="number" min="1"
+                value={estExpiryDays} onChange={(e) => setEstExpiryDays(e.target.value)}
+                placeholder="30 (default)" />
             </div>
 
             {estError && <p style={{ color: '#FF3B30', fontSize: 13, marginBottom: 16 }}>{estError}</p>}
@@ -882,18 +909,24 @@ export default function JobDetailPage() {
               <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.35)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Notes</div>
               <p style={{ color: 'rgba(0,0,0,0.7)', fontSize: 14, lineHeight: 1.6 }}>{job.notes}</p>
             </div>}
+            {job.status === 'COMPLETE' && (job.invoices || []).length > 0 && (job.invoices as JobInvoice[]).every((inv) => inv.status === 'PAID') && (
+              <div style={{ marginTop: 24, display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.35)', color: '#16a34a', borderRadius: 100, padding: '8px 16px', fontSize: 14, fontWeight: 600 }}>
+                <CheckCircle size={16} strokeWidth={2} /> Project Complete — Paid in Full
+              </div>
+            )}
             {job.status === 'ACTIVE' && (
               <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
                 <button
                   className="btn btn-primary"
                   style={{ background: '#16a34a', borderColor: '#16a34a' }}
+                  disabled={completeJob.isPending}
                   onClick={() => {
-                    if (window.confirm('Mark this job as complete? This will finalize the job status.')) {
-                      updateJob.mutate({ status: 'COMPLETE' });
+                    if (window.confirm('Mark this job as complete? The final invoice with the remaining balance will be emailed to the client.')) {
+                      completeJob.mutate();
                     }
                   }}
                 >
-                  <CheckCircle size={15} strokeWidth={1.5} /> Mark Job Complete
+                  <CheckCircle size={15} strokeWidth={1.5} /> {completeJob.isPending ? 'Completing...' : 'Mark Job Complete'}
                 </button>
               </div>
             )}

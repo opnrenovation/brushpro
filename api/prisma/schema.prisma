@@ -434,6 +434,7 @@ model Estimate {
   notes                     String?
   approval_token            String?        @unique
   approval_token_expires_at DateTime?
+  expiry_days               Int?
   approved_at               DateTime?
   rejected_at               DateTime?
   rejection_note            String?

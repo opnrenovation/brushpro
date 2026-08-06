@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
+import { sendInvoiceEmail } from '../lib/sendInvoice';
 
 export const jobsRouter = Router();
 
@@ -74,6 +75,85 @@ jobsRouter.patch('/:id', async (req, res) => {
     res.json({ data: job });
   } catch {
     res.status(500).json({ error: 'Failed to update job' });
+  }
+});
+
+// POST /jobs/:id/complete — mark the work done and email the client the
+// final invoice with the remaining balance (creating it from the approved
+// estimate when the job has no invoice yet).
+jobsRouter.post('/:id/complete', async (req, res) => {
+  try {
+    const job = await prisma.job.findUnique({
+      where: { id: req.params.id },
+      include: {
+        invoices: { where: { deleted_at: null }, orderBy: { created_at: 'desc' } },
+        estimates: { where: { deleted_at: null, status: 'APPROVED' }, orderBy: { created_at: 'desc' } },
+      },
+    });
+    if (!job || job.deleted_at) {
+      res.status(404).json({ error: 'Job not found' });
+      return;
+    }
+
+    // Resolve the invoice to send: prefer the FINAL invoice, else the latest
+    let invoice = job.invoices.find(i => i.type === 'FINAL') ?? job.invoices[0] ?? null;
+
+    if (!invoice) {
+      const estimate = job.estimates[0];
+      if (!estimate) {
+        res.status(400).json({ error: 'This job has no invoice and no approved estimate to create one from. Create an invoice first.' });
+        return;
+      }
+      const settings = await prisma.companySettings.findFirst();
+      const prefix = settings?.invoice_prefix || 'INV';
+      const maxRow = await prisma.$queryRaw<{ max: number | null }[]>`
+        SELECT MAX(CAST(SPLIT_PART(invoice_number, '-', 2) AS INTEGER)) AS max
+        FROM "invoices"
+        WHERE invoice_number ~ '^[A-Z]+-[0-9]+$'
+      `;
+      const nextNum = Math.max(settings?.next_invoice_number ?? 1, (maxRow[0]?.max ?? 0) + 1);
+      if (settings) {
+        await prisma.companySettings.update({
+          where: { id: settings.id },
+          data: { next_invoice_number: nextNum + 1 },
+        });
+      }
+      const due_date = new Date();
+      due_date.setDate(due_date.getDate() + (settings?.payment_terms_days ?? 30));
+      invoice = await prisma.invoice.create({
+        data: {
+          job_id: job.id,
+          estimate_id: estimate.id,
+          invoice_number: `${prefix}-${String(nextNum).padStart(4, '0')}`,
+          type: 'FINAL',
+          line_items: estimate.line_items ?? [],
+          tax_profile_id: estimate.tax_profile_id,
+          due_date,
+          notes: settings?.invoice_notes ?? undefined,
+        },
+      });
+    }
+
+    const updatedJob = await prisma.job.update({
+      where: { id: job.id },
+      data: { status: 'COMPLETE' },
+    });
+
+    let email_sent = false;
+    let email_error: string | undefined;
+    try {
+      const result = await sendInvoiceEmail(invoice.id);
+      email_sent = result.sent;
+      email_error = result.reason;
+    } catch (e) {
+      console.error('Job-complete invoice email failed:', e);
+      email_error = 'Email send failed';
+    }
+
+    res.json({ data: updatedJob, invoice_id: invoice.id, invoice_number: invoice.invoice_number, email_sent, email_error });
+  } catch (err) {
+    console.error('Failed to complete job:', err);
+    res.status(500).json({ error: 'Failed to complete job' });
   }
 });
 

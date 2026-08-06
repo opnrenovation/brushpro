@@ -13,6 +13,20 @@ router.get('/', async (_req: Request, res: Response) => {
   }
 });
 
+// GET /contract-templates/:id
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const template = await prisma.contractTemplate.findUnique({ where: { id: req.params.id } });
+    if (!template) {
+      res.status(404).json({ error: 'Contract template not found' });
+      return;
+    }
+    res.json({ data: template });
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch contract template' });
+  }
+});
+
 // POST /contract-templates
 router.post('/', async (req: Request, res: Response) => {
   try {

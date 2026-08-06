@@ -285,8 +285,8 @@ function ContractsSection() {
     setBodyLoading(true);
     try {
       const res = await contractTemplatesApi.get(t.id);
-      const full = (res.data?.data || res.data) as { name: string; body: string; description: string | null; is_default: boolean };
-      setEditTemplate((cur) => (cur && cur.id === t.id ? { ...cur, body: full.body || '', name: full.name ?? cur.name, description: full.description ?? cur.description, is_default: full.is_default ?? cur.is_default } : cur));
+      const full = (res.data?.data || res.data) as { name: string; body_text: string; description: string | null; is_default: boolean };
+      setEditTemplate((cur) => (cur && cur.id === t.id ? { ...cur, body: full.body_text || '', name: full.name ?? cur.name, description: full.description ?? cur.description, is_default: full.is_default ?? cur.is_default } : cur));
     } finally {
       setBodyLoading(false);
     }
@@ -300,8 +300,10 @@ function ContractsSection() {
   const saveMutation = useMutation({
     mutationFn: (t: typeof editTemplate) => {
       if (!t) return Promise.reject();
-      if (t.id) return contractTemplatesApi.update(t.id, t);
-      return contractTemplatesApi.create(t);
+      // API field is body_text; the modal state uses `body`
+      const payload = { name: t.name, description: t.description, is_default: t.is_default, body_text: t.body };
+      if (t.id) return contractTemplatesApi.update(t.id, payload);
+      return contractTemplatesApi.create(payload);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contract-templates'] });

@@ -83,8 +83,13 @@ estimatesRouter.post('/', async (req, res) => {
       tax_profile_id = profile.id;
     }
 
+    const createData = { ...req.body, tax_profile_id, estimate_number };
+    if (createData.expiry_days !== undefined) {
+      const parsed = parseInt(String(createData.expiry_days), 10);
+      createData.expiry_days = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
     const estimate = await prisma.estimate.create({
-      data: { ...req.body, tax_profile_id, estimate_number },
+      data: createData,
     });
     res.status(201).json({ data: estimate });
   } catch (err) {
@@ -97,6 +102,10 @@ estimatesRouter.patch('/:id', async (req, res) => {
   try {
     const data = { ...req.body };
     delete data.id;
+    if (data.expiry_days !== undefined) {
+      const parsed = parseInt(String(data.expiry_days), 10);
+      data.expiry_days = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
     const estimate = await prisma.estimate.update({ where: { id: req.params.id }, data });
     res.json({ data: estimate });
   } catch {
@@ -128,7 +137,8 @@ estimatesRouter.post('/:id/send', async (req, res) => {
     const settings = await prisma.companySettings.findFirst();
 
     const token = uuidv4();
-    const expiryDays = settings?.estimate_expiry_days ?? 30;
+    // Per-estimate validity wins; fall back to the company default (30 days)
+    const expiryDays = estimate.expiry_days ?? settings?.estimate_expiry_days ?? 30;
     const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
     const approvalUrl = `${process.env.APP_URL}/approve/${token}`;
     const lineItems = estimate.line_items as Array<{
