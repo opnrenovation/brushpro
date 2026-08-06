@@ -87,7 +87,7 @@ The total price for the services described above is {total_price} (Reference: Es
 
 3. PAYMENT TERMS
 
-A deposit of 30% is due upon signing this agreement. The remaining balance is due upon completion of the project and final walkthrough. Accepted forms of payment include check, cash, and credit card.
+{deposit_terms} Accepted forms of payment include check, cash, and credit card.
 
 4. PAINT SELECTIONS
 
