@@ -86,11 +86,11 @@ export async function generateInvoicePdf(
     doc.font('Helvetica-Bold').fontSize(26).fillColor(BLUE).text('INVOICE', M, y);
 
     // Right: logo (if available) — reserve 100 pt wide column
-    const LOGO_W = 100;
+    const LOGO_W = 120;
     const LOGO_X = M + PW - LOGO_W;
     if (logoBuffer) {
       try {
-        doc.image(logoBuffer, LOGO_X, y, { fit: [LOGO_W, 60] });
+        doc.image(logoBuffer, LOGO_X, y, { fit: [LOGO_W, 120] });
       } catch (e) {
         console.error('[invoicePdf] Logo render failed:', e instanceof Error ? e.message : e);
       }
@@ -128,7 +128,8 @@ export async function generateInvoicePdf(
       contactY += 12;
     }
 
-    y = Math.max(addrY, contactY) + 18;
+    // Clear the logo (drawn from the top at up to 120pt tall) before the divider
+    y = Math.max(addrY, contactY, logoBuffer ? M + 124 : 0) + 18;
 
     // ── Divider ────────────────────────────────────────────────────────────────
     doc.moveTo(M, y).lineTo(M + PW, y).strokeColor('#E5E7EB').lineWidth(1).stroke();

@@ -78,10 +78,10 @@ export async function generateProposalPdf(params: {
     // ── Header ─────────────────────────────────────────────────────────────────
     doc.font('Helvetica-Bold').fontSize(26).fillColor(BLUE).text('ESTIMATE', M, y);
 
-    const LOGO_W = 100;
+    const LOGO_W = 120;
     const LOGO_X = M + PW - LOGO_W;
     if (logoBuffer) {
-      try { doc.image(logoBuffer, LOGO_X, y, { fit: [LOGO_W, 60] }); } catch { /* skip */ }
+      try { doc.image(logoBuffer, LOGO_X, y, { fit: [LOGO_W, 120] }); } catch { /* skip */ }
     }
 
     y += 36;
@@ -112,7 +112,8 @@ export async function generateProposalPdf(params: {
       contactY += 12;
     }
 
-    y = Math.max(addrY, contactY) + 18;
+    // Clear the logo (drawn from the top at up to 120pt tall) before the divider
+    y = Math.max(addrY, contactY, logoBuffer ? M + 124 : 0) + 18;
 
     // ── Divider ────────────────────────────────────────────────────────────────
     doc.moveTo(M, y).lineTo(M + PW, y).strokeColor('#E5E7EB').lineWidth(1).stroke();
