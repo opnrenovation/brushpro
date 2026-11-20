@@ -1,0 +1,13 @@
+{
+  "name": "OPN Crew",
+  "short_name": "OPN Crew",
+  "description": "Clock in, time cards and job info for the OPN Renovation crew",
+  "start_url": "/crew",
+  "scope": "/crew",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1e40af",
+  "icons": [
+    { "src": "/opn-logo.png", "sizes": "any", "type": "image/png", "purpose": "any" }
+  ]
+}

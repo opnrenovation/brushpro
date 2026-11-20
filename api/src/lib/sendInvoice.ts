@@ -1,5 +1,5 @@
 import prisma from './prisma';
-import { sendEmail, COMPANY_BCC } from './resend';
+import { sendEmail, COMPANY_BCC, INVOICE_OPEN_NOTIFY } from './resend';
 import { getInvoiceLogoBuffer } from './supabase';
 import { generateInvoicePdf } from './invoicePdf';
 import { computeInvoiceTotals } from './invoiceTotals';
@@ -89,13 +89,11 @@ export async function sendInvoiceEmail(invoiceId: string): Promise<{ sent: boole
   const forLine = invoice.job?.address ? `for work at <strong>${invoice.job.address}</strong>` : '';
   const isBalance = totalPaid > 0;
 
-  await sendEmail({
-    to: recipient.email,
-    bcc: COMPANY_BCC,
-    subject: isBalance
-      ? `Invoice ${invoice.invoice_number} — Balance Due — ${settings?.company_name || 'OPN Renovation'}`
-      : `Invoice ${invoice.invoice_number} — ${settings?.company_name || 'OPN Renovation'}`,
-    html: `
+  const subject = isBalance
+    ? `Invoice ${invoice.invoice_number} — Balance Due — ${settings?.company_name || 'OPN Renovation'}`
+    : `Invoice ${invoice.invoice_number} — ${settings?.company_name || 'OPN Renovation'}`;
+
+  const html = `
 <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;color:#111">
   <div style="background:#007AFF;padding:24px 32px;border-radius:12px 12px 0 0">
     <img src="https://www.opnrenovation.com/opn-logo-white.png" alt="${settings?.company_name || 'OPN Renovation'}" width="96" height="96" style="display:block;margin-bottom:10px" />
@@ -137,18 +135,98 @@ export async function sendInvoiceEmail(invoiceId: string): Promise<{ sent: boole
     ${settings?.invoice_notes ? `<p style="color:#666;font-size:13px;border-top:1px solid #eee;padding-top:16px">${settings.invoice_notes}</p>` : ''}
     <p style="color:#aaa;font-size:12px;margin-top:16px">${settings?.company_name || 'OPN Renovation'}${settings?.phone ? ` · ${settings.phone}` : ''}${settings?.email ? ` · ${settings.email}` : ''}</p>
   </div>
-</div>`,
-    attachments: pdfBuffer ? [{ filename: `Invoice-${invoice.invoice_number}.pdf`, content: pdfBuffer }] : undefined,
+</div>`;
+
+  const attachments = pdfBuffer
+    ? [{ filename: `Invoice-${invoice.invoice_number}.pdf`, content: pdfBuffer }]
+    : undefined;
+
+  // The customer's copy is the tracked one: tagging it with invoice_id lets the
+  // Resend webhook record delivery/open/click against this invoice. The team's
+  // copy goes out as a separate message rather than a BCC — a BCC shares one
+  // Resend email_id with the customer's copy, so info@/Haruko/Danny opening
+  // their own copy would read as the customer opening theirs and would fire the
+  // "invoice opened" alert immediately on every send.
+  const emailData = await sendEmail({
+    to: recipient.email,
+    subject,
+    html,
+    attachments,
+    tags: [{ name: 'invoice_id', value: invoice.id }],
   });
+
+  if (COMPANY_BCC.length > 0) {
+    try {
+      await sendEmail({ to: COMPANY_BCC, subject: `Copy: ${subject}`, html, attachments });
+    } catch (copyErr) {
+      console.error('Internal invoice copy failed (non-fatal):', copyErr);
+    }
+  }
 
   // Never downgrade a PARTIAL/PAID invoice back to SENT
   await prisma.invoice.update({
     where: { id: invoice.id },
     data: {
       sent_at: new Date(),
+      // Tracking is per-send: clear the previous send's timestamps so a resend
+      // reports on the new email and can alert on its first open.
+      resend_email_id: emailData?.id ?? null,
+      email_delivered_at: null,
+      email_opened_at: null,
+      email_clicked_at: null,
+      open_notified_at: null,
       ...(invoice.status === 'DRAFT' || invoice.status === 'SENT' ? { status: 'SENT' as const } : {}),
     },
   });
 
   return { sent: true };
+}
+
+// Internal heads-up that the customer opened their invoice email. Fired once
+// per send by the Resend webhook, which owns the open_notified_at guard.
+export async function sendInvoiceOpenedAlert(invoiceId: string): Promise<void> {
+  if (INVOICE_OPEN_NOTIFY.length === 0) return;
+
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: { job: { include: { customer: true } }, customer: true },
+  });
+  if (!invoice) return;
+
+  const settings = await prisma.companySettings.findFirst();
+  const recipient = invoice.job?.customer ?? invoice.customer;
+  const appUrl = process.env.APP_URL || 'http://localhost:3000';
+  const invoiceUrl = `${appUrl}/invoices/${invoice.id}`;
+  const openedAt = new Date().toLocaleString('en-US', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+    timeZone: 'America/Chicago',
+  });
+
+  await sendEmail({
+    to: INVOICE_OPEN_NOTIFY,
+    subject: `Opened: Invoice ${invoice.invoice_number}${recipient?.name ? ` — ${recipient.name}` : ''}`,
+    html: `
+<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;color:#111">
+  <div style="background:#007AFF;padding:24px 32px;border-radius:12px 12px 0 0">
+    <p style="color:#fff;font-size:20px;font-weight:700;margin:0">Invoice opened</p>
+    <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:14px">Invoice ${invoice.invoice_number}</p>
+  </div>
+  <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
+    <p style="color:#555;margin:0 0 24px">${recipient?.name ?? 'The customer'} opened the invoice email${recipient?.email ? ` sent to ${recipient.email}` : ''}.</p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
+      <tr><td style="padding:6px 0;color:#666;font-size:14px">Invoice</td><td style="padding:6px 0;text-align:right;font-size:14px;font-weight:600">${invoice.invoice_number}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;font-size:14px">Customer</td><td style="padding:6px 0;text-align:right;font-size:14px">${recipient?.name ?? '—'}</td></tr>
+      ${invoice.job?.address ? `<tr><td style="padding:6px 0;color:#666;font-size:14px">Job</td><td style="padding:6px 0;text-align:right;font-size:14px">${invoice.job.address}</td></tr>` : ''}
+      <tr><td style="padding:6px 0;color:#666;font-size:14px">Sent</td><td style="padding:6px 0;text-align:right;font-size:14px">${invoice.sent_at ? new Date(invoice.sent_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Chicago' }) : '—'}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;font-size:14px">Opened</td><td style="padding:6px 0;text-align:right;font-size:14px;font-weight:600">${openedAt}</td></tr>
+    </table>
+    <div style="text-align:center;margin-bottom:24px">
+      <a href="${invoiceUrl}" style="display:inline-block;background:#007AFF;color:#fff;padding:14px 32px;border-radius:10px;font-weight:600;font-size:16px;text-decoration:none">View Invoice</a>
+    </div>
+    <p style="color:#aaa;font-size:12px;margin:0">Open tracking is approximate — some mail apps block the tracking pixel, and others load it automatically without the customer reading the message. This alert is sent once per invoice send.</p>
+    <p style="color:#aaa;font-size:12px;margin-top:12px">${settings?.company_name || 'OPN Renovation'}</p>
+  </div>
+</div>`,
+  });
 }

@@ -5,8 +5,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Plus, X, Trash2, Send, Eye, Pencil, Clock, MoreHorizontal, AlertTriangle, Link, CheckCircle } from 'lucide-react';
 import { jobsApi, estimatesApi, invoicesApi, settingsApi, taxProfilesApi } from '@/lib/api';
 import { computeInvoiceTotals } from '@/lib/invoiceTotals';
+import JobCrewTab from '@/components/admin/JobCrewTab';
 
-const TABS = ['Overview', 'Estimates', 'Labor', 'Expenses', 'Invoices'];
+const TABS = ['Overview', 'Estimates', 'Labor', 'Crew', 'Expenses', 'Invoices'];
 
 // An invoice as returned nested under a job (with tax profile + payments).
 interface JobInvoice {
@@ -1091,6 +1092,8 @@ export default function JobDetailPage() {
                   </tbody></table>}
           </div>
         )}
+
+        {tab === 'Crew' && <JobCrewTab jobId={id} />}
 
         {tab === 'Expenses' && (
           <div>

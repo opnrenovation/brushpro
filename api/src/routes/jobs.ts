@@ -200,10 +200,23 @@ jobsRouter.get('/:id/profitability', async (req, res) => {
       0
     );
 
-    const labor_cost = job.labor.reduce(
+    const logged_labor_cost = job.labor.reduce(
       (sum, l) => sum + Number(l.hours) * Number(l.rate),
       0
     );
+
+    // Approved crew time on this job at each person's pay rate (salaried
+    // staff at salary / 2080 hours).
+    const crewTime = await prisma.timeEntry.findMany({
+      where: { job_id: job.id, status: 'APPROVED' },
+      select: { hours: true, employee: { select: { pay_type: true, pay_rate: true } } },
+    });
+    const crew_hours = crewTime.reduce((sum, t) => sum + Number(t.hours), 0);
+    const crew_labor_cost = crewTime.reduce((sum, t) => {
+      const rate = t.employee.pay_type === 'SALARY' ? Number(t.employee.pay_rate) / 2080 : Number(t.employee.pay_rate);
+      return sum + Number(t.hours) * rate;
+    }, 0);
+    const labor_cost = logged_labor_cost + crew_labor_cost;
 
     const expense_cost = job.expenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
@@ -222,6 +235,9 @@ jobsRouter.get('/:id/profitability', async (req, res) => {
         job_id: job.id,
         revenue,
         labor_cost,
+        logged_labor_cost,
+        crew_hours,
+        crew_labor_cost: Math.round(crew_labor_cost * 100) / 100,
         expense_cost,
         material_cost,
         total_cost,

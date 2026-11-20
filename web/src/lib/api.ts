@@ -229,3 +229,61 @@ export const reportsApi = {
   materials: (params?: Record<string, string>) => api.get('/reports/materials', { params }),
   materialsExport: (params?: Record<string, string>) => api.get('/reports/materials/export', { params, responseType: 'blob' }),
 };
+
+// Employees & time entries (OWNER only)
+export const employeesApi = {
+  list: (params?: Record<string, string>) => api.get('/employees', { params }),
+  get: (id: string) => api.get(`/employees/${id}`),
+  create: (data: unknown) => api.post('/employees', data),
+  update: (id: string, data: unknown) => api.patch(`/employees/${id}`, data),
+  delete: (id: string) => api.delete(`/employees/${id}`),
+  listTime: (params?: Record<string, string>) => api.get('/employees/time-entries', { params }),
+  addTime: (data: unknown) => api.post('/employees/time-entries', data),
+  updateTime: (id: string, data: unknown) => api.patch(`/employees/time-entries/${id}`, data),
+  deleteTime: (id: string) => api.delete(`/employees/time-entries/${id}`),
+  reviewTime: (ids: string[], action: 'approve' | 'reject', note?: string) =>
+    api.post('/employees/time-entries/review', { ids, action, note }),
+  // Time Cards screen
+  periods: () => api.get('/employees/timecards/periods'),
+  timecards: (start: string, end: string) => api.get('/employees/timecards', { params: { start, end } }),
+  approveCards: (start: string, end: string, employee_ids: string[]) =>
+    api.post('/employees/timecards/approve', { start, end, employee_ids }),
+  unapproveCards: (start: string, end: string, employee_ids: string[]) =>
+    api.post('/employees/timecards/unapprove', { start, end, employee_ids }),
+  punchable: () => api.get('/employees/punchable'),
+  quickPunch: (data: { employee_id: string; action: 'in' | 'out'; job_id?: string; reason: string; note?: string }) =>
+    api.post('/employees/quick-punch', data),
+};
+
+// Crew on a job (assignments, crew instructions, crew updates)
+export const jobCrewApi = {
+  get: (jobId: string) => api.get(`/job-crew/${jobId}`),
+  set: (jobId: string, data: { employee_ids: string[]; crew_notes?: string }) => api.put(`/job-crew/${jobId}`, data),
+  deleteUpdate: (jobId: string, updateId: string) => api.delete(`/job-crew/${jobId}/updates/${updateId}`),
+};
+
+// Payroll (OWNER only)
+export const payrollApi = {
+  runs: () => api.get('/payroll/runs'),
+  get: (id: string) => api.get(`/payroll/runs/${id}`),
+  create: (data: unknown) => api.post('/payroll/runs', data),
+  update: (id: string, data: unknown) => api.patch(`/payroll/runs/${id}`, data),
+  delete: (id: string) => api.delete(`/payroll/runs/${id}`),
+  recalculate: (id: string) => api.post(`/payroll/runs/${id}/recalculate`),
+  finalize: (id: string) => api.post(`/payroll/runs/${id}/finalize`),
+  markPaid: (id: string) => api.post(`/payroll/runs/${id}/mark-paid`),
+  reopen: (id: string) => api.post(`/payroll/runs/${id}/reopen`),
+  updateStub: (runId: string, stubId: string, data: unknown) => api.patch(`/payroll/runs/${runId}/stubs/${stubId}`, data),
+  removeStub: (runId: string, stubId: string) => api.delete(`/payroll/runs/${runId}/stubs/${stubId}`),
+  export: (id: string) => api.get(`/payroll/runs/${id}/export`, { responseType: 'blob' }),
+  summary: (year: number) => api.get('/payroll/summary', { params: { year } }),
+};
+
+// Bug reports
+export const bugReportsApi = {
+  list: (params?: Record<string, string>) => api.get('/bug-reports', { params }),
+  get: (id: string) => api.get(`/bug-reports/${id}`),
+  create: (data: unknown) => api.post('/bug-reports', data),
+  update: (id: string, data: unknown) => api.patch(`/bug-reports/${id}`, data),
+  delete: (id: string) => api.delete(`/bug-reports/${id}`),
+};

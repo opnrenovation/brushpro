@@ -36,6 +36,10 @@ interface Invoice {
   status: string;
   due_date: string;
   created_at: string;
+  sent_at?: string | null;
+  email_delivered_at?: string | null;
+  email_opened_at?: string | null;
+  email_clicked_at?: string | null;
   line_items: LineItem[];
   payments: Payment[];
   job?: { id: string; name: string; address: string; customer?: Customer } | null;
@@ -438,6 +442,7 @@ export default function InvoicesPage() {
               <th>Job / Address</th>
               <th>Type</th>
               <th>Status</th>
+              <th>Email</th>
               <th>Due</th>
               <th>Total</th>
               <th>Actions</th>
@@ -458,6 +463,23 @@ export default function InvoicesPage() {
                     <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 20, background: `${STATUS_COLOR[inv.status] || '#007AFF'}20`, color: STATUS_COLOR[inv.status] || '#007AFF' }}>
                       {inv.status}
                     </span>
+                  </td>
+                  <td>
+                    {inv.sent_at ? (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {inv.email_delivered_at ? (
+                          <span title={`Delivered ${new Date(inv.email_delivered_at).toLocaleString()}`} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: 'rgba(52,199,89,0.12)', color: '#34C759', fontWeight: 500 }}>Delivered</span>
+                        ) : (
+                          <span title={`Sent ${new Date(inv.sent_at).toLocaleString()}`} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: 'rgba(0,0,0,0.06)', color: 'rgba(0,0,0,0.3)', fontWeight: 500 }}>Sent</span>
+                        )}
+                        {inv.email_opened_at && (
+                          <span title={`Opened ${new Date(inv.email_opened_at).toLocaleString()}`} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: 'rgba(0,122,255,0.12)', color: '#007AFF', fontWeight: 500 }}>Opened</span>
+                        )}
+                        {inv.email_clicked_at && (
+                          <span title={`Clicked ${new Date(inv.email_clicked_at).toLocaleString()}`} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: 'rgba(255,149,0,0.12)', color: '#FF9500', fontWeight: 500 }}>Clicked</span>
+                        )}
+                      </div>
+                    ) : <span style={{ color: 'rgba(0,0,0,0.2)', fontSize: 12 }}>—</span>}
                   </td>
                   <td style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>{new Date(inv.due_date).toLocaleDateString()}</td>
                   <td style={{ fontFamily: 'Menlo,monospace' }}>

@@ -6,10 +6,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Target, Briefcase, Users,
   Mail, BarChart2, Settings, LogOut, Menu, X, Truck, Building2, FileText,
+  HardHat, Wallet, Bug,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
+import BugReportButton from '@/components/admin/BugReportButton';
 
-const NAV = [
+const NAV: Array<{ href: string; label: string; icon: typeof LayoutDashboard; ownerOnly?: boolean }> = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/leads',     label: 'Leads',     icon: Target },
   { href: '/admin/jobs',      label: 'Jobs',       icon: Briefcase },
@@ -17,9 +19,12 @@ const NAV = [
   { href: '/admin/contacts',  label: 'Contacts',   icon: Users },
   { href: '/admin/companies', label: 'Companies',  icon: Building2 },
   { href: '/admin/vendors',   label: 'Vendors',    icon: Truck },
+  { href: '/admin/employees', label: 'Employees',  icon: HardHat, ownerOnly: true },
+  { href: '/admin/payroll',   label: 'Payroll',    icon: Wallet, ownerOnly: true },
   { href: '/admin/marketing', label: 'Marketing',  icon: Mail },
   { href: '/admin/reports',   label: 'Reports',    icon: BarChart2 },
   { href: '/admin/settings',  label: 'Settings',   icon: Settings },
+  { href: '/admin/bug-reports', label: 'Bug Reports', icon: Bug },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -78,7 +83,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Nav links */}
         <nav style={{ flex: 1, padding: '12px 12px' }}>
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {NAV.filter((n) => !n.ownerOnly || user?.role === 'OWNER').map(({ href, label, icon: Icon }) => {
             const active = pathname === href || (href !== '/admin/dashboard' && pathname.startsWith(href));
             return (
               <Link
@@ -133,6 +138,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* ── Main content ─────────────────────────────────────────────── */}
       <main className="admin-main">{children}</main>
+      <BugReportButton />
     </div>
   );
 }

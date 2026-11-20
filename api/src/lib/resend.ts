@@ -13,6 +13,15 @@ export const COMPANY_BCC = (
   .map((s) => s.trim())
   .filter(Boolean);
 
+// Internal recipients of the "customer opened their invoice" alert. Override
+// with INVOICE_OPEN_NOTIFY_EMAIL (comma-separated); set it empty to disable.
+export const INVOICE_OPEN_NOTIFY = (
+  process.env.INVOICE_OPEN_NOTIFY_EMAIL ?? 'info@opnrenovation.com'
+)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 export async function sendEmail(params: {
   to: string | string[];
   subject: string;

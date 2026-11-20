@@ -138,59 +138,60 @@ enum LeadActivityType {
 // ─── Core ──────────────────────────────────────────────────────────────────
 
 model User {
-  id                   String    @id @default(cuid())
-  email                String    @unique
-  name                 String
-  role                 UserRole
-  password_hash        String
-  must_change_password Boolean   @default(false)
-  is_active            Boolean   @default(true)
-  reset_token_hash     String?
+  id                     String    @id @default(cuid())
+  email                  String    @unique
+  name                   String
+  role                   UserRole
+  password_hash          String
+  must_change_password   Boolean   @default(false)
+  is_active              Boolean   @default(true)
+  reset_token_hash       String?
   reset_token_expires_at DateTime?
-  last_login_at        DateTime?
-  created_at           DateTime  @default(now())
+  last_login_at          DateTime?
+  created_at             DateTime  @default(now())
 
   labor_entries   LaborEntry[]
   email_templates EmailTemplate[]
   campaigns       Campaign[]
   csv_imports     CsvImport[]
-  leads_assigned  Lead[]         @relation("AssignedLeads")
+  leads_assigned  Lead[]          @relation("AssignedLeads")
   lead_activities LeadActivity[]
+  bug_reports     BugReport[]
 
   @@map("users")
 }
 
 model CompanySettings {
-  id                      String   @id @default(cuid())
-  company_name            String
-  logo_url                String?
-  address                 String?
-  phone                   String?
-  email                   String?
-  website                 String?
-  license_number          String?
-  default_labor_rate      Decimal? @db.Decimal(10, 2)
-  default_tax_profile_id  String?
-  invoice_prefix          String   @default("INV")
-  estimate_prefix         String   @default("EST")
-  next_invoice_number     Int      @default(1)
-  next_estimate_number    Int      @default(1)
-  payment_terms_label     String   @default("Due on receipt")
-  disclaimer              String?
-  invoice_notes           String?
-  estimate_notes          String?
+  id                     String   @id @default(cuid())
+  company_name           String
+  logo_url               String?
+  address                String?
+  phone                  String?
+  email                  String?
+  website                String?
+  license_number         String?
+  default_labor_rate     Decimal? @db.Decimal(10, 2)
+  default_tax_profile_id String?
+  invoice_prefix         String   @default("INV")
+  estimate_prefix        String   @default("EST")
+  next_invoice_number    Int      @default(1)
+  next_estimate_number   Int      @default(1)
+  payment_terms_label    String   @default("Due on receipt")
+  disclaimer             String?
+  invoice_notes          String?
+  estimate_notes         String?
   // Deposit / billing settings
-  deposit_required        Boolean  @default(true)
-  deposit_percentage      Decimal  @default(50.00) @db.Decimal(5, 2)
-  deposit_minimum_amount  Decimal? @db.Decimal(10, 2)
+  deposit_required       Boolean  @default(true)
+  deposit_percentage     Decimal  @default(50.00) @db.Decimal(5, 2)
+  deposit_minimum_amount Decimal? @db.Decimal(10, 2)
   // Jobs whose total is below this amount require no deposit at all
-  deposit_min_job_total   Decimal  @default(1000.00) @db.Decimal(10, 2)
-  deposit_message         String?
-  final_payment_message   String?
-  payment_terms_days      Int      @default(7)
-  estimate_expiry_days    Int      @default(30)
-  google_review_url       String?
-  updated_at              DateTime @updatedAt
+  deposit_min_job_total  Decimal  @default(1000.00) @db.Decimal(10, 2)
+  deposit_message        String?
+  final_payment_message  String?
+  payment_terms_days     Int      @default(7)
+  estimate_expiry_days   Int      @default(30)
+  google_review_url      String?
+  updated_at             DateTime @updatedAt
 
   @@map("company_settings")
 }
@@ -283,7 +284,7 @@ model Lead {
   stage           LeadStage  @default(NEW)
   lost_reason     String?
   appointment_id  String?
-  estimate_id     String?   @unique
+  estimate_id     String?    @unique
   job_id          String?
   assigned_to     String?
   notes           String?
@@ -333,24 +334,24 @@ model AppointmentType {
 }
 
 model AvailabilityRule {
-  id           String   @id @default(cuid())
-  day_of_week  Int      // 0=Sunday … 6=Saturday
-  start_time   String   // HH:MM 24h
-  end_time     String   // HH:MM 24h
-  is_active    Boolean  @default(true)
+  id          String  @id @default(cuid())
+  day_of_week Int // 0=Sunday … 6=Saturday
+  start_time  String // HH:MM 24h
+  end_time    String // HH:MM 24h
+  is_active   Boolean @default(true)
 
   @@map("availability_rules")
 }
 
 model SchedulerSettings {
-  id                     String  @id @default(cuid())
-  buffer_minutes         Int     @default(30)
-  min_notice_hours       Int     @default(24)
-  booking_window_days    Int     @default(60)
-  google_calendar_id     String?
-  google_refresh_token   String?
+  id                      String  @id @default(cuid())
+  buffer_minutes          Int     @default(30)
+  min_notice_hours        Int     @default(24)
+  booking_window_days     Int     @default(60)
+  google_calendar_id      String?
+  google_refresh_token    String?
   confirmation_email_body String?
-  reminder_hours_before  Int     @default(24)
+  reminder_hours_before   Int     @default(24)
 
   @@map("scheduler_settings")
 }
@@ -381,16 +382,16 @@ model Appointment {
 // ─── Contracts ─────────────────────────────────────────────────────────────
 
 model ContractTemplate {
-  id               String   @id @default(cuid())
-  name             String
-  description      String?
-  body_text        String
-  requires_initials Boolean @default(false)
-  signature_label  String   @default("Customer Signature")
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  body_text         String
+  requires_initials Boolean  @default(false)
+  signature_label   String   @default("Customer Signature")
   company_sig_label String?
-  is_default       Boolean  @default(false)
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  is_default        Boolean  @default(false)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
 
   estimates Estimate[]
   contracts Contract[]
@@ -471,7 +472,7 @@ model Customer {
   deleted_at DateTime?
   created_at DateTime  @default(now())
 
-  contact  Contact? @relation("ContactToCustomer", fields: [contact_id], references: [id])
+  contact  Contact?  @relation("ContactToCustomer", fields: [contact_id], references: [id])
   jobs     Job[]
   invoices Invoice[]
 
@@ -490,17 +491,22 @@ model Job {
   end_date     DateTime?
   labor_rate   Decimal   @db.Decimal(10, 2)
   notes        String?
+  // Instructions shown to assigned crew in the crew app (never prices)
+  crew_notes   String?
   deleted_at   DateTime?
   updated_at   DateTime  @updatedAt
   created_at   DateTime  @default(now())
 
-  customer  Customer     @relation(fields: [customer_id], references: [id])
-  estimates Estimate[]
-  invoices  Invoice[]
-  labor     LaborEntry[]
-  expenses  Expense[]
-  contracts Contract[]
-  leads     Lead[]
+  customer     Customer        @relation(fields: [customer_id], references: [id])
+  estimates    Estimate[]
+  invoices     Invoice[]
+  labor        LaborEntry[]
+  expenses     Expense[]
+  contracts    Contract[]
+  leads        Lead[]
+  time_entries TimeEntry[]
+  crew         JobAssignment[]
+  crew_updates JobCrewUpdate[]
 
   @@map("jobs")
 }
@@ -524,32 +530,41 @@ model MaterialItem {
 // ─── Invoicing ─────────────────────────────────────────────────────────────
 
 model Invoice {
-  id             String        @id @default(cuid())
-  job_id         String?
-  customer_id    String?
-  estimate_id    String?
-  invoice_number String        @unique
-  type           InvoiceType
-  status         InvoiceStatus @default(DRAFT)
-  line_items     Json          @default("[]")
-  tax_profile_id String
-  discount_type  String?       @default("NONE")
-  discount_value Decimal?      @default(0) @db.Decimal(10, 2)
-  due_date       DateTime
-  notes          String?
-  pdf_url        String?
-  stripe_link    String?
-  sent_at        DateTime?
-  deleted_at     DateTime?
-  updated_at     DateTime      @updatedAt
-  created_at     DateTime      @default(now())
+  id                 String        @id @default(cuid())
+  job_id             String?
+  customer_id        String?
+  estimate_id        String?
+  invoice_number     String        @unique
+  type               InvoiceType
+  status             InvoiceStatus @default(DRAFT)
+  line_items         Json          @default("[]")
+  tax_profile_id     String
+  discount_type      String?       @default("NONE")
+  discount_value     Decimal?      @default(0) @db.Decimal(10, 2)
+  due_date           DateTime
+  notes              String?
+  pdf_url            String?
+  stripe_link        String?
+  sent_at            DateTime?
+  // Delivery tracking for the customer-facing copy (see lib/sendInvoice.ts).
+  // The internal copy goes out as a separate untagged email so that staff
+  // opening their copy never registers as the customer opening theirs.
+  resend_email_id    String?
+  email_delivered_at DateTime?
+  email_opened_at    DateTime?
+  email_clicked_at   DateTime?
+  // Guard so the "invoice opened" alert fires once per send, not per open.
+  open_notified_at   DateTime?
+  deleted_at         DateTime?
+  updated_at         DateTime      @updatedAt
+  created_at         DateTime      @default(now())
 
-  job         Job?         @relation(fields: [job_id], references: [id])
-  customer    Customer?    @relation(fields: [customer_id], references: [id])
-  estimate    Estimate?    @relation(fields: [estimate_id], references: [id])
-  tax_profile TaxProfile   @relation(fields: [tax_profile_id], references: [id])
-  payments    Payment[]
-  exemptions  TaxExemption[]
+  job              Job?             @relation(fields: [job_id], references: [id])
+  customer         Customer?        @relation(fields: [customer_id], references: [id])
+  estimate         Estimate?        @relation(fields: [estimate_id], references: [id])
+  tax_profile      TaxProfile       @relation(fields: [tax_profile_id], references: [id])
+  payments         Payment[]
+  exemptions       TaxExemption[]
   feedback_request FeedbackRequest?
 
   @@map("invoices")
@@ -689,8 +704,8 @@ model Campaign {
   created_at          DateTime       @default(now())
   updated_at          DateTime       @updatedAt
 
-  creator  User           @relation(fields: [created_by], references: [id])
-  template EmailTemplate? @relation(fields: [template_id], references: [id])
+  creator  User            @relation(fields: [created_by], references: [id])
+  template EmailTemplate?  @relation(fields: [template_id], references: [id])
   events   CampaignEvent[]
 
   @@map("campaigns")
@@ -753,4 +768,255 @@ model CsvImport {
   importer User @relation(fields: [imported_by], references: [id])
 
   @@map("csv_imports")
+}
+
+// ─── Employees & Payroll ───────────────────────────────────────────────────
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  TERMINATED
+}
+
+enum WorkerType {
+  W2
+  CONTRACTOR_1099
+}
+
+enum PayType {
+  HOURLY
+  SALARY
+}
+
+enum PayFrequency {
+  WEEKLY
+  BIWEEKLY
+  SEMIMONTHLY
+  MONTHLY
+}
+
+enum PayRunStatus {
+  DRAFT
+  FINALIZED
+  PAID
+}
+
+model Employee {
+  id                      String         @id @default(cuid())
+  first_name              String
+  last_name               String
+  email                   String?
+  phone                   String?
+  address                 String?
+  position                String?
+  status                  EmployeeStatus @default(ACTIVE)
+  worker_type             WorkerType     @default(W2)
+  pay_type                PayType        @default(HOURLY)
+  // Hourly rate for HOURLY, annual salary for SALARY
+  pay_rate                Decimal        @db.Decimal(10, 2)
+  overtime_eligible       Boolean        @default(true)
+  // Flat withholding percentages applied each pay run (W2 only). These are
+  // estimates the owner sets from the employee's W-4 / IA W-4.
+  federal_withholding_pct Decimal        @default(0) @db.Decimal(5, 2)
+  state_withholding_pct   Decimal        @default(0) @db.Decimal(5, 2)
+  hire_date               DateTime?
+  termination_date        DateTime?
+  emergency_contact_name  String?
+  emergency_contact_phone String?
+  notes                   String?
+  // Crew app (/crew) login: email or phone + PIN
+  app_access              Boolean        @default(false)
+  pin_hash                String?
+  failed_pin_attempts     Int            @default(0)
+  pin_locked_until        DateTime?
+  last_app_login_at       DateTime?
+  deleted_at              DateTime?
+  created_at              DateTime       @default(now())
+  updated_at              DateTime       @updatedAt
+
+  time_entries    TimeEntry[]
+  pay_stubs       PayStub[]
+  job_assignments JobAssignment[]
+  job_updates     JobCrewUpdate[]
+
+  @@map("employees")
+}
+
+enum TimeEntryStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TimeEntrySource {
+  OWNER
+  CREW
+  // Missed time a crew member added by hand in the crew app (no real clock-in)
+  CREW_MANUAL
+}
+
+model TimeEntry {
+  id            String          @id @default(cuid())
+  employee_id   String
+  job_id        String?
+  work_date     DateTime
+  // Total worked hours. 0 while the employee is still clocked in.
+  hours         Decimal         @db.Decimal(6, 2)
+  clock_in      DateTime?
+  clock_out     DateTime?
+  break_minutes Int             @default(0)
+  // Only APPROVED entries are paid. Crew entries start PENDING.
+  status        TimeEntryStatus @default(APPROVED)
+  source        TimeEntrySource @default(OWNER)
+  reviewed_at   DateTime?
+  reviewed_by   String?
+  review_note   String?
+  // The office changed the times after the fact (shown as OFFICE EDIT)
+  office_edited Boolean         @default(false)
+  notes         String?
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @updatedAt
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+  job      Job?     @relation(fields: [job_id], references: [id])
+
+  @@index([employee_id, work_date])
+  @@map("time_entries")
+}
+
+model PayRun {
+  id                   String       @id @default(cuid())
+  period_start         DateTime
+  period_end           DateTime
+  pay_date             DateTime
+  frequency            PayFrequency @default(BIWEEKLY)
+  status               PayRunStatus @default(DRAFT)
+  notes                String?
+  total_gross          Decimal      @default(0) @db.Decimal(12, 2)
+  total_deductions     Decimal      @default(0) @db.Decimal(12, 2)
+  total_net            Decimal      @default(0) @db.Decimal(12, 2)
+  total_employer_taxes Decimal      @default(0) @db.Decimal(12, 2)
+  finalized_at         DateTime?
+  paid_at              DateTime?
+  created_by           String?
+  created_at           DateTime     @default(now())
+  updated_at           DateTime     @updatedAt
+
+  stubs PayStub[]
+
+  @@map("pay_runs")
+}
+
+model PayStub {
+  id                       String         @id @default(cuid())
+  pay_run_id               String
+  employee_id              String
+  worker_type              WorkerType
+  pay_type                 PayType
+  pay_rate                 Decimal        @db.Decimal(10, 2)
+  regular_hours            Decimal        @default(0) @db.Decimal(7, 2)
+  overtime_hours           Decimal        @default(0) @db.Decimal(7, 2)
+  regular_pay              Decimal        @default(0) @db.Decimal(10, 2)
+  overtime_pay             Decimal        @default(0) @db.Decimal(10, 2)
+  bonus                    Decimal        @default(0) @db.Decimal(10, 2)
+  // Non-taxable, added to net (mileage, materials bought out of pocket)
+  reimbursement            Decimal        @default(0) @db.Decimal(10, 2)
+  gross_pay                Decimal        @default(0) @db.Decimal(10, 2)
+  federal_withholding      Decimal        @default(0) @db.Decimal(10, 2)
+  state_withholding        Decimal        @default(0) @db.Decimal(10, 2)
+  social_security          Decimal        @default(0) @db.Decimal(10, 2)
+  medicare                 Decimal        @default(0) @db.Decimal(10, 2)
+  other_deductions         Decimal        @default(0) @db.Decimal(10, 2)
+  other_deductions_note    String?
+  net_pay                  Decimal        @default(0) @db.Decimal(10, 2)
+  employer_social_security Decimal        @default(0) @db.Decimal(10, 2)
+  employer_medicare        Decimal        @default(0) @db.Decimal(10, 2)
+  payment_method           PaymentMethod?
+  check_number             String?
+  notes                    String?
+  created_at               DateTime       @default(now())
+  updated_at               DateTime       @updatedAt
+
+  pay_run  PayRun   @relation(fields: [pay_run_id], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@unique([pay_run_id, employee_id])
+  @@map("pay_stubs")
+}
+
+// ─── Bug Reports ───────────────────────────────────────────────────────────
+
+enum BugReportType {
+  BUG
+  FEATURE_REQUEST
+  QUESTION
+}
+
+enum BugReportPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum BugReportStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  WONT_FIX
+}
+
+model BugReport {
+  id               String            @id @default(cuid())
+  type             BugReportType     @default(BUG)
+  priority         BugReportPriority @default(NORMAL)
+  status           BugReportStatus   @default(OPEN)
+  title            String
+  description      String
+  page_url         String?
+  user_agent       String?
+  // Optional screenshot as a data: URL (kept small client-side)
+  screenshot       String?
+  reported_by      String?
+  resolution_notes String?
+  resolved_at      DateTime?
+  created_at       DateTime          @default(now())
+  updated_at       DateTime          @updatedAt
+
+  reporter User? @relation(fields: [reported_by], references: [id])
+
+  @@index([status, created_at])
+  @@map("bug_reports")
+}
+
+// ─── Crew app ──────────────────────────────────────────────────────────────
+
+model JobAssignment {
+  id          String   @id @default(cuid())
+  job_id      String
+  employee_id String
+  created_at  DateTime @default(now())
+
+  job      Job      @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+
+  @@unique([job_id, employee_id])
+  @@map("job_assignments")
+}
+
+// Progress notes and photos the crew posts from the job site
+model JobCrewUpdate {
+  id          String   @id @default(cuid())
+  job_id      String
+  employee_id String
+  body        String
+  // Optional photo as a data: URL (downscaled client-side)
+  photo       String?
+  created_at  DateTime @default(now())
+
+  job      Job      @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+
+  @@index([job_id, created_at])
+  @@map("job_crew_updates")
 }
