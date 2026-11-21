@@ -253,6 +253,13 @@ export const employeesApi = {
   punchable: () => api.get('/employees/punchable'),
   quickPunch: (data: { employee_id: string; action: 'in' | 'out'; job_id?: string; reason: string; note?: string }) =>
     api.post('/employees/quick-punch', data),
+  // Time off and announcements (crew app)
+  timeOff: (view: 'open' | 'all' = 'open') => api.get('/employees/time-off', { params: { view } }),
+  decideTimeOff: (id: string, decision: 'approve' | 'deny', note?: string) =>
+    api.post(`/employees/time-off/${id}/decide`, { decision, note }),
+  announcements: () => api.get('/employees/announcements'),
+  postAnnouncement: (data: { title: string; body: string }) => api.post('/employees/announcements', data),
+  deleteAnnouncement: (id: string) => api.delete(`/employees/announcements/${id}`),
 };
 
 // Crew on a job (assignments, crew instructions, crew updates)

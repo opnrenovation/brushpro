@@ -243,6 +243,119 @@ employeesRouter.post('/quick-punch', async (req: AuthRequest, res) => {
   }
 });
 
+// ── Time off (from the crew app) ───────────────────────────────────────────
+
+const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+
+employeesRouter.get('/time-off', async (req, res) => {
+  try {
+    const view = (req.query.view as string) || 'open';
+    const today = centralDateIso();
+    const where: Prisma.TimeOffRequestWhereInput =
+      view === 'open'
+        ? { OR: [{ status: 'PENDING' }, { status: 'APPROVED', ends_on: { gte: dayStart(today) } }] }
+        : { ends_on: { gte: dayStart(addDays(today, -90)) } };
+    const rows = await prisma.timeOffRequest.findMany({
+      where,
+      orderBy: [{ starts_on: 'asc' }],
+      include: { employee: { select: { id: true, first_name: true, last_name: true } } },
+    });
+    res.json({
+      data: {
+        today,
+        requests: rows.map((r) => ({
+          ...r,
+          starts_on: isoDay(r.starts_on),
+          ends_on: isoDay(r.ends_on),
+          days: Math.round((r.ends_on.getTime() - r.starts_on.getTime()) / 86_400_000) + 1,
+        })),
+      },
+    });
+  } catch {
+    res.status(500).json({ error: 'Failed to load time off' });
+  }
+});
+
+employeesRouter.post('/time-off/:id/decide', async (req: AuthRequest, res) => {
+  try {
+    const decision = req.body.decision;
+    if (!['approve', 'deny'].includes(decision)) {
+      res.status(400).json({ error: 'decision must be approve or deny' });
+      return;
+    }
+    const row = await prisma.timeOffRequest.findUnique({ where: { id: req.params.id } });
+    if (!row) {
+      res.status(404).json({ error: 'Request not found' });
+      return;
+    }
+    if (row.kind !== 'REQUEST' || row.status === 'CANCELLED') {
+      res.status(409).json({ error: row.status === 'CANCELLED' ? 'They withdrew this request' : 'Call-offs are reported, not decided' });
+      return;
+    }
+    const updated = await prisma.timeOffRequest.update({
+      where: { id: row.id },
+      data: {
+        status: decision === 'approve' ? 'APPROVED' : 'DENIED',
+        decision_note: req.body.note || null,
+        decided_at: new Date(),
+        decided_by: reviewer(req),
+      },
+    });
+    res.json({ data: updated });
+  } catch {
+    res.status(500).json({ error: 'Failed to decide' });
+  }
+});
+
+// ── Announcements to every crew phone ─────────────────────────────────────
+
+employeesRouter.get('/announcements', async (_req, res) => {
+  try {
+    const [items, crew] = await Promise.all([
+      prisma.announcement.findMany({ orderBy: { published_at: 'desc' }, take: 50 }),
+      prisma.employee.findMany({
+        where: { deleted_at: null, status: 'ACTIVE', app_access: true },
+        select: { news_read_at: true },
+      }),
+    ]);
+    res.json({
+      data: items.map((n) => ({
+        ...n,
+        read_by: crew.filter((c) => c.news_read_at && c.news_read_at >= n.published_at).length,
+        crew_count: crew.length,
+      })),
+    });
+  } catch {
+    res.status(500).json({ error: 'Failed to load announcements' });
+  }
+});
+
+employeesRouter.post('/announcements', async (req: AuthRequest, res) => {
+  try {
+    const title = String(req.body.title || '').trim();
+    const body = String(req.body.body || '').trim();
+    if (!title || !body) {
+      res.status(400).json({ error: 'Add a title and a message' });
+      return;
+    }
+    const n = await prisma.announcement.create({
+      data: { title: title.slice(0, 200), body: body.slice(0, 4000), created_by: reviewer(req) },
+    });
+    res.status(201).json({ data: n });
+  } catch {
+    res.status(500).json({ error: 'Failed to post' });
+  }
+});
+
+employeesRouter.delete('/announcements/:id', async (req, res) => {
+  try {
+    await prisma.announcement.delete({ where: { id: req.params.id } });
+    res.json({ data: { success: true } });
+  } catch {
+    res.status(500).json({ error: 'Failed to delete' });
+  }
+});
+
 // ── Time entries ───────────────────────────────────────────────────────────
 // Registered before /:id so "time-entries" isn't read as an employee id.
 

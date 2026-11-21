@@ -80,6 +80,9 @@ export interface Interval {
   notes: string | null;
   job: { id: string; name: string } | null;
   live: boolean;
+  in_loc: { lat: number; lng: number; acc: number | null } | null;
+  out_loc: { lat: number; lng: number; acc: number | null } | null;
+  synced_late: boolean;
 }
 
 export interface TimecardRow {
@@ -100,6 +103,7 @@ export interface TimecardRow {
   hand_keyed: boolean;
   on_clock: boolean;
   anomalies: string[];
+  time_off: Array<{ date: string; kind: 'CALL_OFF' | 'REQUEST'; reason: string }>;
 }
 
 const dayName = (d: Date) =>
@@ -124,6 +128,9 @@ function toInterval(e: EntryWithJob): Interval {
     notes: e.notes,
     job: e.job,
     live,
+    in_loc: e.in_lat != null && e.in_lng != null ? { lat: e.in_lat, lng: e.in_lng, acc: e.in_accuracy_m } : null,
+    out_loc: e.out_lat != null && e.out_lng != null ? { lat: e.out_lat, lng: e.out_lng, acc: e.out_accuracy_m } : null,
+    synced_late: e.synced_late,
   };
 }
 
@@ -155,7 +162,7 @@ export async function buildTimecards(start: string, end: string) {
   const to = dayStart(end);
   const now = new Date();
 
-  const [employees, entries, lockedStubs] = await Promise.all([
+  const [employees, entries, lockedStubs, offs] = await Promise.all([
     prisma.employee.findMany({
       where: {
         deleted_at: null,
@@ -176,7 +183,20 @@ export async function buildTimecards(start: string, end: string) {
       },
       select: { employee_id: true },
     }),
+    // Approved requests and call-offs show on the grid as days off.
+    prisma.timeOffRequest.findMany({
+      where: { status: 'APPROVED', starts_on: { lte: to }, ends_on: { gte: from } },
+      select: { employee_id: true, kind: true, reason: true, starts_on: true, ends_on: true },
+    }),
   ]);
+  const offBy = new Map<string, TimecardRow['time_off']>();
+  for (const o of offs) {
+    const list = offBy.get(o.employee_id) || [];
+    for (let d = o.starts_on < from ? from : o.starts_on; d <= o.ends_on && d <= to; d = new Date(d.getTime() + 86_400_000)) {
+      list.push({ date: d.toISOString().slice(0, 10), kind: o.kind, reason: o.reason });
+    }
+    offBy.set(o.employee_id, list);
+  }
   const locked = new Set(lockedStubs.map((s) => s.employee_id));
 
   const byEmployee = new Map<string, EntryWithJob[]>();
@@ -224,6 +244,7 @@ export async function buildTimecards(start: string, end: string) {
       hand_keyed: own.some((e) => e.status !== 'REJECTED' && (e.source !== 'CREW' || e.office_edited)),
       on_clock: own.some((e) => e.clock_in && !e.clock_out),
       anomalies: anomaliesFor(own, now),
+      time_off: offBy.get(emp.id) || [],
     };
   });
 

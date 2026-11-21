@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { HardHat, Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { employeesApi } from '@/lib/api';
 import TimeCards from '@/components/admin/TimeCards';
+import CrewTimeOff from '@/components/admin/CrewTimeOff';
+import CrewAnnouncements from '@/components/admin/CrewAnnouncements';
 import {
   Modal, Field, Pill, FilterChips, PageHeader, inputStyle, money, day, isoDay, todayIso, errMsg,
 } from '@/components/admin/ui';
@@ -48,13 +50,16 @@ const STATUS_FILTERS = ['ACTIVE', 'INACTIVE', 'TERMINATED', 'ALL'] as const;
 
 
 export default function EmployeesPage() {
-  const [tab, setTab] = useState<'people' | 'hours'>(() =>
-    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'hours' ? 'hours' : 'people');
+  type Tab = 'people' | 'hours' | 'off' | 'news';
+  const [tab, setTab] = useState<Tab>(() => {
+    const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
+    return q === 'hours' || q === 'off' || q === 'news' ? q : 'people';
+  });
   return (
     <div>
       <PageHeader icon={<HardHat size={20} color="#007AFF" strokeWidth={1.5} />} title="Employees" />
       <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
-        {([['people', 'Team'], ['hours', 'Time Cards']] as const).map(([k, label]) => (
+        {([['people', 'Team'], ['hours', 'Time Cards'], ['off', 'Time Off'], ['news', 'Announcements']] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             style={{
               padding: '10px 16px', fontSize: 14, fontWeight: tab === k ? 600 : 400, cursor: 'pointer',
@@ -65,7 +70,7 @@ export default function EmployeesPage() {
           </button>
         ))}
       </div>
-      {tab === 'people' ? <TeamTab /> : <TimeCards />}
+      {tab === 'people' ? <TeamTab /> : tab === 'hours' ? <TimeCards /> : tab === 'off' ? <CrewTimeOff /> : <CrewAnnouncements />}
     </div>
   );
 }

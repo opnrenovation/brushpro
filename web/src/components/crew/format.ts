@@ -1,12 +1,12 @@
 // Formatting for the crew app. Times show in Central, the business time zone.
 const TZ = 'America/Chicago';
 
-export const clockTime = (v: string | null | undefined) =>
-  v ? new Date(v).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: TZ }) : '';
+export const clockTime = (v: string | null | undefined, locale = 'en-US') =>
+  v ? new Date(v).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit', timeZone: TZ }) : '';
 
 // work_date values are UTC midnight of the calendar day
-export const dayLabel = (v: string, opts: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' }) =>
-  new Date(v.length === 10 ? `${v}T00:00:00Z` : v).toLocaleDateString('en-US', { ...opts, timeZone: 'UTC' });
+export const dayLabel = (v: string, opts: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' }, locale = 'en-US') =>
+  new Date(v.length === 10 ? `${v}T00:00:00Z` : v).toLocaleDateString(locale, { ...opts, timeZone: 'UTC' });
 
 export const hrs = (v: unknown) => {
   const n = Number(v ?? 0);

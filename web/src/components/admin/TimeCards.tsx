@@ -26,6 +26,9 @@ interface Interval {
   notes: string | null;
   job: { id: string; name: string } | null;
   live: boolean;
+  in_loc: { lat: number; lng: number; acc: number | null } | null;
+  out_loc: { lat: number; lng: number; acc: number | null } | null;
+  synced_late: boolean;
 }
 interface Day { date: string; hours: number; intervals: Interval[] }
 interface Row {
@@ -46,6 +49,7 @@ interface Row {
   hand_keyed: boolean;
   on_clock: boolean;
   anomalies: string[];
+  time_off: Array<{ date: string; kind: 'CALL_OFF' | 'REQUEST'; reason: string }>;
 }
 interface Report {
   period_start: string;
@@ -95,6 +99,7 @@ function SourceChip({ iv }: { iv: Interval }) {
     <>
       <span className={`tc-chip ${kind}`}>{label}</span>
       {iv.office_edited && <span className="tc-chip unver">OFFICE EDIT</span>}
+      {iv.synced_late && <span className="tc-chip" title="Punched with no signal; sent when the phone reconnected">SENT LATE</span>}
     </>
   );
 }
@@ -291,6 +296,11 @@ export default function TimeCards() {
                       {cols.map((c) => {
                         const d = byDay.get(c.key);
                         const live = d?.intervals.some((i) => i.live);
+                        const off = row.time_off.find((o) => o.date === c.key);
+                        if (!d && off) {
+                          return <td key={c.key} className="day" title={off.kind === 'CALL_OFF' ? `Called off: ${off.reason.replace(/_/g, ' ')}` : `Time off: ${off.reason.replace(/_/g, ' ')}`}>
+                            <span className={`tc-chip ${off.kind === 'CALL_OFF' ? 'anom' : ''}`}>OFF</span></td>;
+                        }
                         return <td key={c.key} className={`day${d ? '' : ' empty'}`}>{d ? (d.hours ? fmt(d.hours) : live ? 'on' : '0.00') : '·'}</td>;
                       })}
                       <td className="num">{fmt(row.total_hours)}</td>
@@ -414,6 +424,11 @@ function TimecardDrawer({ row, report, onClose, onChanged }: { row: Row; report:
           <div><div className="k">Overtime</div><div className="v" style={row.overtime_hours > 0 ? { color: '#E8590C' } : undefined}>{fmt(row.overtime_hours)}</div></div>
         </div>
         {row.hand_keyed && <p className="tc-notice">Contains time entered or changed by hand, with no clock-in behind it.</p>}
+        {row.time_off.length > 0 && (
+          <p className="tc-notice" style={{ background: '#F1F5F9', borderColor: '#E2E8F0', borderLeftColor: '#64748b', color: '#334155' }}>
+            Time off: {row.time_off.map((o) => `${dayLabel(o.date, { weekday: 'short', month: 'short', day: 'numeric' })} (${o.kind === 'CALL_OFF' ? 'called off' : 'approved'}, ${o.reason.replace(/_/g, ' ')})`).join(', ')}
+          </p>
+        )}
         {row.anomalies.map((a) => <p key={a} className="tc-notice">{a}</p>)}
 
         {row.days.length === 0 && <p className="tc-muted">No hours recorded in this period.</p>}
@@ -444,6 +459,7 @@ function TimecardDrawer({ row, report, onClose, onChanged }: { row: Row; report:
                       <span className="dur">{iv.live ? '' : `${fmt(iv.hours)} h`}</span>
                     </div>
                     <div className="sub">
+                      <LocationLinks iv={iv} />
                       {[iv.job?.name, iv.break_minutes ? `${iv.break_minutes} min break` : null, iv.notes].filter(Boolean).join(' · ')}
                       {iv.status === 'REJECTED' && iv.review_note && <span style={{ color: '#B3261E' }}> · Rejected: {iv.review_note}</span>}
                     </div>
@@ -498,6 +514,20 @@ function TimecardDrawer({ row, report, onClose, onChanged }: { row: Row; report:
       </div>
     </Drawer>
   );
+}
+
+// Where the phone was at each punch, as a map link.
+function LocationLinks({ iv }: { iv: Interval }) {
+  const link = (label: string, l: { lat: number; lng: number; acc: number | null }) => (
+    <a href={`https://www.google.com/maps/search/?api=1&query=${l.lat},${l.lng}`} target="_blank" rel="noreferrer"
+      style={{ color: '#1e40af', marginRight: 8 }} title={l.acc ? `Accurate to about ${l.acc} m` : undefined}>
+      {label} location
+    </a>
+  );
+  if (!iv.in_loc && !iv.out_loc) {
+    return iv.source === 'CREW' && iv.start ? <span style={{ marginRight: 8 }}>No location shared · </span> : null;
+  }
+  return <>{iv.in_loc && link('In', iv.in_loc)}{iv.out_loc && link('Out', iv.out_loc)}</>;
 }
 
 // ── Who is on the clock ─────────────────────────────────────────────────────

@@ -504,3 +504,84 @@ body {
 .tc-tools select, .tc-tools input { flex: 1 1 140px; min-width: 0; padding: 8px 10px; font-size: 13px; }
 .tc-table tr.long td.dur { color: #E8590C; font-weight: 700; }
 .tc-drawer .btn:disabled, .tc-foot .btn:disabled, .tc-controls .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── Crew app: punch screen and sheets (ported from Infinite Resources "My Time").
+   Built for a phone held in a gloved hand at 6am: one target big enough to hit
+   without looking, and no way to punch by brushing the screen. Clocking in is
+   green because it is the ordinary thing; clocking out is red because it ends
+   the paid day. */
+.crew-app { -webkit-tap-highlight-color: transparent; }
+.crew-lang { position: relative; display: inline-flex; align-items: center; gap: 4px; color: var(--text-tertiary); padding: 6px; }
+.crew-lang select { border: none; background: transparent; font-size: 13px; color: var(--text-secondary); padding: 2px 0; cursor: pointer; }
+.crew-login-lang { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 12px; z-index: 2; }
+.crew-dot { position: absolute; top: -6px; right: -10px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #D6392B; color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }
+
+.crew-whoami { text-align: center; padding: 4px 0 0; }
+.crew-whoami-name { font-size: 18px; font-weight: 600; }
+.crew-whoami-site { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+.crew-stage { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 18px 0 18px; -webkit-user-select: none; user-select: none; }
+.crew-status { text-align: center; color: var(--text-secondary); font-size: 15px; }
+.crew-status strong { display: block; color: var(--text-primary); font-size: 20px; font-weight: 600; margin-top: 2px; }
+.crew-status-job { display: block; margin-top: 4px; font-size: 14px; color: #1e40af; font-weight: 600; }
+.crew-holder { position: relative; width: min(64vw, 232px); aspect-ratio: 1; }
+.crew-holder svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.crew-holder .track { fill: none; stroke: #D6DEE7; stroke-width: 6; }
+.crew-holder .fill { fill: none; stroke: #00A32A; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 301; stroke-dashoffset: 301; transition: stroke-dashoffset 60ms linear; }
+.crew-holder.out .fill { stroke: #D6392B; }
+.crew-holder:not(.holding) .fill { opacity: 0; }
+.crew-hold {
+  position: absolute; inset: 14px; border-radius: 50%; border: 0; cursor: pointer;
+  background: #00A32A; color: #fff; font-weight: 700; font-size: clamp(17px, 4.4vw, 21px); line-height: 1.25;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; text-align: center;
+  box-shadow: 0 2px 10px rgba(0,163,42,.25); transition: transform .12s ease, background .12s ease;
+  touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+}
+.crew-holder.out .crew-hold { background: #D6392B; box-shadow: 0 2px 10px rgba(214,57,43,.25); }
+.crew-holder.holding .crew-hold { transform: scale(.965); }
+.crew-hold:disabled { opacity: .45; box-shadow: none; }
+.crew-hint { color: var(--text-secondary); font-size: 14px; text-align: center; max-width: 26ch; margin: 0; min-height: 20px; }
+.crew-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-secondary); }
+.crew-pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #00A32A; }
+.crew-pill.offline::before { background: #B45309; }
+
+.crew-result { min-height: 70dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+.crew-mark { width: 88px; height: 88px; border-radius: 50%; display: grid; place-items: center; background: #00A32A; color: #fff; }
+.crew-mark.bad { background: #D6392B; }
+.crew-result h2 { font-size: 24px; font-weight: 700; }
+.crew-stamp { font-size: 34px; font-weight: 300; font-variant-numeric: tabular-nums; }
+.crew-result p { color: var(--text-secondary); max-width: 28ch; }
+
+.crew-choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.crew-choice { border: 1px solid #D6DEE7; border-radius: 11px; background: var(--surface); padding: 11px 4px; font-size: 13.5px; font-weight: 600; text-align: center; color: var(--text-primary); cursor: pointer; }
+.crew-choice[aria-pressed="true"] { border-color: #227FE3; background: #EBF3FD; color: #1a65c2; }
+
+.crew-action { width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 15px 16px; display: flex; flex-direction: column; gap: 2px; cursor: pointer; color: var(--text-primary); }
+.crew-action-k { font-weight: 600; font-size: 16px; }
+.crew-action-s { font-size: 13px; color: var(--text-secondary); }
+.crew-action.danger { border-color: #F3C7C2; background: #FEF5F4; }
+.crew-action.danger .crew-action-k { color: #B32C20; }
+.crew-off-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.crew-off-row:last-child { border-bottom: 0; }
+
+.crew-chip { display: inline-block; border-radius: 999px; padding: 3px 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.crew-chip.ok { background: #E7F6EB; color: #007A1F; }
+.crew-chip.wait { background: #EBF3FD; color: #1a65c2; }
+.crew-chip.no { background: #FDECEA; color: #B32C20; }
+.crew-chip.off { background: #F1F3F6; color: #6B7280; }
+
+.crew-sheet-wrap { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
+.crew-sheet-scrim { position: absolute; inset: 0; background: rgba(16,21,23,.45); }
+.crew-sheet { position: relative; width: 100%; max-width: 560px; max-height: 92dvh; overflow-y: auto; background: var(--surface); border-radius: 18px 18px 0 0; padding: 16px 18px calc(env(safe-area-inset-bottom) + 18px); animation: crew-rise .22s cubic-bezier(.2,.8,.3,1); }
+@keyframes crew-rise { from { transform: translateY(14px); opacity: .6 } to { transform: none; opacity: 1 } }
+.crew-grab { width: 34px; height: 4px; border-radius: 999px; background: #D6DEE7; margin: 0 auto 13px; }
+.crew-sheet h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.crew-lede { color: var(--text-secondary); font-size: 14px; margin-bottom: 16px; }
+.crew-field { display: block; margin-bottom: 14px; }
+.crew-field > span { display: block; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 6px; }
+.crew-sheet-actions { display: grid; gap: 8px; margin-top: 18px; }
+.crew-btn { width: 100%; padding: 15px; border: 0; border-radius: 12px; background: #227FE3; color: #fff; font-weight: 700; font-size: 16px; cursor: pointer; }
+.crew-btn.danger { background: #D6392B; }
+.crew-btn.quiet { background: var(--bg); color: var(--text-primary); border: 1px solid #D6DEE7; }
+.crew-btn:disabled { opacity: .5; }
+.crew-err { color: #D6392B; font-size: 14px; margin: 4px 0 0; }
+@media (prefers-reduced-motion: reduce) { .crew-holder .fill, .crew-hold, .crew-sheet { transition: none; animation: none; } }

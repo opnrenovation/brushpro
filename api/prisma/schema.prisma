@@ -838,6 +838,9 @@ model Employee {
   pay_stubs       PayStub[]
   job_assignments JobAssignment[]
   job_updates     JobCrewUpdate[]
+  time_off        TimeOffRequest[]
+  // Announcements newer than this show as unread in the crew app
+  news_read_at    DateTime?
 
   @@map("employees")
 }
@@ -856,26 +859,35 @@ enum TimeEntrySource {
 }
 
 model TimeEntry {
-  id            String          @id @default(cuid())
-  employee_id   String
-  job_id        String?
-  work_date     DateTime
+  id             String          @id @default(cuid())
+  employee_id    String
+  job_id         String?
+  work_date      DateTime
   // Total worked hours. 0 while the employee is still clocked in.
-  hours         Decimal         @db.Decimal(6, 2)
-  clock_in      DateTime?
-  clock_out     DateTime?
-  break_minutes Int             @default(0)
+  hours          Decimal         @db.Decimal(6, 2)
+  clock_in       DateTime?
+  clock_out      DateTime?
+  break_minutes  Int             @default(0)
   // Only APPROVED entries are paid. Crew entries start PENDING.
-  status        TimeEntryStatus @default(APPROVED)
-  source        TimeEntrySource @default(OWNER)
-  reviewed_at   DateTime?
-  reviewed_by   String?
-  review_note   String?
+  status         TimeEntryStatus @default(APPROVED)
+  source         TimeEntrySource @default(OWNER)
+  reviewed_at    DateTime?
+  reviewed_by    String?
+  review_note    String?
   // The office changed the times after the fact (shown as OFFICE EDIT)
-  office_edited Boolean         @default(false)
-  notes         String?
-  created_at    DateTime        @default(now())
-  updated_at    DateTime        @updatedAt
+  office_edited  Boolean         @default(false)
+  // Where the phone was at each punch (only when the crew member allowed it)
+  in_lat         Float?
+  in_lng         Float?
+  in_accuracy_m  Int?
+  out_lat        Float?
+  out_lng        Float?
+  out_accuracy_m Int?
+  // Punched with no signal and sent later from the phone's queue
+  synced_late    Boolean         @default(false)
+  notes          String?
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
 
   employee Employee @relation(fields: [employee_id], references: [id])
   job      Job?     @relation(fields: [job_id], references: [id])
@@ -1019,4 +1031,54 @@ model JobCrewUpdate {
 
   @@index([job_id, created_at])
   @@map("job_crew_updates")
+}
+
+// ─── Time off & announcements (crew app) ───────────────────────────────────
+
+enum TimeOffKind {
+  // "Can't make it today": reported, never up for approval
+  CALL_OFF
+  REQUEST
+}
+
+enum TimeOffStatus {
+  PENDING
+  APPROVED
+  DENIED
+  CANCELLED
+}
+
+model TimeOffRequest {
+  id            String        @id @default(cuid())
+  employee_id   String
+  kind          TimeOffKind
+  // Code such as sick, vacation, child_care; shown in each person's language
+  reason        String
+  starts_on     DateTime
+  ends_on       DateTime
+  note          String?
+  status        TimeOffStatus @default(PENDING)
+  decision_note String?
+  decided_at    DateTime?
+  decided_by    String?
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+
+  employee Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+
+  @@index([employee_id, starts_on])
+  @@index([status, starts_on])
+  @@map("time_off_requests")
+}
+
+model Announcement {
+  id           String   @id @default(cuid())
+  title        String
+  body         String
+  published_at DateTime @default(now())
+  created_by   String?
+  created_at   DateTime @default(now())
+
+  @@index([published_at])
+  @@map("announcements")
 }

@@ -23,8 +23,8 @@ crew.interceptors.response.use(
 export const crewApi = {
   login: (login: string, pin: string) => crew.post('/auth/login', { login, pin }),
   me: () => crew.get('/me'),
-  clockIn: (data: { job_id?: string; notes?: string }) => crew.post('/clock-in', data),
-  clockOut: (data: { break_minutes?: number; notes?: string }) => crew.post('/clock-out', data),
+  clockIn: (data: object) => crew.post('/clock-in', data),
+  clockOut: (data: object) => crew.post('/clock-out', data),
   switchJob: (data: { job_id?: string; break_minutes?: number }) => crew.post('/switch-job', data),
   timecard: (week?: string) => crew.get('/timecard', { params: week ? { week } : {} }),
   addTime: (data: unknown) => crew.post('/time-entries', data),
@@ -33,4 +33,10 @@ export const crewApi = {
   jobs: (all = false) => crew.get('/jobs', { params: all ? { all: '1' } : {} }),
   job: (id: string) => crew.get(`/jobs/${id}`),
   postUpdate: (id: string, data: { body: string; photo?: string }) => crew.post(`/jobs/${id}/updates`, data),
+  timeOff: () => crew.get('/time-off'),
+  requestTimeOff: (data: { kind: 'call_off' | 'request'; reason: string; starts_on?: string; ends_on?: string; note?: string }) =>
+    crew.post('/time-off', data),
+  cancelTimeOff: (id: string) => crew.post(`/time-off/${id}/cancel`),
+  announcements: () => crew.get('/announcements'),
+  markNewsRead: () => crew.post('/announcements/read'),
 };
